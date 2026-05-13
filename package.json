@@ -1,7 +1,6 @@
 {
   "name": "universal-ai-harness-framework",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "bin": {
     "harness": "./bin/harness.js"
