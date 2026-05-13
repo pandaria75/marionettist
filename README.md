@@ -1,5 +1,7 @@
 # Universal AI Harness Framework
 
+[中文版](./README.zh-CN.md)
+
 Reusable AI harness framework for project-level agent workflow, design knowledge, rules, task context, and review gates.
 
 ## Purpose
@@ -14,6 +16,11 @@ It provides:
 - core agent skills
 - `workspace-knowledge-manager` for design and architecture docs
 - `harness` CLI for init, sync, and diff
+
+## Core Concepts
+
+- **Design Philosophy:** Why we use a file-based harness and how it improves AI collaboration. See [docs/DESIGN.md](./docs/DESIGN.md).
+- **Usage Guidelines:** Best practices for project initialization, task management, and maintenance. See [docs/GUIDELINES.md](./docs/GUIDELINES.md).
 
 ## Install For Local Development
 
@@ -58,19 +65,22 @@ harness sync
 
 ## Target Project Usage
 
-After `harness init`, ask the active agent:
+The harness provides a structured lifecycle for tasks. Typical interaction sequence:
 
-```text
-使用 workspace-knowledge-manager init 为当前项目建立设计和架构知识体系。
-```
-
-For regular work, ask the agent to follow `AGENTS.md`.
-
-For documentation maintenance:
-
-```text
-使用 workspace-knowledge-manager review 检查当前 git diff 是否需要更新 docs/rules/knowledge-map。
-```
+1.  **Initialize Knowledge:**
+    ```text
+    Use workspace-knowledge-manager init to explore the project and build the initial design docs and rules.
+    ```
+2.  **Start a Task:**
+    ```text
+    Analyze this task and perform task-intake.
+    ```
+3.  **Plan (Tier M/L):** Use `requirement-freezer`, `implementation-slicer`, and `context-pack-builder` as guided by the agent.
+4.  **Execute:** The agent implements code in slices, stopping for confirmation at each **Gate**.
+5.  **Review & Sync:**
+    ```text
+    Use boundary-reviewer to check my changes, then use workspace-knowledge-manager review to sync docs.
+    ```
 
 ## Knowledge Policy
 
