@@ -1,0 +1,22 @@
+project:
+  name: "{{PROJECT_NAME}}"
+  type: "unknown"
+  architecture: "unknown"
+  primaryLanguage: "unknown"
+
+paths:
+  docs: "docs"
+  rules: ".aiassistant/rules"
+  skills: ".agents/skills"
+  task: ".task"
+  knowledgeMap: "docs/project/knowledge-map.md"
+
+docs:
+  language: "zh-CN"
+  rulesLanguage: "en"
+  style: "design-and-architecture"
+
+validation:
+  defaultCommands: []
+
+riskZones: []

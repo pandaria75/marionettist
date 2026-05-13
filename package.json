@@ -1,0 +1,15 @@
+{
+  "name": "universal-ai-harness-framework",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "harness": "./bin/harness.js"
+  },
+  "scripts": {
+    "smoke": "node ./scripts/smoke.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
