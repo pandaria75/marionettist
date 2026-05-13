@@ -4,7 +4,8 @@ export function parseCommonArgs(args) {
   const options = {
     project: process.cwd(),
     dryRun: false,
-    force: false
+    force: false,
+    auto: false
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -27,6 +28,11 @@ export function parseCommonArgs(args) {
 
     if (arg === "--force") {
       options.force = true;
+      continue;
+    }
+
+    if (arg === "--auto") {
+      options.auto = true;
       continue;
     }
 

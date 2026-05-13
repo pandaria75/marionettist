@@ -16,12 +16,12 @@ try {
   await fs.rm(dryRunProject, { recursive: true, force: true });
   await fs.rm(project, { recursive: true, force: true });
 
-  const dryRunOutput = await harness("init", "--project", dryRunProject, "--dry-run");
+  const dryRunOutput = await harness("init", "--project", dryRunProject, "--dry-run", "--auto");
   assertIncludes(dryRunOutput, "new-managed: AGENTS.md");
   assertIncludes(dryRunOutput, "manifest-preview: .harness/manifest.json");
   assert(!(await pathExists(dryRunProject)), "init --dry-run must not create the target project directory");
 
-  const initOutput = await harness("init", "--project", project);
+  const initOutput = await harness("init", "--project", project, "--auto");
   assertIncludes(initOutput, "write-manifest: .harness/manifest.json");
 
   const manifestPath = path.join(project, ".harness", "manifest.json");

@@ -15,9 +15,7 @@ const templateTargets = new Map([
   ["rules/workflow-rules.md", ".aiassistant/rules/workflow-rules.md"]
 ]);
 
-async function buildFrameworkAssets(projectPath) {
-  const projectName = path.basename(projectPath);
-  const variables = { projectName };
+async function buildFrameworkAssets(projectPath, variables = {}) {
   const assets = [];
 
   for (const [sourceRelative, targetRelative] of templateTargets.entries()) {
@@ -97,7 +95,7 @@ function shouldManageInitAsset(asset, exists) {
   return !exists || asset.kind === "managed-block";
 }
 
-async function operationForAsset(asset, mode, previousByPath) {
+async function operationForAsset(asset, mode, previousByPath, options = {}) {
   const exists = await pathExists(asset.targetPath);
   const currentContent = exists ? await readText(asset.targetPath) : null;
   const currentManaged = exists ? currentManagedContent(asset, currentContent) : null;
@@ -106,16 +104,32 @@ async function operationForAsset(asset, mode, previousByPath) {
 
   if (mode === "init") {
     let status = exists ? "skip-project-local" : "new-managed";
+    let action = status;
     let content = asset.content;
     let managed = shouldManageInitAsset(asset, exists);
 
+    if (exists) {
+      const strategy = options.conflictStrategies?.[asset.targetRelative];
+      if (strategy === "backup") {
+        status = "backup-and-write";
+        action = "backup-and-write";
+        managed = true;
+      } else if (strategy === "overwrite") {
+        status = "overwrite-local";
+        action = "overwrite-local";
+        managed = true;
+      }
+    }
+
     if (asset.kind === "file" && exists && currentHash === asset.frameworkHash) {
       status = "unchanged";
+      action = "unchanged";
       managed = true;
     }
 
-    if (asset.kind === "managed-block" && exists) {
+    if (asset.kind === "managed-block" && exists && status !== "backup-and-write" && status !== "overwrite-local") {
       status = currentHash === asset.frameworkHash ? "unchanged" : "update-managed-block";
+      action = status;
       content = plannedContent(asset, currentContent);
     }
 
@@ -127,7 +141,7 @@ async function operationForAsset(asset, mode, previousByPath) {
       currentHash,
       previousHash: previous?.hash ?? null,
       status,
-      action: status,
+      action,
       managed
     };
   }
@@ -199,11 +213,11 @@ export async function buildPlan(projectPath, mode, options = {}) {
 
   const previousByPath = manifestFileMap(previousManifest);
   const operations = [];
-  const assets = await buildFrameworkAssets(projectPath);
+  const assets = await buildFrameworkAssets(projectPath, options.variables);
   const assetPaths = new Set(assets.map((asset) => asset.targetRelative));
 
   for (const asset of assets) {
-    operations.push(await operationForAsset(asset, mode, previousByPath));
+    operations.push(await operationForAsset(asset, mode, previousByPath, options));
   }
 
   if (previousManifest) {

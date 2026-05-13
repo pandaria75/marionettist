@@ -1,8 +1,8 @@
 project:
   name: "{{PROJECT_NAME}}"
-  type: "unknown"
-  architecture: "unknown"
-  primaryLanguage: "unknown"
+  type: "{{PROJECT_TYPE}}"
+  architecture: "{{ARCHITECTURE}}"
+  primaryLanguage: "{{PRIMARY_LANGUAGE}}"
 
 paths:
   docs: "docs"

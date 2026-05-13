@@ -5,7 +5,9 @@ const defaultWritableStatuses = new Set([
   "new-managed",
   "missing",
   "update",
-  "update-managed-block"
+  "update-managed-block",
+  "backup-and-write",
+  "overwrite-local"
 ]);
 
 export async function applyPlan(plan, options) {
@@ -24,6 +26,14 @@ export async function applyPlan(plan, options) {
 
     if (!shouldWrite(operation, options)) {
       continue;
+    }
+
+    if (operation.action === "backup-and-write" && !options.dryRun) {
+      try {
+        await fs.rename(operation.targetPath, `${operation.targetPath}.bak`);
+      } catch (e) {
+        // Ignore if file doesn't exist or other rename errors
+      }
     }
 
     await writeText(operation.targetPath, operation.content, options);
