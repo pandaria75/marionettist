@@ -255,11 +255,13 @@ OpenCode support is intentionally secondary.
 When a team enables `--with-opencode`, the framework installs project-local scaffolding such as:
 
 - starter slash commands
-- local agent role definitions
+- local agent role definitions, each with independent model assignment
 - validator guidance
 - `opencode.jsonc` with project-level scheduler enablement
 
-This improves day-to-day ergonomics, especially for repeated harness flows. But the framework must remain understandable and usable without it.
+The primary design value of multi-agent roles is not parallelism. It is model tiering: letting the team assign the strongest model to analysis and planning, a cost-efficient model to coding and review, and the cheapest reliable model to indexer and validator utility tasks.
+
+OpenCode improves day-to-day ergonomics, especially for repeated harness flows. But the framework must remain understandable and usable without it.
 
 ## 9. Non-Goals
 

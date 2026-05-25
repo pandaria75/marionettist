@@ -163,7 +163,10 @@ OpenCode is optional, not required.
 
 The harness core works with plain repository files, standard prompts, and the installed skills. That is the primary model.
 
-OpenCode is recommended when you want faster execution through reusable slash commands, local agent roles, and validator scaffolding.
+OpenCode is recommended for two reasons:
+
+1. **Model tiering.** Multi-agent roles with independent model assignments let you match the right model to each job. Strong models handle requirement analysis and planning. Cost-efficient models handle coding and review. Cheap fast models handle indexer and validator utility work.
+2. **Faster execution.** Reusable slash commands, local agent roles, and validator scaffolding reduce repeated prompting overhead.
 
 When enabled, the framework installs editable local scaffolding rather than hard product behavior. Teams can adapt models, permissions, and validator strategy to their own environment.
 

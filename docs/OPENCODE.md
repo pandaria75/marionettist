@@ -12,14 +12,56 @@ The harness core remains:
 - skills as the workflow model
 - gates as the control mechanism
 
-OpenCode adds a more ergonomic local execution layer on top of that model.
+OpenCode adds a more ergonomic local execution layer on top of that model. Its real advantage over plain prompting lies in multi-agent roles with independent model assignments, giving every type of work a model that fits its capability demand and cost profile.
 
-## 1. When To Use OpenCode
+## 1. The Model-Tiering Strategy
 
-Use OpenCode when your team wants faster repeated execution of the harness flow through:
+Not every step in the harness flow needs the smartest model. The harness workflow naturally splits work across three capability tiers.
 
+Assign models the same way you would assign people: put your strongest reasoning where scope, risk, and design clarity matter most, and let cheaper fast models handle focused execution.
+
+**Tier 1 — Think**
+
+Jobs that need deep reasoning, ambiguity resolution, and scope decisions:
+
+| Agent | Why |
+| --- | --- |
+| `harness-builder` | Orchestrates the full flow, decides task tier, interprets gate reports, and keeps the task from drifting |
+| `harness-planner` | Freezes requirements, slices work, and designs the validation strategy |
+
+Assign your strongest, most capable model here. This work determines whether the rest of the flow succeeds.
+
+**Tier 2 — Build**
+
+Jobs that need consistent execution but not deep original reasoning:
+
+| Agent | Why |
+| --- | --- |
+| `harness-coder` | Implements the approved slice or group within allowed scope |
+| `harness-reviewer` | Checks scope, boundaries, validation, and docs sync against an approved plan |
+
+Use a capable but cost-efficient model here. These agents work from explicit constraints already captured in `.task/context-pack.md` and the implementation plan.
+
+**Tier 3 — Run**
+
+Jobs that need fast, reliable tool execution with minimal reasoning:
+
+| Agent | Why |
+| --- | --- |
+| `harness-indexer` | Explores the repository read-only for docs, rules, and entrypoints |
+| `harness-validator` | Runs build, compile, test, lint, and returns concise diagnostics |
+
+Use the cheapest model that reliably follows a defined instruction set. Speed and low cost matter more than reasoning depth.
+
+This three-tier split is the primary reason multi-agent OpenCode scaffolding exists. It is not about distributing work across agents for parallelism. It is about matching model capability and cost to the actual demand of each job.
+
+## 2. When To Use OpenCode
+
+Use OpenCode when your team wants:
+
+- model-tiering that matches the right model to each harness step
 - slash commands for common task entrypoints
-- local agent role definitions
+- local agent role definitions with per-role model assignment
 - reusable validator scaffolding
 - project-level scheduler-aware setup through `opencode-tasks`
 
@@ -27,7 +69,7 @@ Do not treat OpenCode as the source of truth.
 
 If `.opencode/` is removed, the repository should still be understandable and usable through `AGENTS.md`, rules, docs, `.task/`, and the installed skills.
 
-## 2. Install Or Backfill
+## 3. Install Or Backfill
 
 Install OpenCode scaffolding during project setup:
 
@@ -49,7 +91,7 @@ harness init --with-opencode
 
 When these assets are installed, later `harness diff` and `harness sync` runs treat them as framework-managed files through the manifest.
 
-## 3. What Gets Installed
+## 4. What Gets Installed
 
 Typical files:
 
@@ -71,23 +113,23 @@ These are editable local defaults, not locked product behavior.
 
 The framework also installs a project-local `opencode.jsonc` that enables `opencode-tasks`.
 
-## 4. How OpenCode Fits The Harness
+## 5. How OpenCode Fits The Harness
 
 OpenCode should follow the same harness method already defined by repository files.
 
 The expected mapping is:
 
 1. slash command or direct prompt starts the correct flow
-2. builder runs analysis
+2. builder runs analysis (Tier 1 model)
 3. builder stops at the analysis gate for non-trivial work
 4. builder selects the current approved slice or group
-5. coder implements that approved work only
-6. reviewer checks that same approved work immediately after coding
+5. coder implements that approved work only (Tier 2 model)
+6. reviewer checks that same approved work immediately after coding (Tier 2 model)
 7. builder stops at the next slice gate
 
 OpenCode should make this flow easier to execute. It should not weaken the gate model.
 
-## 5. Slash Commands
+## 6. Slash Commands
 
 ### `/harness-feature`
 
@@ -137,18 +179,18 @@ Expected behavior:
 - update context only
 - not authorize coding by itself
 
-## 6. Agent Roles
+## 7. Agent Roles
 
-| Agent | Role |
-| --- | --- |
-| `harness-builder` | Primary orchestrator. Runs analysis, enforces gates, selects the approved slice, calls coder, reviewer, and validator, and stops for confirmation. |
-| `harness-indexer` | Read-only repository explorer for docs, rules, boundaries, and workflow entrypoints. |
-| `harness-planner` | Creates requirements, implementation slices, validation strategy, and context-pack planning. |
-| `harness-coder` | Implements only the current approved slice or approved group. |
-| `harness-reviewer` | Reviews boundary safety, actual scope, validation coverage, and docs or rules sync needs. |
-| `harness-validator` | Runs build, compile, test, lint, or other validation commands and returns concise diagnostics. |
+| Agent | Role | Model Tier |
+| --- | --- | --- |
+| `harness-builder` | Primary orchestrator. Runs analysis, enforces gates, selects the approved slice, calls other agents, and stops for confirmation. | Tier 1 |
+| `harness-planner` | Creates requirements, implementation slices, validation strategy, and context-pack planning. | Tier 1 |
+| `harness-coder` | Implements only the current approved slice or approved group. | Tier 2 |
+| `harness-reviewer` | Reviews boundary safety, actual scope, validation coverage, and docs or rules sync needs. | Tier 2 |
+| `harness-indexer` | Read-only repository explorer for docs, rules, boundaries, and workflow entrypoints. | Tier 3 |
+| `harness-validator` | Runs build, compile, test, lint, or other validation commands and returns concise diagnostics. | Tier 3 |
 
-## 7. Gate Behavior
+## 8. Gate Behavior
 
 OpenCode flows must obey the same non-trivial task gates as the harness itself.
 
@@ -175,20 +217,25 @@ start the next approved slice
 
 If the same slice remains `BLOCKED` after three total review attempts, stop and ask the user to decide the next step.
 
-## 8. Model And Permission Customization
+## 9. Model And Permission Customization
 
-The installed `.opencode/agents/*.md` files contain example values only.
+The installed `.opencode/agents/*.md` files contain example values only. Each agent role has its own file where you set the model.
 
-Recommended adjustments:
+Start from the three-tier strategy and tune it to your team's available models and budget:
 
-- use your strongest model for `harness-builder` and `harness-reviewer`
-- use cheaper or smaller models for `harness-indexer` and `harness-validator` when appropriate
-- keep validator and reviewer `temperature` low
+- Tier 1 (builder, planner): strongest reasoning model available
+- Tier 2 (coder, reviewer): capable model with good cost-performance ratio
+- Tier 3 (indexer, validator): cheapest model that can reliably follow tool instructions
+
+Additional settings:
+
+- keep validator and reviewer `temperature` low for deterministic output
 - inspect `permission` blocks before enabling shell, edit, or task delegation
+- Tier 3 agents often need fewer permissions than Tier 1 agents
 
 Treat these files as team-local scaffolding unless your team intentionally wants shared defaults.
 
-## 9. Validator Behavior
+## 10. Validator Behavior
 
 The validator template is project-type-aware:
 
@@ -211,7 +258,7 @@ Useful artifacts include:
 - `stderr.log`
 - process id file when available
 
-## 10. Privacy And Versioning
+## 11. Privacy And Versioning
 
 Recommended defaults:
 

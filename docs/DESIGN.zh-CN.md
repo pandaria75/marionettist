@@ -255,9 +255,11 @@ OpenCode 支持被有意设计为次级能力。
 当团队启用 `--with-opencode` 时，framework 会安装项目本地脚手架，例如：
 
 - 起始 slash commands
-- 本地 agent 角色定义
+- 本地 agent 角色定义，每个角色可独立绑定模型
 - validator guidance
 - 带项目级调度启用配置的 `opencode.jsonc`
+
+多 agent 角色的设计价值不是并行，而是模型分层：把最强模型分配给分析和规划，把性价比模型分配给编码和 review，把最便宜的可靠模型分配给 indexer 和 validator 这类工具型任务。
 
 这些能力会显著提升日常使用效率，尤其适合重复执行 harness flow 的场景。但 framework 本身必须在没有它们的情况下也可理解、可使用。
 
