@@ -5,7 +5,7 @@ import { diffCommand } from "../commands/diff.js";
 const help = `Universal AI Harness Framework
 
 Usage:
-  harness init [--project <path>] [--dry-run] [--force]
+  harness init [--project <path>] [--dry-run] [--force] [--auto] [--with-opencode]
   harness sync [--project <path>] [--dry-run] [--force]
   harness diff [--project <path>]
   harness --help

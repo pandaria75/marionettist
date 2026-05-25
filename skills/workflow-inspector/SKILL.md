@@ -1,44 +1,64 @@
 ---
 name: workflow-inspector
-description: Analyze user-facing, backend, frontend-backend, event, task, or integration flows before changing workflow-sensitive behavior.
+description: Analyze repository flows, execution chains, orchestration paths, event-driven behavior, and frontend-backend integration paths. Use when a task involves process design, workflow-sensitive behavior, call-chain analysis, or cross-boundary flow impact.
 ---
 
 # Workflow Inspector
 
-Use this skill when a task may affect execution flow, orchestration, async processing, frontend-backend integration, state transitions, or external integrations.
+Use this skill to inspect execution chains and workflow impact. It should output workflow context, not a full implementation plan.
 
 ## Workflow
 
-1. Identify the flow entrypoint from the request, docs, routes, commands, events, jobs, or UI action.
-2. Read relevant knowledge-map entries.
-3. Load only required design docs and rules.
-4. Inspect source as needed for runtime evidence.
-5. Summarize current flow, proposed impact area, risks, and validation needs.
+1. Identify the likely functional entrypoint:
+   - controller, route, or API endpoint
+   - service or use case entrypoint
+   - stage, job, worker, or task runner
+   - event publisher or event listener
+   - frontend action or state transition
+   - integration or message boundary
+2. Read `docs/project/knowledge-map.md` when ownership, cross-area scope, or relevant docs/rules routing is unclear.
+3. Load only docs and rules relevant to the identified flow and involved areas.
+4. Do not duplicate knowledge-map indexes inside this skill.
+5. Inspect source files only after identifying the likely area and flow boundary.
+6. Output workflow context only.
+7. If the entrypoint or flow cannot be determined from docs and filenames, state the uncertainty explicitly and inspect the smallest relevant source area.
 
-## Output Format
+## Required Output Format
 
-```markdown
-# Workflow Summary
+```md
+# Workflow Inspection Result
 
 ## Entrypoint
 
-## Current Flow
+## Execution Chain
 
-## State Or Data Changes
+## Involved Areas
 
-## Integration Points
+## Key Nodes
 
-## Impacted Boundaries
+## Impact Range
 
-## Risks
+## Recommended Modification Order
 
-## Validation Needs
+## Risks And Boundary Constraints
 
 ## Uncertainty
 ```
+
+## Boundary With Other Skills
+
+- Use module-inspector when the task is mainly about area ownership or modifiability.
+- Use workflow-inspector when the task is mainly about execution flow, call chain, orchestration, event-driven behavior, or frontend-backend integration.
+- If both apply:
+  1. Use workflow-inspector to identify the execution chain.
+  2. Use module-inspector only for areas that need modification.
+- This skill should output workflow context, not a full implementation plan.
+- Use implementation-slicer after this skill if coding is required.
 
 ## Guardrails
 
 - Do not create code indexes.
 - Do not inspect unrelated flows.
+- Do not produce a full implementation plan.
+- Use implementation-slicer after this skill if coding is required.
 - Do not implement code.

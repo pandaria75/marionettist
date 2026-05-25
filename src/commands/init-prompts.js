@@ -1,4 +1,4 @@
-import { input, select } from "@inquirer/prompts";
+import { confirm, input, select } from "@inquirer/prompts";
 
 export async function promptConfig(defaultProjectName) {
   const projectName = await input({
@@ -46,5 +46,12 @@ export async function promptConflictStrategy(targetRelative) {
         value: "skip",
       },
     ],
+  });
+}
+
+export async function promptWithOpencode() {
+  return await confirm({
+    message: "Install optional OpenCode commands and agents?",
+    default: false,
   });
 }

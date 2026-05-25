@@ -2,25 +2,66 @@
 
 [中文版](./README.zh-CN.md)
 
-Reusable AI harness framework for project-level agent workflow, design knowledge, rules, task context, and review gates.
+Reusable file-based harness for repository-level AI collaboration.
 
-## Purpose
+It gives a project a durable collaboration contract for agents through:
 
-This repository is the upstream source for harness assets installed into other projects.
+- `AGENTS.md` as the repository entrypoint
+- `.aiassistant/rules/*.md` for enforceable constraints
+- `docs/**/*.md` for design knowledge and routing
+- `.task/` for requirement, plan, and context artifacts
+- `skills/*/SKILL.md` for lightweight workflow orchestration
+- `.harness/manifest.json` for safe framework upgrades
+- optional `.opencode/` scaffolding for command and agent automation
 
-It provides:
+## Who This Is For
 
-- `AGENTS.md` target-project template
-- lightweight harness workflow
-- project-neutral rules
-- core agent skills
-- `workspace-knowledge-manager` for design and architecture docs
-- `harness` CLI for init, sync, and diff
+- Framework maintainers evolving templates, skills, and CLI behavior
+- Project teams onboarding a repository with `harness init`
+- Developers who collaborate with agents in day-to-day work
 
-## Core Concepts
+## What The Harness Is
 
-- **Design Philosophy:** Why we use a file-based harness and how it improves AI collaboration. See [docs/DESIGN.md](./docs/DESIGN.md).
-- **Usage Guidelines:** Best practices for project initialization, task management, and maintenance. See [docs/GUIDELINES.md](./docs/GUIDELINES.md).
+This framework is not a code generator, and it is not tied to one agent product.
+
+It installs a small set of repository files that make AI collaboration reviewable, repeatable, and upgradeable.
+
+The core idea is simple:
+
+1. Put durable constraints and knowledge in files.
+2. Let agents analyze before coding.
+3. Allow coding only from explicit task artifacts.
+4. Review the same slice immediately after implementation.
+5. Stop at gates before crossing phases or slices.
+
+See [docs/DESIGN.md](./docs/DESIGN.md) for the design model and [docs/GUIDELINES.md](./docs/GUIDELINES.md) for daily usage.
+
+## Core Workflow
+
+The harness workflow is a lightweight orchestration model built from reusable skills:
+
+```text
+task-intake
+  -> requirement-freezer
+  -> module-inspector / workflow-inspector
+  -> implementation-slicer
+  -> context-pack-builder
+  -> coding
+  -> boundary-reviewer
+  -> workspace-knowledge-manager review
+```
+
+The workflow is trimmed by task complexity:
+
+- Tier S: trivial low-risk change, direct coding and review
+- Tier M: analysis plus `.task/context-pack.md` before coding
+- Tier L: full requirement, slicing, gate, and review flow
+
+The key harness rule is the gate model:
+
+- stop after analysis, before coding
+- stop after each approved slice or approved parallel group
+- allow coding to flow directly into review only for that same approved slice or group
 
 ## Install For Local Development
 
@@ -36,19 +77,32 @@ Then from any target project:
 harness init
 ```
 
-Without linking, run directly:
+Without linking, run the CLI directly:
 
 ```powershell
-node E:\AI_WORK\universal-ai-harness-framework\bin\harness.js init --project .
+node /path/to/universal-ai-harness-framework/bin/harness.js init --project .
+```
+
+Windows example:
+
+```powershell
+node C:\path\to\universal-ai-harness-framework\bin\harness.js init --project .
 ```
 
 ## Commands
 
-Preview or install harness files:
+Initialize a project:
 
 ```powershell
 harness init --dry-run
 harness init
+```
+
+Initialize with recommended OpenCode scaffolding:
+
+```powershell
+harness init --dry-run --with-opencode
+harness init --with-opencode
 ```
 
 Preview framework-managed changes:
@@ -57,71 +111,99 @@ Preview framework-managed changes:
 harness diff
 ```
 
-Upgrade framework-managed files:
+Apply safe framework-managed updates:
 
 ```powershell
 harness sync
+harness sync --dry-run
 ```
 
-## Target Project Usage
+## What `harness init` Installs
 
-The harness provides a structured lifecycle for tasks. Typical interaction sequence:
+Core assets:
 
-1.  **Initialize Knowledge:**
-    ```text
-    Use workspace-knowledge-manager init to explore the project and build the initial design docs and rules.
-    ```
-2.  **Start a Task:**
-    ```text
-    Analyze this task and perform task-intake.
-    ```
-3.  **Plan (Tier M/L):** Use `requirement-freezer`, `implementation-slicer`, and `context-pack-builder` as guided by the agent.
-4.  **Execute:** The agent implements code in slices, stopping for confirmation at each **Gate**.
-5.  **Review & Sync:**
-    ```text
-    Use boundary-reviewer to check my changes, then use workspace-knowledge-manager review to sync docs.
-    ```
+- `AGENTS.md`
+- `harness.config.yaml`
+- `docs/project/harness-workflow.md`
+- `docs/project/knowledge-map.md`
+- `.aiassistant/rules/*.md`
+- `.agents/skills/*/SKILL.md`
+- `.task/`
+- `.harness/manifest.json`
 
-## Knowledge Policy
+Optional OpenCode assets when `--with-opencode` is used:
 
-Docs generated by this framework explain software design and architecture:
+- `opencode.jsonc`
+- `.opencode/commands/*.md`
+- `.opencode/agents/*.md`
+- `.opencode/README.md`
 
-- responsibilities
-- functional behavior
-- workflows
-- domain concepts
-- extension points
-- risk boundaries
-- design constraints
+## Managed And Local Content
 
-Docs must not become source-code indexes. Use IDE tools, MCP tools, local search, or direct source inspection for code navigation.
+This framework is designed to evolve without taking ownership of project-local work.
 
-## Managed Vs Project-Local Content
+Framework-managed content is tracked in `.harness/manifest.json`.
 
-Framework-managed content can be updated by `harness sync`.
-
-Managed file ownership is recorded in `.harness/manifest.json`, including the framework version, install timestamps, managed file paths, source assets, content kind, and SHA-256 hashes.
-
-Project-local content must be preserved by default:
+Project-local content is preserved by default, including:
 
 - project-specific docs
 - project-specific rules
 - project-specific skills
-- `.task/`
-- local sections in `AGENTS.md`
+- `.task/` task artifacts
+- the `project-local` section in `AGENTS.md`
+- local `.opencode/` customization you choose not to standardize
 
-`harness diff` previews managed changes without writing files. `harness sync` updates unchanged or missing managed files, creates newly added managed files, and reports local modifications or conflicts instead of overwriting them by default.
+`harness diff` shows the plan without writing files.
 
-Managed file statuses:
+`harness sync` updates only content that is safe to update, and reports local modifications or conflicts instead of overwriting them by default.
 
-- `unchanged`: local managed content still matches the last installed hash.
-- `new-managed`: framework has a managed asset not yet present in the project.
-- `missing`: a previously managed file is missing and can be recreated.
-- `update`: local content is unchanged and framework content changed, so sync can update it.
-- `modified-local`: local managed content changed; sync reports it without overwriting by default.
-- `conflict`: both local managed content and framework content changed since the last manifest.
-- `orphan-managed`: manifest still tracks a file that the current framework no longer ships; sync reports it and does not delete it.
-- `skip-project-local`: a target path already exists but is not manifest-managed, so it is preserved.
+## Optional OpenCode
+
+OpenCode is optional, not required.
+
+The harness core works with plain repository files, standard prompts, and the installed skills. That is the primary model.
+
+OpenCode is recommended when you want faster execution through reusable slash commands, local agent roles, and validator scaffolding.
+
+When enabled, the framework installs editable local scaffolding rather than hard product behavior. Teams can adapt models, permissions, and validator strategy to their own environment.
+
+See [docs/OPENCODE.md](./docs/OPENCODE.md).
+
+## Knowledge Policy
+
+Harness docs are for design knowledge, not code indexing.
+
+Docs should explain:
+
+- responsibilities
+- behavior
+- workflows
+- domain concepts
+- boundaries
+- extension points
+- risk areas
+
+Docs should not become:
+
+- file trees
+- class inventories
+- function inventories
+- call-site indexes
+- mechanical source maps
+
+Use IDE tools, local search, or source inspection for code navigation.
+
+## Publishability
+
+Reusable framework assets must stay scrubbed of project-specific and machine-specific data.
+
+Do not publish:
+
+- personal usernames
+- workstation absolute paths
+- secrets or tokens
+- internal-only URLs
+- source-project branding copied into defaults
 
 ## Validation
 

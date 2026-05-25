@@ -5,7 +5,8 @@ export function parseCommonArgs(args) {
     project: process.cwd(),
     dryRun: false,
     force: false,
-    auto: false
+    auto: false,
+    withOpencode: null
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -33,6 +34,11 @@ export function parseCommonArgs(args) {
 
     if (arg === "--auto") {
       options.auto = true;
+      continue;
+    }
+
+    if (arg === "--with-opencode") {
+      options.withOpencode = true;
       continue;
     }
 

@@ -1,12 +1,12 @@
 import path from "node:path";
 import { listFiles, pathExists, readText, toPosixPath } from "./files.js";
-import { skillsRoot, templatesRoot, versionFile } from "./framework-paths.js";
+import { opencodeTemplatesRoot, skillsRoot, templatesRoot, versionFile } from "./framework-paths.js";
 import { renderTemplate } from "./template.js";
 import { extractManagedBlock, replaceManagedBlock } from "./managed-block.js";
 import { sha256 } from "./hash.js";
 import { buildManifest, manifestFileMap, manifestRelative, readManifest } from "./manifest.js";
 
-const templateTargets = new Map([
+const coreTemplateTargets = new Map([
   ["AGENTS.md", "AGENTS.md"],
   ["harness.config.yaml", "harness.config.yaml"],
   ["docs/project/harness-workflow.md", "docs/project/harness-workflow.md"],
@@ -15,10 +15,15 @@ const templateTargets = new Map([
   ["rules/workflow-rules.md", ".aiassistant/rules/workflow-rules.md"]
 ]);
 
-async function buildFrameworkAssets(projectPath, variables = {}) {
+const opencodeManagedPrefix = ".opencode/";
+const opencodeValidatorTemplatePrefix = "agents/validators/";
+const opencodeProjectConfigSource = "opencode.jsonc";
+
+async function buildFrameworkAssets(projectPath, options = {}) {
+  const variables = options.variables ?? {};
   const assets = [];
 
-  for (const [sourceRelative, targetRelative] of templateTargets.entries()) {
+  for (const [sourceRelative, targetRelative] of coreTemplateTargets.entries()) {
     const sourcePath = path.join(templatesRoot, sourceRelative);
     const content = renderTemplate(await readText(sourcePath), variables);
     const kind = targetRelative === "AGENTS.md" ? "managed-block" : "file";
@@ -54,7 +59,212 @@ async function buildFrameworkAssets(projectPath, variables = {}) {
     });
   }
 
+  if (options.includeOpencode) {
+    assets.push(...await buildOpencodeAssets(projectPath, variables));
+  }
+
   return assets;
+}
+
+async function buildOpencodeAssets(projectPath, variables = {}) {
+  const assets = [];
+  const opencodeFiles = await listFiles(opencodeTemplatesRoot);
+  const validatorProjectGuidance = await buildValidatorProjectGuidance(projectPath, variables);
+
+  for (const sourcePath of opencodeFiles) {
+    const sourceRelative = toPosixPath(path.relative(opencodeTemplatesRoot, sourcePath));
+    if (sourceRelative.startsWith(opencodeValidatorTemplatePrefix)) {
+      continue;
+    }
+
+    const targetRelative = sourceRelative === opencodeProjectConfigSource
+      ? sourceRelative
+      : toPosixPath(path.join(".opencode", sourceRelative));
+
+    let content = await readText(sourcePath);
+    if (sourceRelative === "agents/harness-validator.md") {
+      content = renderTemplate(content, {
+        ...variables,
+        validatorProjectGuidance
+      });
+    } else {
+      content = renderTemplate(content, variables);
+    }
+
+    assets.push({
+      sourceRelative: `templates/opencode/${sourceRelative}`,
+      targetRelative,
+      targetPath: path.join(projectPath, targetRelative),
+      kind: "file",
+      content,
+      managedContent: content,
+      frameworkHash: sha256(content)
+    });
+  }
+
+  return assets;
+}
+
+async function buildValidatorProjectGuidance(projectPath, variables = {}) {
+  const guidanceParts = [];
+  const genericFallback = await readText(path.join(opencodeTemplatesRoot, "agents", "validators", "generic-fallback.md"));
+  guidanceParts.push(genericFallback.trim());
+
+  guidanceParts.push([
+    "# Scheduled Validator Guidance",
+    "",
+    "- If `opencode.jsonc` enables `opencode-tasks` and the caller asks for recurring, unattended, or cron-style validation, prefer proposing an `opencode-tasks` schedule over an ad hoc loop.",
+    "- Do not modify user-global scheduler state or create recurring tasks unless the caller explicitly asks for scheduling.",
+    "- For normal one-off validation, continue to run the smallest relevant validation command directly."
+  ].join("\n"));
+
+  if (await detectGradleKotlinProject(projectPath, variables)) {
+    const gradleKotlin = await readText(path.join(opencodeTemplatesRoot, "agents", "validators", "gradle-kotlin.md"));
+    guidanceParts.push(gradleKotlin.trim());
+  }
+
+  if (await detectMavenProject(projectPath, variables)) {
+    const maven = await readText(path.join(opencodeTemplatesRoot, "agents", "validators", "maven.md"));
+    guidanceParts.push(maven.trim());
+  }
+
+  if (await detectNodeProject(projectPath, variables)) {
+    const node = await readText(path.join(opencodeTemplatesRoot, "agents", "validators", "node.md"));
+    guidanceParts.push(node.trim());
+  }
+
+  if (await detectPythonProject(projectPath, variables)) {
+    const python = await readText(path.join(opencodeTemplatesRoot, "agents", "validators", "python.md"));
+    guidanceParts.push(python.trim());
+  }
+
+  return guidanceParts.join("\n\n");
+}
+
+async function detectGradleKotlinProject(projectPath, variables = {}) {
+  const primaryLanguage = String(variables.primaryLanguage ?? "").toLowerCase();
+  const projectType = String(variables.projectType ?? "").toLowerCase();
+  const architecture = String(variables.architecture ?? "").toLowerCase();
+
+  if (primaryLanguage.includes("kotlin") || projectType.includes("gradle") || architecture.includes("gradle")) {
+    return true;
+  }
+
+  const gradleMarkers = [
+    "build.gradle",
+    "build.gradle.kts",
+    "settings.gradle",
+    "settings.gradle.kts",
+    "gradlew",
+    "gradlew.bat"
+  ];
+
+  for (const marker of gradleMarkers) {
+    if (await pathExists(path.join(projectPath, marker))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function detectMavenProject(projectPath, variables = {}) {
+  const projectType = String(variables.projectType ?? "").toLowerCase();
+  const architecture = String(variables.architecture ?? "").toLowerCase();
+
+  if (projectType.includes("maven") || projectType.includes("mvn") || architecture.includes("maven")) {
+    return true;
+  }
+
+  const mavenMarkers = [
+    "pom.xml",
+    "mvnw",
+    "mvnw.cmd",
+    ".mvn"
+  ];
+
+  for (const marker of mavenMarkers) {
+    if (await pathExists(path.join(projectPath, marker))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function detectNodeProject(projectPath, variables = {}) {
+  const primaryLanguage = String(variables.primaryLanguage ?? "").toLowerCase();
+  const projectType = String(variables.projectType ?? "").toLowerCase();
+  const architecture = String(variables.architecture ?? "").toLowerCase();
+
+  if (
+    primaryLanguage.includes("javascript")
+    || primaryLanguage.includes("typescript")
+    || primaryLanguage.includes("node")
+    || projectType.includes("node")
+    || projectType.includes("npm")
+    || projectType.includes("pnpm")
+    || projectType.includes("yarn")
+    || architecture.includes("node")
+  ) {
+    return true;
+  }
+
+  const nodeMarkers = [
+    "package.json",
+    "package-lock.json",
+    "npm-shrinkwrap.json",
+    "pnpm-lock.yaml",
+    "yarn.lock"
+  ];
+
+  for (const marker of nodeMarkers) {
+    if (await pathExists(path.join(projectPath, marker))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function detectPythonProject(projectPath, variables = {}) {
+  const primaryLanguage = String(variables.primaryLanguage ?? "").toLowerCase();
+  const projectType = String(variables.projectType ?? "").toLowerCase();
+  const architecture = String(variables.architecture ?? "").toLowerCase();
+
+  if (primaryLanguage.includes("python") || projectType.includes("python") || architecture.includes("python")) {
+    return true;
+  }
+
+  const pythonMarkers = [
+    "pyproject.toml",
+    "setup.py",
+    "setup.cfg",
+    "requirements.txt",
+    "tox.ini",
+    "noxfile.py",
+    "pytest.ini"
+  ];
+
+  for (const marker of pythonMarkers) {
+    if (await pathExists(path.join(projectPath, marker))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function shouldIncludeOpencodeAssets(previousManifest, options = {}) {
+  if (options.withOpencode === true) {
+    return true;
+  }
+
+  if (options.withOpencode === false) {
+    return false;
+  }
+
+  return previousManifest?.managedFiles?.some((file) => file.path.startsWith(opencodeManagedPrefix)) ?? false;
 }
 
 function currentManagedContent(asset, currentContent) {
@@ -213,7 +423,10 @@ export async function buildPlan(projectPath, mode, options = {}) {
 
   const previousByPath = manifestFileMap(previousManifest);
   const operations = [];
-  const assets = await buildFrameworkAssets(projectPath, options.variables);
+  const assets = await buildFrameworkAssets(projectPath, {
+    ...options,
+    includeOpencode: shouldIncludeOpencodeAssets(previousManifest, options)
+  });
   const assetPaths = new Set(assets.map((asset) => asset.targetRelative));
 
   for (const asset of assets) {

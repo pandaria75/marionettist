@@ -2,52 +2,42 @@
 
 [中文版](./GUIDELINES.zh-CN.md)
 
-This guide explains how to install Universal AI Harness Framework into a target project and how to use the harness workflow for agent analysis, implementation, review, and knowledge maintenance.
+This guide explains how to use the harness in a target project after installation.
 
-## 1. Audience
+It focuses on practical day-to-day collaboration with agents rather than framework internals.
 
-This guide is for two groups:
+## 1. Who Should Read This
 
-- Framework maintainers who work on this repository's CLI, templates, and core skills.
-- Target-project users who run `harness init`, `harness diff`, and `harness sync`, then collaborate with agents through the installed workflow.
+- Teams onboarding a repository with `harness init`
+- Developers using agents for feature work, bugfixes, refactors, and docs work
 
-If you only use the harness inside a target project, start from section 3.
+If you maintain the framework itself, also read [DESIGN.md](./DESIGN.md).
 
-## 2. Local Install
+## 2. Quick Start
 
-From this framework repository:
-
-```powershell
-npm link
-```
-
-Then from a target project:
-
-```powershell
-harness init
-```
-
-Without `npm link`, run the CLI directly:
-
-```powershell
-node E:\AI_WORK\universal-ai-harness-framework\bin\harness.js init --project .
-```
-
-## 3. Initialize A Target Project
-
-Preview first:
+Initialize the target project:
 
 ```powershell
 harness init --dry-run
-```
-
-Then write files:
-
-```powershell
 harness init
 ```
 
-Initialization creates or updates:
+Recommended setup with OpenCode scaffolding:
+
+```powershell
+harness init --dry-run --with-opencode
+harness init --with-opencode
+```
+
+After initialization, do these three things:
+
+1. Run `workspace-knowledge-manager init` to create the first project knowledge.
+2. Fill the `project-local` block in `AGENTS.md` with team-specific rules and defaults.
+3. Adjust `harness.config.yaml`, rules, and `docs/project/knowledge-map.md` for the real project.
+
+## 3. What To Expect After Init
+
+Core files:
 
 - `AGENTS.md`
 - `harness.config.yaml`
@@ -58,54 +48,18 @@ Initialization creates or updates:
 - `.task/`
 - `.harness/manifest.json`
 
-Defaults:
+Default behavior:
 
-- Existing project-local files are not overwritten directly.
-- `AGENTS.md` writes or updates only the harness managed block.
-- `.task/` is a target-project task directory and is not listed as a managed file.
-- `.harness/manifest.json` records framework-managed ownership and hashes.
+- existing project-local files are preserved
+- `AGENTS.md` updates only the managed block
+- `.task/` is local task state, not a managed file
+- future framework upgrades use the manifest to decide what is safe
 
-## 4. After Initialization
+## 4. The Working Model
 
-### 4.1 Generate Project Knowledge
+Use the harness as a controlled sequence, not as free-form continuous coding.
 
-Ask the agent in the target project:
-
-```text
-Use workspace-knowledge-manager init.
-
-Goals:
-- Read the current project structure, configuration, existing docs, and key source evidence.
-- Create or update docs/project/knowledge-map.md.
-- Create only high-value design, architecture, behavior, and boundary-rule documents.
-- Do not generate code indexes, file trees, class inventories, or function inventories.
-```
-
-### 4.2 Fill Project-local Rules
-
-Edit the project-local section in the target project's `AGENTS.md`:
-
-```html
-<!-- project-local:start -->
-...
-<!-- project-local:end -->
-```
-
-Use this section for team preferences, project-specific workflow rules, default validation commands, and risk-area notes. Avoid editing the managed block unless you accept that future sync may overwrite those edits.
-
-### 4.3 Tune Config And Rules
-
-Update these files for the target project:
-
-- `harness.config.yaml`
-- `.aiassistant/rules/*.md`
-- `docs/project/knowledge-map.md`
-
-Rules constrain behavior. Docs explain design. Do not duplicate the same content in both places.
-
-## 5. Daily Task Workflow
-
-Full workflow:
+The default flow is:
 
 ```text
 task-intake
@@ -118,21 +72,31 @@ task-intake
   -> workspace-knowledge-manager review
 ```
 
-Trim it by task complexity.
+Not every task needs every step. The harness trims the process by task tier.
 
-### 5.1 Tier S: Minor Change
+## 5. Task Tiers
 
-Use for:
+### 5.1 Tier S
 
-- single-file low-risk changes
-- copy, comment, or small config edits
-- clear formatting or typo fixes
-- local changes with enough existing context
+Use Tier S for one small low-risk change with clear scope.
 
-Prompt:
+Examples:
+
+- typo fix
+- comment or copy update
+- one-file config tweak
+- obvious low-risk local fix
+
+Flow:
 
 ```text
-This is a Tier S minor change.
+coding -> boundary-reviewer
+```
+
+Example prompt:
+
+```text
+This is a Tier S change.
 
 Task:
 <description>
@@ -141,28 +105,33 @@ Requirements:
 - Modify only relevant files.
 - Do not expand scope.
 - Preserve existing style.
-- When done, summarize the change and validation.
+- Summarize validation when done.
 ```
 
-### 5.2 Tier M: Standard Task
+### 5.2 Tier M
 
-Use for:
+Use Tier M for standard scoped work that needs analysis before safe coding.
 
-- clear bugfixes or features touching multiple files
-- work that needs rules and design docs before safe modification
-- tasks that need a compact context pack before coding
+Examples:
 
-Recommended flow:
+- feature touching a few files
+- bugfix needing code-path inspection
+- refactor with clear boundaries
+- docs update tied to behavior change
+
+Flow:
 
 ```text
 task-intake
-  -> module-inspector / workflow-inspector
+  -> module-inspector / workflow-inspector when needed
   -> context-pack-builder
   -> coding
   -> boundary-reviewer
 ```
 
-Prompt:
+Minimum rule: create `.task/context-pack.md` before coding.
+
+Example prompt:
 
 ```text
 I need to handle a standard task:
@@ -170,26 +139,28 @@ I need to handle a standard task:
 <task description>
 
 Follow the current repository harness workflow.
-Start with task-intake, and use module-inspector or workflow-inspector if needed.
+Start with task-intake.
 Create .task/context-pack.md before coding.
 Do not start coding yet.
 ```
 
-### 5.3 Tier L: Complex Task
+### 5.3 Tier L
 
-Use for:
+Use Tier L for complex or boundary-sensitive work.
 
-- unclear requirements, compatibility, or boundaries
-- cross-module or cross-subsystem changes
-- high-risk refactors
-- changes to public behavior, data models, external contracts, critical workflows, or permission boundaries
-- work requiring review or staged delivery
+Examples:
 
-Recommended flow:
+- unclear requirements or compatibility constraints
+- cross-module changes
+- public behavior or contract changes
+- high-risk refactor
+- staged delivery work
+
+Flow:
 
 ```text
 task-intake
-  -> requirement-freezer
+  -> requirement-freezer when needed
   -> module-inspector / workflow-inspector
   -> implementation-slicer
   -> context-pack-builder
@@ -198,7 +169,9 @@ task-intake
   -> workspace-knowledge-manager review
 ```
 
-Prompt:
+Minimum rule: code only from an approved slice.
+
+Example prompt:
 
 ```text
 I need to handle a complex task:
@@ -207,113 +180,23 @@ I need to handle a complex task:
 
 Follow the current repository harness workflow.
 Start with task-intake.
-If requirements, compatibility, or boundaries are unclear, use requirement-freezer.
-Before coding, create an implementation plan and .task/context-pack.md.
+If requirements or boundaries are unclear, use requirement-freezer.
+Create an implementation plan and .task/context-pack.md before coding.
 Do not start coding yet.
 ```
 
-## 6. Core Skills
+## 6. Gates
 
-### 6.1 task-intake
+For non-trivial work, gates are mandatory.
 
-Purpose: classify and route a new task.
+The agent must stop at:
 
-Expected output:
+- the end of analysis, before coding
+- the end of each approved slice or approved parallel group
 
-- Task Type
-- Tier
-- Current Understanding
-- Blocking Questions
-- Assumptions
-- Recommended Next Step
-- Guardrails
+The agent may move directly from coding into review only for the same approved slice or group.
 
-### 6.2 requirement-freezer
-
-Purpose: turn ambiguous requests into testable facts.
-
-Output:
-
-```text
-.task/<yyyy-MM-dd>/<task-name>.requirement.md
-```
-
-Use it for complex features, disputed behavior, unclear compatibility, or public contract changes.
-
-### 6.3 module-inspector
-
-Purpose: inspect module, directory, feature-area, or ownership boundaries.
-
-It should read `docs/project/knowledge-map.md`, then load only relevant docs, rules, and source evidence.
-
-### 6.4 workflow-inspector
-
-Purpose: analyze execution flows, state changes, async processing, frontend-backend interaction, external integrations, or task orchestration.
-
-It analyzes impact and risk. It does not create the full implementation plan.
-
-### 6.5 implementation-slicer
-
-Purpose: split an approved requirement or analysis result into small implementation slices.
-
-Output:
-
-```text
-.task/<yyyy-MM-dd>/<task-name>.implementation-plan.md
-```
-
-Each slice should define:
-
-- Goal
-- Allowed Modification Scope
-- Forbidden Scope
-- Steps
-- Validation
-- Done Criteria
-- Rollback Notes
-
-### 6.6 context-pack-builder
-
-Purpose: create the minimum coding context before implementation.
-
-Output:
-
-```text
-.task/context-pack.md
-```
-
-The context pack should include only what the current slice or approved group needs. It must not copy whole docs or source files.
-
-### 6.7 boundary-reviewer
-
-Purpose: check implemented changes against scope, rules, validation, and knowledge sync needs.
-
-Final recommendation must be one of:
-
-- `PASS`
-- `PASS_WITH_WARNINGS`
-- `BLOCKED`
-
-### 6.8 workspace-knowledge-manager
-
-Purpose: create and maintain design knowledge, architecture notes, boundary rules, and the knowledge map.
-
-Modes:
-
-- `init`: create the initial project knowledge structure.
-- `refresh`: periodically refresh design docs and rules.
-- `review`: decide whether implemented changes require docs or rules updates.
-- `topic`: document one capability, workflow, subsystem, or architecture concern.
-
-It must not output code index directories, file trees, class inventories, function inventories, or call-site indexes.
-
-## 7. Coding Gates
-
-Non-trivial tasks must stop at these gates:
-
-- analysis to coding
-- one slice or group to the next
-- coding to review
+It must not continue into the next slice automatically.
 
 Recommended gate report:
 
@@ -326,9 +209,134 @@ Recommended Next Step:
 User confirmation required to continue.
 ```
 
-If the agent crosses a gate and keeps coding, stop it and return to the current approved slice.
+## 7. The Main Skills
 
-## 8. Feature Workflow Example
+### 7.1 `task-intake`
+
+Use for the default entry into non-trivial work.
+
+It should:
+
+- classify task type
+- classify task tier
+- ask only blocking questions
+- choose the next harness step
+
+### 7.2 `requirement-freezer`
+
+Use when expected behavior, business rules, compatibility, or boundaries are unclear.
+
+Output:
+
+```text
+.task/<yyyy-MM-dd>/<task-name>.requirement.md
+```
+
+### 7.3 `module-inspector`
+
+Use when you need to understand a module, package, feature area, or dependency boundary.
+
+### 7.4 `workflow-inspector`
+
+Use when you need to understand execution flow, async behavior, orchestration, or integration flow.
+
+### 7.5 `implementation-slicer`
+
+Use to split complex approved work into small executable slices.
+
+Output:
+
+```text
+.task/<yyyy-MM-dd>/<task-name>.implementation-plan.md
+```
+
+### 7.6 `context-pack-builder`
+
+Use before coding to build the minimum working context.
+
+Output:
+
+```text
+.task/context-pack.md
+```
+
+It should capture only the current slice or approved group context, not whole docs or source files.
+
+### 7.7 `boundary-reviewer`
+
+Use immediately after implementation of the same approved slice.
+
+Final recommendation must be one of:
+
+- `PASS`
+- `PASS_WITH_WARNINGS`
+- `BLOCKED`
+
+### 7.8 `workspace-knowledge-manager`
+
+Use to create or maintain design docs, rules routing, and knowledge updates.
+
+Common modes:
+
+- `init`
+- `refresh`
+- `review`
+- `topic`
+
+## 8. The Core Task Artifacts
+
+### 8.1 Requirement Document
+
+Used when the task needs frozen requirements.
+
+Path:
+
+```text
+.task/<yyyy-MM-dd>/<task-name>.requirement.md
+```
+
+### 8.2 Implementation Plan
+
+Used when the task needs explicit slices.
+
+Path:
+
+```text
+.task/<yyyy-MM-dd>/<task-name>.implementation-plan.md
+```
+
+Each slice should define:
+
+- goal
+- allowed scope
+- forbidden scope
+- validation
+- done criteria
+
+### 8.3 Context Pack
+
+Used before coding for non-trivial implementation work.
+
+Path:
+
+```text
+.task/context-pack.md
+```
+
+It should include:
+
+- task goal
+- requirement and plan source
+- loaded docs and rules
+- allowed and forbidden scope
+- current approved slice or group
+- validation commands
+- assumptions
+- stop conditions
+
+## 9. Practical Examples
+
+### 9.1 New Feature
 
 ```text
 I want to build a new feature:
@@ -340,89 +348,7 @@ Start with task-intake.
 Do not start coding yet.
 ```
 
-After intent is clear:
-
-```text
-Use requirement-freezer.
-
-Input:
-<task-intake result>
-
-Output:
-.task/<yyyy-MM-dd>/<task-name>.requirement.md
-
-Requirements:
-- Keep only correctness or scope questions as Blocking Questions.
-- Put other uncertainty under Assumptions or Deferred Questions.
-- Do not write an implementation plan.
-- Do not code.
-```
-
-Slice the work:
-
-```text
-Use implementation-slicer.
-
-Input:
-.task/<yyyy-MM-dd>/<task-name>.requirement.md
-and the module-inspector / workflow-inspector results.
-
-Output:
-.task/<yyyy-MM-dd>/<task-name>.implementation-plan.md
-
-Requirements:
-- Split into small slices.
-- For every slice, define allowed scope, forbidden scope, validation, and done criteria.
-- Mark work as parallel-capable only when file ownership is independent and merge risk is explicit.
-- Do not code.
-```
-
-Before coding:
-
-```text
-Use context-pack-builder.
-
-Current slice:
-Slice <N>: <name>
-
-Output:
-.task/context-pack.md
-
-Requirements:
-- Keep only the context needed for the current slice.
-- Define allowed scope, forbidden scope, validation commands, and stop conditions.
-- Do not code.
-```
-
-Coding:
-
-```text
-Read AGENTS.md and .task/context-pack.md.
-
-Implement only the current approved slice.
-Do not expand requirements.
-Do not modify forbidden scope.
-When done, run or explain validation commands.
-After the current slice is complete, stop and wait for confirmation.
-Do not automatically move to the next slice or review.
-```
-
-Review:
-
-```text
-Use boundary-reviewer.
-
-Review the current diff against:
-- AGENTS.md
-- .task/context-pack.md
-- docs/project/knowledge-map.md
-- relevant rules/docs
-
-Output PASS / PASS_WITH_WARNINGS / BLOCKED.
-Do not modify code.
-```
-
-## 9. Bugfix Workflow Example
+### 9.2 Bugfix
 
 ```text
 I need to fix a bug:
@@ -437,24 +363,16 @@ Reproduction:
 <steps>
 
 Evidence:
-<logs, screenshots, failing test, or other evidence>
+<logs, failing test, screenshot, or other evidence>
 
-Follow the current repository bugfix harness workflow.
+Follow the current repository harness workflow.
 Start with task-intake.
 Prioritize confirming the reproduction path or failing test.
 Create .task/context-pack.md before coding.
 Do not start coding yet.
 ```
 
-Bugfixes usually do not need a full requirement-freezer step, but use it when:
-
-- expected behavior is unclear
-- correct behavior is disputed
-- compatibility is involved
-- external contracts, data contracts, or public behavior change
-- the fix changes design rules
-
-## 10. Refactor Workflow Example
+### 9.3 Refactor
 
 ```text
 I need to perform a refactor:
@@ -463,7 +381,7 @@ Goal:
 <refactor goal>
 
 Behavior that must stay unchanged:
-<behavior constraints>
+<constraints>
 
 Allowed modification scope:
 <scope>
@@ -476,35 +394,38 @@ Analyze boundary and workflow impact first.
 Do not start coding yet.
 ```
 
-Refactors must make these explicit:
+## 10. Documentation And Rules
 
-- behavior remains unchanged
-- modification scope is clear
-- validation is defined before coding
-- refactor and feature work are not mixed
+Keep the separation clear:
 
-## 11. Documentation And Knowledge Sync
+- docs explain design meaning
+- rules enforce behavior
 
-After implementation, ask:
+Docs should capture:
 
-```text
-Use workspace-knowledge-manager review.
-
-Check whether the current diff affects:
-- architecture
-- public behavior
-- feature design
-- workflow
+- responsibilities
+- workflows
 - domain concepts
-- module or directory boundaries
-- extension points
-- operational or compatibility constraints
+- boundaries
+- risk areas
 
-Only report whether docs/rules updates are needed.
-Do not modify docs unless I explicitly ask.
-```
+Docs should not become code indexes.
 
-Update docs only when design meaning changes. Do not create file lists or indexes just because source files were added, renamed, or moved.
+When docs or rules are added, moved, renamed, or deleted, update `docs/project/knowledge-map.md`.
+
+## 11. Optional OpenCode
+
+OpenCode is optional, but recommended when your team wants faster repeated execution of the harness flow.
+
+Typical benefits:
+
+- reusable slash commands such as `/harness-feature` and `/harness-bugfix`
+- local builder, coder, reviewer, and validator agent roles
+- project-level validator guidance and scheduler-aware scaffolding
+
+Treat `.opencode/` as editable local scaffolding, not as a locked system.
+
+For details, see [OPENCODE.md](./OPENCODE.md).
 
 ## 12. Upgrade And Sync
 
@@ -514,69 +435,24 @@ Preview framework-managed changes:
 harness diff
 ```
 
-Sync safe changes:
+Apply safe updates:
 
 ```powershell
 harness sync
-```
-
-Dry run:
-
-```powershell
 harness sync --dry-run
-```
-
-Force managed-file overwrite:
-
-```powershell
-harness sync --force
 ```
 
 Notes:
 
-- `--force` applies only to manifest-managed files.
-- `--force` does not delete project-local files.
-- `orphan-managed` is reported and not deleted.
-- `modified-local` and `conflict` are not overwritten by default.
-- `AGENTS.md` sync updates only the managed block.
+- local task artifacts stay local
+- local docs, rules, and skills are preserved by default
+- `AGENTS.md` updates only the managed block
+- local modifications and conflicts are reported instead of silently overwritten
 
-## 13. Managed Statuses
+## 13. Validation
 
-`harness diff` and `harness sync --dry-run` print a plan:
-
-- `unchanged`: local managed content did not change.
-- `new-managed`: framework added a managed file and the target project can create it.
-- `missing`: a previously installed managed file is missing and can be recreated.
-- `update`: local content is unchanged and framework content can safely update it.
-- `modified-local`: local content changed; do not overwrite by default.
-- `conflict`: local and framework content both changed; requires human judgment.
-- `orphan-managed`: manifest still tracks a file no longer shipped by the framework; report and do not delete.
-- `skip-project-local`: target path already contains a local file; preserve it.
-- `manifest-preview`: dry-run preview of the manifest write.
-
-## 14. Framework Maintenance Validation
-
-After changing CLI code, templates, or skills, run:
+When maintaining this framework, run:
 
 ```powershell
 npm run smoke
-```
-
-After changing templates or skills, also check project neutrality:
-
-```powershell
-rg -n "<source-project-term-1>|<source-project-term-2>|<source-project-technology>" templates skills README.md AGENTS.md package.json src scripts docs
-```
-
-Expected result: no matches. Default templates must not contain terms or technology assumptions from a source business project.
-
-## 15. One-line Principle
-
-```text
-Classify first, then define scope.
-Pack context before coding.
-Implement one slice at a time.
-Confirm between phases.
-Review boundaries after implementation.
-Put design knowledge in docs, and leave code indexes to IDE and search tools.
 ```
