@@ -65,6 +65,26 @@ The key harness rule is the gate model:
 
 ## Install For Local Development
 
+### Install from GitHub
+
+```powershell
+npm install -g github:pandaria75/universal-ai-harness-framework
+```
+
+Then from any target project:
+
+```powershell
+harness init
+```
+
+To upgrade to the latest version:
+
+```powershell
+npm install -g github:pandaria75/universal-ai-harness-framework#master
+```
+
+### Install from local clone
+
 From this repository:
 
 ```powershell
@@ -77,7 +97,7 @@ Then from any target project:
 harness init
 ```
 
-Without linking, run the CLI directly:
+Alternatively, run the CLI directly without linking:
 
 ```powershell
 node /path/to/universal-ai-harness-framework/bin/harness.js init --project .

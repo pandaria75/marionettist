@@ -65,6 +65,26 @@ task-intake
 
 ## 本地开发安装
 
+### 从 GitHub 安装
+
+```powershell
+npm install -g github:pandaria75/universal-ai-harness-framework
+```
+
+然后在任意目标项目中：
+
+```powershell
+harness init
+```
+
+升级到最新版本：
+
+```powershell
+npm install -g github:pandaria75/universal-ai-harness-framework#master
+```
+
+### 从本地仓库安装
+
 在本仓库中：
 
 ```powershell
