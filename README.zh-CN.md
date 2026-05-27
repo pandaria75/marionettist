@@ -54,7 +54,7 @@ task-intake
 流程会按任务复杂度裁剪：
 
 - Tier S：低风险小改动，直接编码并审查
-- Tier M：编码前完成分析并生成 `.task/context-pack.md`
+- Tier M：编码前完成分析并生成任务级 `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`
 - Tier L：完整需求冻结、切片、gate 与审查流程
 
 最关键的规则是 gate 机制：
@@ -137,6 +137,26 @@ harness diff
 harness sync
 harness sync --dry-run
 ```
+
+诊断目标项目的 harness 安装状态：
+
+```powershell
+harness doctor
+```
+
+`harness doctor` 检查 config、受管 `AGENTS.md` block、rules、knowledge map、`.task` 目录、可选 OpenCode 模板、skill frontmatter、模型 profiles 和当前活跃任务指针。
+
+## 任务状态
+
+非平凡任务按任务维度隔离。活跃任务由 `.task/active.json` 选定，持久化任务状态保存在 `.task/<yyyy-MM-dd>/<task-slug>/state.json`。
+
+新的 context pack 应写入 `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`。旧的 `.task/context-pack.md` 仅作为迁移回退路径。
+
+## 模型 Profiles
+
+`harness.config.yaml` 定义了稳定的模型 profiles：`think`、`build`、`review` 和 `run`。
+
+Skills 声明能力需求，如 `reasoning`、`coding`、`reflective` 或 `utility`。OpenCode agent 文件可能渲染具体的 `model` 字段，但这些值来自配置的 profiles，而不是在各个 skill 内部独立选择。
 
 ## `harness init` 会安装什么
 

@@ -68,8 +68,15 @@ async function buildFrameworkAssets(projectPath, options = {}) {
 
 async function buildOpencodeAssets(projectPath, variables = {}) {
   const assets = [];
+  const opencodeVariables = {
+    modelProfileThink: "openai/gpt-5.5",
+    modelProfileBuild: "openai/gpt-5.4",
+    modelProfileReview: "deepseek/deepseek-v4-pro",
+    modelProfileRun: "deepseek/deepseek-v4-flash",
+    ...variables
+  };
   const opencodeFiles = await listFiles(opencodeTemplatesRoot);
-  const validatorProjectGuidance = await buildValidatorProjectGuidance(projectPath, variables);
+  const validatorProjectGuidance = await buildValidatorProjectGuidance(projectPath, opencodeVariables);
 
   for (const sourcePath of opencodeFiles) {
     const sourceRelative = toPosixPath(path.relative(opencodeTemplatesRoot, sourcePath));
@@ -84,11 +91,11 @@ async function buildOpencodeAssets(projectPath, variables = {}) {
     let content = await readText(sourcePath);
     if (sourceRelative === "agents/harness-validator.md") {
       content = renderTemplate(content, {
-        ...variables,
+        ...opencodeVariables,
         validatorProjectGuidance
       });
     } else {
-      content = renderTemplate(content, variables);
+      content = renderTemplate(content, opencodeVariables);
     }
 
     assets.push({

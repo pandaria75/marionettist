@@ -1,7 +1,7 @@
 ---
 description: Read-only repository exploration for harness analysis, docs, boundaries, rules, and call paths
 mode: subagent
-model: deepseek/deepseek-v4-flash
+model: {{MODEL_PROFILE_RUN}}
 temperature: 0.0
 thinkingLevel: low
 permission:

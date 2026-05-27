@@ -29,6 +29,7 @@ The harness makes important collaboration state durable in repository files:
 - `.aiassistant/rules/*.md` defines enforceable constraints
 - `docs/**/*.md` explains design knowledge and boundary context
 - `.task/` holds requirement, plan, and coding context artifacts
+- `.task/active.json` and task-local `state.json` hold the current workflow state
 - `.harness/manifest.json` records framework-managed ownership
 
 Because these artifacts are plain files, they can be reviewed, versioned, synced, and read by different agents.
@@ -101,6 +102,7 @@ That is why the CLI uses a manifest-aware model:
 - `harness sync` updates only safe managed content by default
 - `AGENTS.md` is synced by managed block, preserving the local block
 - `--force` applies only to framework-managed assets
+- `harness doctor` validates the installed file contract without modifying the project
 
 ### 3.3 Minimal Durable Process
 
@@ -171,11 +173,15 @@ They start from classification, boundary reading, and artifact creation.
 
 Depending on the task, analysis may produce:
 
-- `.task/<yyyy-MM-dd>/<task-name>.requirement.md`
-- `.task/<yyyy-MM-dd>/<task-name>.implementation-plan.md`
-- `.task/context-pack.md`
+- `.task/active.json`
+- `.task/<yyyy-MM-dd>/<task-slug>/requirement.md`
+- `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md`
+- `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`
+- `.task/<yyyy-MM-dd>/<task-slug>/state.json`
 
 These files convert conversational intent into executable repository state.
+
+Legacy `.task/context-pack.md` can be read as a migration fallback, but new work should use the active task directory.
 
 ### 5.2 Slice-Based Execution
 
@@ -258,6 +264,10 @@ When a team enables `--with-opencode`, the framework installs project-local scaf
 - local agent role definitions, each with independent model assignment
 - validator guidance
 - `opencode.jsonc` with project-level scheduler enablement
+
+The `harness-builder` remains the primary orchestrator. Its core responsibility is state reading, gate decisions, subagent routing, result aggregation, and user confirmation at gates. Deep analysis, implementation, review, and validation should be delegated to bounded roles.
+
+Model selection is profile-driven. `harness.config.yaml` defines stable profiles named `think`, `build`, `review`, and `run`; optional OpenCode agent files render concrete model values from those profiles.
 
 The primary design value of multi-agent roles is not parallelism. It is model tiering: letting the team assign the strongest model to analysis and planning, a cost-efficient model to coding and review, and the cheapest reliable model to indexer and validator utility tasks.
 

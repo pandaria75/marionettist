@@ -5,13 +5,13 @@ These files are optional local OpenCode assets for repositories that want a harn
 ### What Is Included
 
 - `opencode.jsonc`: project-level OpenCode config that enables the `opencode-tasks` plugin.
-- `commands/*.md`: starter slash commands that route users into the harness workflow.
+- `commands/*.md`: starter slash commands that route users into the harness workflow, including status and continuation commands that read `.task/active.json`.
 - `agents/*.md`: starter agent definitions for builder, coder, indexer, planner, reviewer, and validator roles.
 - `agents/validators/*.md`: validator guidance variants you can copy from or adapt to your project type.
 
 ### Customization
 
-- Model defaults are examples only. Edit the `model` fields to match your local model availability and budget.
+- Model defaults are rendered from `harness.config.yaml` profiles. Update `models.profiles.think/build/review/run` first, then regenerate or manually align the agent `model` fields.
 - Permission settings are also examples. Tighten or relax them to fit your safety requirements.
 - Keep terminology aligned with your repository docs, rules, and `docs/project/knowledge-map.md`.
 

@@ -4,7 +4,7 @@ Use this guidance when the repository clearly uses Gradle and Kotlin or Java wit
 
 ## Command Selection
 
-1. Prefer explicit commands from the caller or `.task/context-pack.md`.
+1. Prefer explicit commands from the caller or `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`.
 2. Prefer Windows-compatible wrapper commands when working on Windows, such as `./gradlew.bat`.
 3. Choose the narrowest relevant task first.
 

@@ -11,6 +11,35 @@ paths:
   task: ".task"
   knowledgeMap: "docs/project/knowledge-map.md"
 
+taskState:
+  activeTask: ".task/active.json"
+  taskDirectoryPattern: ".task/<yyyy-MM-dd>/<task-slug>"
+  legacyContextPackFallback: ".task/context-pack.md"
+
+models:
+  requirementMapping:
+    reasoning: "think"
+    coding: "build"
+    reflective: "review"
+    utility: "run"
+  profiles:
+    think:
+      description: "Deep reasoning, planning, and gate decisions"
+      default: "openai/gpt-5.5"
+      fallback: "openai/gpt-5.4"
+    build:
+      description: "Focused coding and implementation from approved task context"
+      default: "openai/gpt-5.4"
+      fallback: "openai/gpt-5.4-mini"
+    review:
+      description: "Reflective, cautious, nuanced review"
+      default: "deepseek/deepseek-v4-pro"
+      fallback: "openai/gpt-5.5"
+    run:
+      description: "Fast utility work such as indexing and validation"
+      default: "deepseek/deepseek-v4-flash"
+      fallback: "openai/gpt-5.4-mini"
+
 docs:
   language: "zh-CN"
   rulesLanguage: "en"

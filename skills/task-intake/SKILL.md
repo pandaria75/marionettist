@@ -1,6 +1,10 @@
 ---
 name: task-intake
 description: Default lightweight entrypoint for non-trivial repository tasks, including feature development, bug fixing, refactoring, documentation updates, investigations, reviews, and workflow-sensitive work. Use when a new task starts and the harness flow has not started yet; use fast path when structured task artifacts or a clearly scoped ongoing slice are already provided.
+phase: analysis
+model_requirement: reasoning
+can_edit: true
+risk_level: low
 ---
 
 # Task Intake
@@ -12,9 +16,11 @@ Use this skill to collect task information and route the task into the lightweig
 If the user already provides structured task artifacts or a clearly scoped ongoing slice, do not ask the full intake questions.
 
 Structured task artifacts include:
-- `.task/<yyyy-MM-dd>/<task>.requirement.md`
-- `.task/<yyyy-MM-dd>/<task>.implementation-plan.md`
-- `.task/context-pack.md`
+- `.task/active.json`
+- `.task/<yyyy-MM-dd>/<task-slug>/state.json`
+- `.task/<yyyy-MM-dd>/<task-slug>/requirement.md`
+- `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md`
+- `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`
 
 Use the local task date for `<yyyy-MM-dd>`, for example `.task/2026-04-28/`.
 
@@ -39,7 +45,8 @@ For fast-path tasks:
 4. Ask only the minimum blocking questions required to choose the next workflow.
 5. Do not implement code.
 6. Do not create large documents unless the task requires them.
-7. Route to the correct next skill or workflow.
+7. For non-trivial new tasks, create a task directory `.task/<yyyy-MM-dd>/<task-slug>/` and point `.task/active.json` to it.
+8. Route to the correct next skill or workflow.
 
 ## Questions To Ask
 

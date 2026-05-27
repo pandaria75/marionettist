@@ -70,7 +70,7 @@ Use `task-intake` as the default entrypoint for non-trivial repository tasks. Us
 - **Tier S (Minor)**: Extremely limited scope such as a typo, comment tweak, or one-file low-risk fix.
   - *Flow*: Skip `.task/` documents and analysis skills. Proceed directly to coding, followed by review.
 - **Tier M (Standard)**: Small features, bugfixes, refactors, or documentation tasks with clear scope but more than trivial risk.
-  - *Flow*: Analysis plus `.task/context-pack.md`. `requirement-freezer` is optional and only used when behavior or business rules are unclear.
+  - *Flow*: Analysis plus task-scoped `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`. `requirement-freezer` is optional and only used when behavior or business rules are unclear.
 - **Tier L (Complex)**: Large features, sensitive refactors, multi-module work, workflow-sensitive changes, or tasks with boundary ambiguity.
   - *Flow*: Full harness flow (intake -> freezer when needed -> inspection -> slicer -> context-pack).
 
@@ -88,7 +88,7 @@ Use `task-intake` when:
 Skip `task-intake` when:
 - the user already provides a requirement document
 - the user already provides an implementation plan
-- the user already provides `.task/context-pack.md`
+- the user already provides `.task/active.json` and task-scoped `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`
 - the current task is already in progress and continuing an existing slice
 - the task is trivial and low-risk
 - the user explicitly instructs the agent to use another skill
@@ -104,7 +104,7 @@ After `task-intake`, route by task type:
 Read `docs/project/harness-workflow.md` for the detailed workflow.
 
 For non-trivial work, the default harness flow is:
-1. analysis: classify the task, inspect knowledge when needed, freeze requirements when needed, slice the work when needed, and create or update `.task/context-pack.md`
+1. analysis: classify the task, inspect knowledge when needed, freeze requirements when needed, slice the work when needed, and create or update `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`
 2. slice execution: implement only the current approved slice or approved parallel group, then automatically review that same slice or group
 3. finalization: report validation status, remaining risks, and any required knowledge or rules sync
 
@@ -114,7 +114,7 @@ After the analysis phase is complete, the agent must stop and wait for explicit 
 During slice execution, the agent may proceed directly from coding into review for the same approved slice or group without a separate user confirmation.
 If review fails for the current slice or group, the agent may plan and apply the smallest slice-local fix and re-run review up to 3 total review attempts before pausing for user decision.
 After each implementation-plan slice or approved parallel group passes review or exhausts the allowed retry attempts, the agent must stop and wait for explicit user confirmation before starting the next slice or group.
-Having `.task/context-pack.md` means the agent may skip repeated intake or analysis work when appropriate; it does not authorize automatic entry into coding.
+Having task-scoped `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` means the agent may skip repeated intake or analysis work when appropriate; it does not authorize automatic entry into coding.
 
 ## Harness Gates
 
@@ -134,7 +134,7 @@ At every harness gate, the agent must stop and report:
 
 When the completed work is a parallel group, the gate report must also include the group name, member slices, execution mode used, fallback order if used, shared files, and merge owner.
 
-Creating task documents or `.task/context-pack.md` does not authorize coding.
+Creating task documents or `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` does not authorize coding.
 
 Treat a task as trivial only when it is a single low-risk change with clear scope, no boundary ambiguity, no workflow impact, and no need for task documents. If any of those conditions is not clearly true, treat the task as non-trivial.
 
@@ -158,11 +158,18 @@ The primary agent remains responsible for:
 
 ## Task Context Policy
 
-For non-trivial implementation tasks, create or update `.task/context-pack.md` before coding. The context pack should stay compact and reference requirement or implementation documents instead of duplicating them when possible.
+For non-trivial implementation tasks, create or update `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` before coding. The context pack should stay compact and reference requirement or implementation documents instead of duplicating them when possible.
+
+The current task is selected by `.task/active.json`. A non-trivial task should use this structure:
+- `.task/active.json`
+- `.task/<yyyy-MM-dd>/<task-slug>/requirement.md`
+- `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md`
+- `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`
+- `.task/<yyyy-MM-dd>/<task-slug>/state.json`
 
 Generated requirement and implementation plan documents belong under the current local date directory:
-- `.task/<yyyy-MM-dd>/<task-name>.requirement.md`
-- `.task/<yyyy-MM-dd>/<task-name>.implementation-plan.md`
+- `.task/<yyyy-MM-dd>/<task-slug>/requirement.md`
+- `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md`
 
 Use the local task date for `<yyyy-MM-dd>`, for example `.task/2026-04-28/`.
 
@@ -188,14 +195,15 @@ The context pack should include:
 - Do not implement broad changes directly from conversation history.
 - Do not start coding until the user explicitly confirms moving from analysis to coding.
 - Implement from one of:
-  - `.task/<yyyy-MM-dd>/<task-name>.requirement.md`
-  - `.task/<yyyy-MM-dd>/<task-name>.implementation-plan.md`
-  - `.task/context-pack.md`
+  - `.task/<yyyy-MM-dd>/<task-slug>/requirement.md`
+  - `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md`
+  - `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`
 - Prefer small slices.
 - Implement only the currently approved slice or parallel group.
 - Do not expand task scope.
 - Confirm relevant boundaries before changing architecture-sensitive code.
 - Match existing naming, layout, and local patterns.
+- Legacy `.task/context-pack.md` may be read only as a migration fallback. If used, warn the user and recommend moving the context pack into the active task directory.
 
 ## Review Policy
 

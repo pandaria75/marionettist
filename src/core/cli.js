@@ -1,6 +1,7 @@
 import { initCommand } from "../commands/init.js";
 import { syncCommand } from "../commands/sync.js";
 import { diffCommand } from "../commands/diff.js";
+import { doctorCommand } from "../commands/doctor.js";
 
 const help = `Universal AI Harness Framework
 
@@ -8,6 +9,7 @@ Usage:
   harness init [--project <path>] [--dry-run] [--force] [--auto] [--with-opencode]
   harness sync [--project <path>] [--dry-run] [--force]
   harness diff [--project <path>]
+  harness doctor [--project <path>]
   harness --help
 `;
 
@@ -31,6 +33,11 @@ export async function runCli(args) {
 
   if (command === "diff") {
     await diffCommand(rest);
+    return;
+  }
+
+  if (command === "doctor") {
+    await doctorCommand(rest);
     return;
   }
 

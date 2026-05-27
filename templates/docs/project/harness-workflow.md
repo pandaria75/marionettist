@@ -7,7 +7,7 @@ This project uses a lightweight file-based harness so requirements, knowledge ro
 This project uses a branched harness workflow based on task complexity:
 
 1. **Tier S (Minor)**: Skip `.task/` documents and gates. Direct coding and review.
-2. **Tier M (Standard)**: Analysis plus `.task/context-pack.md` before coding. `requirement-freezer` is optional and only used when behavior or business rules are unclear.
+2. **Tier M (Standard)**: Analysis plus task-scoped `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` before coding. `requirement-freezer` is optional and only used when behavior or business rules are unclear.
 3. **Tier L (Complex)**: Full mandatory harness with analysis, approved slice execution, automatic slice review, and finalization.
 
 For Tier M and L, the agent must complete phases in order and must not automatically cross analysis or inter-slice gates.
@@ -20,14 +20,16 @@ The agent may perform any of the following as needed:
 - use `workflow-inspector` when execution flow or workflow impact is important
 - use `module-inspector` when module ownership, modifiability, or dependency direction is unclear
 - use `implementation-slicer` to convert requirements or goals into slices
-- use `context-pack-builder` to create `.task/context-pack.md` before coding
+- use `context-pack-builder` to create `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` before coding
 
 **Bugfix Fast-Track**: For bug fixes, the analysis phase is considered complete once a failing test case or clear reproduction steps are confirmed. Formal requirement freezing is usually bypassed unless expected behavior is unclear.
 
 The analysis phase may produce:
-- `.task/<yyyy-MM-dd>/*.requirement.md`
-- `.task/<yyyy-MM-dd>/*.implementation-plan.md`
-- `.task/context-pack.md`
+- `.task/active.json`
+- `.task/<yyyy-MM-dd>/<task-slug>/requirement.md`
+- `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md`
+- `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`
+- `.task/<yyyy-MM-dd>/<task-slug>/state.json`
 
 When analysis is complete, the agent must stop and wait for explicit user confirmation before starting coding, except Tier S.
 
@@ -148,8 +150,12 @@ Rules define enforceable constraints. When adding, moving, renaming, or deleting
 - `.aiassistant/rules/*.md` contains enforceable agent constraints.
 - `docs/**/*.md` contains project knowledge and architecture explanations.
 - `docs/project/knowledge-map.md` is the routing index for ownership, docs, rules, and boundary notes.
-- `.task/<yyyy-MM-dd>/*.requirement.md` freezes task requirements.
-- `.task/<yyyy-MM-dd>/*.implementation-plan.md` defines executable implementation slices.
-- `.task/context-pack.md` contains the compact context for the current coding slice or approved parallel group.
+- `.task/active.json` selects the current task and records phase, gate, and next-command summary.
+- `.task/<yyyy-MM-dd>/<task-slug>/requirement.md` freezes task requirements.
+- `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md` defines executable implementation slices.
+- `.task/<yyyy-MM-dd>/<task-slug>/state.json` records durable task phase, status, gates, files, and current slice.
+- `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` contains the compact context for the current coding slice or approved parallel group.
 
 Use the local task date for `<yyyy-MM-dd>`, for example `.task/2026-04-28/`. Keep task docs concise. Prefer references and distilled summaries over copying full source documents.
+
+Legacy `.task/context-pack.md` is supported only as a migration fallback. Prefer the active task directory for all new context packs.

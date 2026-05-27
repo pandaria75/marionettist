@@ -4,5 +4,9 @@ node_modules
 .env
 .gemini
 .agents
+.task
 dist
 build
+.idea
+$null
+.antigravitycli

@@ -4,7 +4,7 @@ Use this guidance when the repository stack is unknown or when no project-specif
 
 ## Selection Rules
 
-1. Prefer explicit commands from the caller or `.task/context-pack.md`.
+1. Prefer explicit commands from the caller or `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`.
 2. If no explicit command exists, inspect the repository only enough to identify the native validation entrypoint.
 3. Choose the narrowest non-destructive command that validates the approved slice.
 4. Avoid full-suite validation unless the caller requests it or the slice risk requires it.
@@ -15,7 +15,7 @@ Use this guidance when the repository stack is unknown or when no project-specif
 - `package.json` scripts
 - `Makefile` targets
 - language or build-tool wrappers committed to the repository
-- repository-specific validation scripts documented in `AGENTS.md`, rules, or `.task/context-pack.md`
+- repository-specific validation scripts documented in `AGENTS.md`, rules, or `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`
 
 ## Reporting
 

@@ -26,7 +26,7 @@ Jobs that need deep reasoning, ambiguity resolution, and scope decisions:
 
 | Agent | Why |
 | --- | --- |
-| `harness-builder` | Orchestrates the full flow, decides task tier, interprets gate reports, and keeps the task from drifting |
+| `harness-builder` | Orchestrates the full flow, reads active task state, interprets gate reports, routes subagents, and keeps the task from drifting |
 | `harness-planner` | Freezes requirements, slices work, and designs the validation strategy |
 
 Assign your strongest, most capable model here. This work determines whether the rest of the flow succeeds.
@@ -40,7 +40,7 @@ Jobs that need consistent execution but not deep original reasoning:
 | `harness-coder` | Implements the approved slice or group within allowed scope |
 | `harness-reviewer` | Checks scope, boundaries, validation, and docs sync against an approved plan |
 
-Use a capable but cost-efficient model here. These agents work from explicit constraints already captured in `.task/context-pack.md` and the implementation plan.
+Use a capable but cost-efficient model here. These agents work from explicit constraints already captured in `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` and the implementation plan.
 
 **Tier 3 — Run**
 
@@ -101,6 +101,8 @@ Typical files:
 - `.opencode/commands/harness-refactor.md`
 - `.opencode/commands/harness-docs.md`
 - `.opencode/commands/harness-context.md`
+- `.opencode/commands/harness-status.md`
+- `.opencode/commands/harness-continue.md`
 - `.opencode/agents/harness-builder.md`
 - `.opencode/agents/harness-coder.md`
 - `.opencode/agents/harness-indexer.md`
@@ -171,7 +173,7 @@ Expected behavior:
 
 ### `/harness-context`
 
-Use to rebuild or refresh `.task/context-pack.md`.
+Use to rebuild or refresh `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`.
 
 Expected behavior:
 
@@ -179,11 +181,32 @@ Expected behavior:
 - update context only
 - not authorize coding by itself
 
+### `/harness-status`
+
+Use to show the current task state without modifying files.
+
+Expected behavior:
+
+- read `.task/active.json` and `.task/<yyyy-MM-dd>/<task-slug>/state.json`
+- show phase, gates, current slice, next command, required files, and warnings
+- do not guess missing state
+
+### `/harness-continue`
+
+Use to continue the active task according to task state.
+
+Expected behavior:
+
+- read state before acting
+- respect gates and `allowedToCode`
+- route to the next skill or subagent
+- request confirmation before important phase transitions
+
 ## 7. Agent Roles
 
 | Agent | Role | Model Tier |
 | --- | --- | --- |
-| `harness-builder` | Primary orchestrator. Runs analysis, enforces gates, selects the approved slice, calls other agents, and stops for confirmation. | Tier 1 |
+| `harness-builder` | Primary orchestrator. Reads active task state, enforces gates, selects the approved slice, calls other agents, aggregates outputs, and stops for confirmation. | Tier 1 |
 | `harness-planner` | Creates requirements, implementation slices, validation strategy, and context-pack planning. | Tier 1 |
 | `harness-coder` | Implements only the current approved slice or approved group. | Tier 2 |
 | `harness-reviewer` | Reviews boundary safety, actual scope, validation coverage, and docs or rules sync needs. | Tier 2 |
@@ -217,9 +240,25 @@ start the next approved slice
 
 If the same slice remains `BLOCKED` after three total review attempts, stop and ask the user to decide the next step.
 
-## 9. Model And Permission Customization
+## 9. Model Profiles And Permission Customization
 
-The installed `.opencode/agents/*.md` files contain example values only. Each agent role has its own file where you set the model.
+The installed `.opencode/agents/*.md` files contain concrete model fields for OpenCode compatibility, but those values are rendered from `harness.config.yaml` model profiles.
+
+Stable profiles:
+
+- `think`: builder and planner
+- `build`: coder
+- `review`: reviewer
+- `run`: indexer and validator
+
+Skill model requirements map to profiles as follows:
+
+- `reasoning` -> `think`
+- `coding` -> `build`
+- `reflective` -> `review`
+- `utility` -> `run`
+
+Each agent role has its own file where you can adjust the concrete model after changing the corresponding profile.
 
 Start from the three-tier strategy and tune it to your team's available models and budget:
 
@@ -245,7 +284,7 @@ The validator template is project-type-aware:
 
 Expected runtime behavior:
 
-- prefer validation commands defined in `.task/context-pack.md` when available
+- prefer validation commands defined in `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` when available
 - otherwise choose the smallest relevant command for the current approved slice or group
 - when `opencode-tasks` is enabled and the user asks for recurring validation, prefer proposing a scheduler-backed task instead of an ad hoc loop
 - keep long-running validation artifacts under `.harness/tmp/harness-validator/<run-id>/`

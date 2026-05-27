@@ -52,6 +52,11 @@ try {
   const initOutput = await harness("init", "--project", project, "--auto");
   assertIncludes(initOutput, "write-manifest: .harness/manifest.json");
 
+  const doctorOutput = await harness("doctor", "--project", project);
+  assertIncludes(doctorOutput, "PASS  harness.config.yaml parsed");
+  assertIncludes(doctorOutput, "PASS  model profiles found: think, build, review, run");
+  assertIncludes(doctorOutput, "WARN  .task/active.json not found; no active task selected");
+
   const manifestPath = path.join(project, ".harness", "manifest.json");
   const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
   assert(manifest.schemaVersion === 1, "manifest schemaVersion must be 1");
@@ -85,6 +90,8 @@ try {
   const missingDiffOutput = await harness("diff", "--project", project);
   assertIncludes(missingDiffOutput, "missing: docs/project/harness-workflow.md");
 
+  await assertDoctorFailures(project);
+
   manifest.managedFiles.push({
     path: ".agents/skills/old-core/SKILL.md",
     source: "skills/old-core/SKILL.md",
@@ -112,11 +119,17 @@ try {
 async function assertOpencodeInstall(projectPath) {
   const initOutput = await harness("init", "--project", projectPath, "--auto", "--with-opencode");
   assertIncludes(initOutput, "new-managed: .opencode/commands/harness-feature.md");
+  assertIncludes(initOutput, "new-managed: .opencode/commands/harness-status.md");
+  assertIncludes(initOutput, "new-managed: .opencode/commands/harness-continue.md");
   assertIncludes(initOutput, "new-managed: .opencode/agents/harness-validator.md");
   assertIncludes(initOutput, "new-managed: opencode.jsonc");
   assertIncludes(initOutput, "note: project-level opencode-tasks is enabled via opencode.jsonc");
 
   await assertOpencodeCommandsAndAgents(projectPath);
+
+  const doctorOutput = await harness("doctor", "--project", projectPath);
+  assertIncludes(doctorOutput, "PASS  opencode.jsonc parsed");
+  assertIncludes(doctorOutput, "PASS  .opencode/commands/harness-status.md frontmatter parsed");
 
   const manifest = await readManifest(projectPath);
   assert(manifest.managedFiles.some((file) => file.path === ".opencode/commands/harness-feature.md"), "manifest must include OpenCode commands");
@@ -130,8 +143,27 @@ async function assertOpencodeInstall(projectPath) {
   const validatorContent = await fs.readFile(path.join(projectPath, ".opencode", "agents", "harness-validator.md"), "utf8");
   assertIncludes(validatorContent, "# Generic Validator Guidance");
   assertIncludes(validatorContent, "# Scheduled Validator Guidance");
+  assertIncludes(validatorContent, "model: deepseek/deepseek-v4-flash");
   assertExcludes(validatorContent, validatorSnippetPathText);
   assert(!(await pathExists(path.join(projectPath, ".opencode", "agents", "validators"))), "project must not contain installed validator snippet directory");
+}
+
+async function assertDoctorFailures(projectPath) {
+  const activePath = path.join(projectPath, ".task", "active.json");
+  await fs.writeFile(activePath, `${JSON.stringify({ taskId: "2099-01-01/missing-task", phase: "analysis", allowedToCode: false }, null, 2)}\n`, "utf8");
+  const missingTaskDoctor = await harnessAllowFailure("doctor", "--project", projectPath);
+  assert(missingTaskDoctor.code !== 0, "doctor must fail when active task directory is missing");
+  assertIncludes(missingTaskDoctor.stdout, "FAIL  .task/2099-01-01/missing-task missing");
+
+  const skillPath = path.join(projectPath, ".agents", "skills", "bad-smoke-skill", "SKILL.md");
+  await fs.mkdir(path.dirname(skillPath), { recursive: true });
+  await fs.writeFile(skillPath, "---\ndescription: Missing name for smoke test.\n---\n\n# Bad Smoke Skill\n", "utf8");
+  const badSkillDoctor = await harnessAllowFailure("doctor", "--project", projectPath);
+  assert(badSkillDoctor.code !== 0, "doctor must fail when skill name is missing");
+  assertIncludes(badSkillDoctor.stdout, "FAIL  .agents/skills/bad-smoke-skill/SKILL.md missing required frontmatter: name");
+
+  await fs.rm(path.dirname(skillPath), { recursive: true, force: true });
+  await fs.rm(activePath, { force: true });
 }
 
 async function assertExplicitFalseSkipsOpencode(projectPath) {
@@ -191,6 +223,8 @@ async function assertGradleValidatorGuidance(projectPath) {
 
 async function assertOpencodeCommandsAndAgents(projectPath) {
   assert(await pathExists(path.join(projectPath, ".opencode", "commands", "harness-feature.md")), "OpenCode command must exist");
+  assert(await pathExists(path.join(projectPath, ".opencode", "commands", "harness-status.md")), "OpenCode status command must exist");
+  assert(await pathExists(path.join(projectPath, ".opencode", "commands", "harness-continue.md")), "OpenCode continue command must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-builder.md")), "OpenCode harness-builder agent must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-validator.md")), "OpenCode harness-validator agent must exist");
 }
@@ -277,6 +311,10 @@ async function harness(...args) {
   return exec(process.execPath, [harnessBin, ...args], repoRoot);
 }
 
+async function harnessAllowFailure(...args) {
+  return execAllowFailure(process.execPath, [harnessBin, ...args], repoRoot);
+}
+
 async function exec(command, args, cwd) {
   return new Promise((resolve, reject) => {
     execFile(command, args, { cwd, encoding: "utf8" }, (error, stdout, stderr) => {
@@ -286,6 +324,14 @@ async function exec(command, args, cwd) {
         return;
       }
       resolve(stdout);
+    });
+  });
+}
+
+async function execAllowFailure(command, args, cwd) {
+  return new Promise((resolve) => {
+    execFile(command, args, { cwd, encoding: "utf8" }, (error, stdout, stderr) => {
+      resolve({ code: error?.code ?? 0, stdout, stderr });
     });
   });
 }

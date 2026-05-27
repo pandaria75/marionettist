@@ -1,21 +1,27 @@
 ---
 name: context-pack-builder
 description: Build a minimal task context pack before coding. Use after a requirement document or implementation plan exists, or when a coding task spans modules and needs compact context for AI agent execution.
+phase: analysis
+model_requirement: reasoning
+can_edit: true
+risk_level: medium
 ---
 
 # Context Pack Builder
 
-Use this skill to build `.task/context-pack.md` before implementation.
+Use this skill to build `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` before implementation. Read `<task-slug>` from `.task/active.json`.
 
 ## Workflow
 
-1. Read the requirement document if available, preferring `.task/<yyyy-MM-dd>/<task-name>.requirement.md`.
-2. Read the implementation plan if available, preferring `.task/<yyyy-MM-dd>/<task-name>.implementation-plan.md`.
-3. Read `docs/project/knowledge-map.md` if involved areas need routing.
-4. Use module-inspector or workflow-inspector only when scope is unclear.
-5. Extract only the minimum context needed for coding.
-6. Create or update `.task/context-pack.md`.
-7. Do not implement code.
+1. Read `.task/active.json` and `.task/<yyyy-MM-dd>/<task-slug>/state.json`.
+2. Read the requirement document if available, preferring `.task/<yyyy-MM-dd>/<task-slug>/requirement.md`.
+3. Read the implementation plan if available, preferring `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md`.
+4. Read `docs/project/knowledge-map.md` if involved areas need routing.
+5. Use module-inspector or workflow-inspector only when scope is unclear.
+6. Extract only the minimum context needed for coding.
+7. Create or update `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`.
+8. Do not implement code.
+9. If legacy `.task/context-pack.md` exists, read it only as a migration fallback and recommend moving context into the active task directory.
 
 ## Output File Template
 
@@ -98,4 +104,6 @@ Use this skill to build `.task/context-pack.md` before implementation.
 - When the current approved work is a parallel group, include members, shared files, merge owner, conflict rule, and group validation.
 - Include stop conditions explicitly.
 - For bugfix tasks, include observed behavior, expected behavior, reproduction steps, evidence, suspected scope, and regression risk when available.
+- Do not load the whole `docs` directory by default.
+- Record which context was loaded and why.
 - Do not implement code.

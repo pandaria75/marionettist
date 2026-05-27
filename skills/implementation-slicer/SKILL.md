@@ -1,6 +1,10 @@
 ---
 name: implementation-slicer
 description: Convert a frozen requirement document or approved refactor scope into small implementation slices with file scope, modification order, validation commands, rollback notes, and done criteria. Use before coding non-trivial features or refactors.
+phase: analysis
+model_requirement: reasoning
+can_edit: true
+risk_level: medium
 ---
 
 # Implementation Slicer
@@ -24,9 +28,10 @@ Use this skill to convert a requirement document into executable implementation 
    - validation command
    - done criteria
    - rollback notes
-5. Create or update `.task/<yyyy-MM-dd>/<task-name>.implementation-plan.md`.
-6. Use the local task date for `<yyyy-MM-dd>`, for example `.task/2026-04-28/`.
-7. Do not implement code.
+5. Create or update `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md`, where `<task-slug>` is read from `.task/active.json`.
+6. Update `.task/<yyyy-MM-dd>/<task-slug>/state.json` if the caller asks you to record slices or gates.
+7. Use the local task date for `<yyyy-MM-dd>`, for example `.task/2026-04-28/`.
+8. Do not implement code.
 
 ## Output Document Template
 

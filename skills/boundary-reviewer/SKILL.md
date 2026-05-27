@@ -1,6 +1,10 @@
 ---
 name: boundary-reviewer
 description: Review code changes for boundary violations, rule conflicts, unintended scope expansion, missing validation, and documentation sync requirements. Use after implementation and before commit.
+phase: review
+model_requirement: reflective
+can_edit: false
+risk_level: medium
 ---
 
 # Boundary Reviewer
@@ -11,7 +15,7 @@ Use this skill after code changes and before commit or handoff.
 
 1. Inspect the current diff.
 2. Read `AGENTS.md`.
-3. Read `.task/context-pack.md` if present.
+3. Read `.task/active.json`, `.task/<yyyy-MM-dd>/<task-slug>/state.json`, and `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` if present.
 4. Read `docs/project/knowledge-map.md`.
 5. Read relevant rules and docs for changed areas.
 6. Check:
@@ -44,7 +48,7 @@ If git is unavailable, state the limitation explicitly in the review output.
 Return `BLOCKED` when:
 - a forbidden file or area was modified
 - a protected area was modified without explicit user approval
-- actual changes exceed `.task/context-pack.md` allowed scope
+- actual changes exceed `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` allowed scope
 - a rule in `AGENTS.md` or `.aiassistant/rules` is violated
 - destructive SQL or migration risk is detected without explicit approval
 - required validation is missing for architecture-sensitive changes

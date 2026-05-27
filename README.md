@@ -54,7 +54,7 @@ task-intake
 The workflow is trimmed by task complexity:
 
 - Tier S: trivial low-risk change, direct coding and review
-- Tier M: analysis plus `.task/context-pack.md` before coding
+- Tier M: analysis plus task-scoped `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` before coding
 - Tier L: full requirement, slicing, gate, and review flow
 
 The key harness rule is the gate model:
@@ -137,6 +137,26 @@ Apply safe framework-managed updates:
 harness sync
 harness sync --dry-run
 ```
+
+Diagnose a target project harness installation:
+
+```powershell
+harness doctor
+```
+
+`harness doctor` checks the config, managed `AGENTS.md` block, rules, knowledge map, `.task` directory, optional OpenCode templates, skill frontmatter, model profiles, and the active task pointer.
+
+## Task State
+
+Non-trivial tasks are task-scoped. The active task is selected by `.task/active.json`, and durable task state lives under `.task/<yyyy-MM-dd>/<task-slug>/state.json`.
+
+New context packs should be written to `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`. Legacy `.task/context-pack.md` remains a migration fallback only.
+
+## Model Profiles
+
+`harness.config.yaml` defines stable model profiles: `think`, `build`, `review`, and `run`.
+
+Skills declare capability needs such as `reasoning`, `coding`, `reflective`, or `utility`. OpenCode agent files may render concrete `model` fields, but those values come from the configured profiles rather than being chosen independently inside each skill.
 
 ## What `harness init` Installs
 

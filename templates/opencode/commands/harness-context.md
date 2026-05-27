@@ -16,7 +16,7 @@ Current slice:
 $3
 
 Output:
-`.task/context-pack.md`
+`.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`, where `<task-slug>` is read from `.task/active.json`.
 
 Requirements:
 - Keep the context pack compact.
@@ -26,3 +26,5 @@ Requirements:
 - State validation commands.
 - State stop conditions.
 - Do not code.
+- If `.task/active.json` is missing, do not guess a task path; ask the user to start or select a task first.
+- If legacy `.task/context-pack.md` exists, use it only as migration fallback and recommend moving context into the active task directory.
