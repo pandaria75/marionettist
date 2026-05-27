@@ -3,7 +3,7 @@ description: Show current harness task state without modifying files
 agent: harness-builder
 ---
 
-Read `.task/active.json` first, then read `.task/<yyyy-MM-dd>/<task-slug>/state.json` if an active task exists.
+Read `.task/active.json` first, then read `.task/<task-id>/state.json` if an active task exists.
 
 Output only the current task status. Do not modify files and do not code.
 

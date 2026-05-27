@@ -12,7 +12,7 @@ It gives a project a durable collaboration contract for agents through:
 - `.task/` for requirement, plan, and context artifacts
 - `skills/*/SKILL.md` for lightweight workflow orchestration
 - `.harness/manifest.json` for safe framework upgrades
-- optional `.opencode/` scaffolding for command and agent automation
+- optional `.opencode/` scaffolding for command and agent automation (plus project-root `opencode.jsonc`)
 
 ## Who This Is For
 
@@ -54,7 +54,7 @@ task-intake
 The workflow is trimmed by task complexity:
 
 - Tier S: trivial low-risk change, direct coding and review
-- Tier M: analysis plus task-scoped `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` before coding
+- Tier M: analysis plus task-scoped `.task/<task-id>/context-pack.md` before coding
 - Tier L: full requirement, slicing, gate, and review flow
 
 The key harness rule is the gate model:
@@ -114,9 +114,20 @@ node C:\path\to\universal-ai-harness-framework\bin\harness.js init --project .
 Initialize a project:
 
 ```powershell
+# Preview what would be installed
 harness init --dry-run
+
+# Full interactive init
 harness init
+
+# Non-interactive init with default values
+harness init --auto
+
+# Non-interactive init that overwrites existing managed files
+harness init --auto --force
 ```
+
+When `harness init` detects existing files, it prompts for a conflict strategy per file: backup (rename to `.bak`), overwrite, or skip. Use `--auto` to bypass interactive prompts and skip all existing files by default; combine with `--force` to overwrite all existing managed files instead.
 
 Initialize with recommended OpenCode scaffolding:
 
@@ -136,6 +147,9 @@ Apply safe framework-managed updates:
 ```powershell
 harness sync
 harness sync --dry-run
+
+# Overwrite locally modified managed files with framework versions
+harness sync --force
 ```
 
 Diagnose a target project harness installation:
@@ -144,7 +158,7 @@ Diagnose a target project harness installation:
 harness doctor
 ```
 
-`harness doctor` checks the config, managed `AGENTS.md` block, rules, knowledge map, `.task` directory, optional OpenCode templates, skill frontmatter, model profiles, and the active task pointer.
+`harness doctor` checks the config, managed `AGENTS.md` block, manifest, rules, knowledge map, workflow doc, `.task` directory, optional OpenCode templates, skill frontmatter, model profiles, and the active task pointer.
 
 ## Task State
 
@@ -173,7 +187,7 @@ Core assets:
 
 Optional OpenCode assets when `--with-opencode` is used:
 
-- `opencode.jsonc`
+- `opencode.jsonc` (project root)
 - `.opencode/commands/*.md`
 - `.opencode/agents/*.md`
 - `.opencode/README.md`

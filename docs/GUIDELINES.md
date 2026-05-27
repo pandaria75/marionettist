@@ -52,8 +52,14 @@ Default behavior:
 
 - existing project-local files are preserved
 - `AGENTS.md` updates only the managed block
+- if the target `AGENTS.md` has no managed-block markers, its entire existing content is preserved as a project-local imported section
 - `.task/` is local task state, not a managed file
 - future framework upgrades use the manifest to decide what is safe
+
+Conflict handling during `harness init` (interactive mode):
+- for each existing file, the CLI asks whether to backup (rename to `.bak`), overwrite, or skip
+- use `--auto` to bypass prompts and skip all existing files
+- combine with `--force` to overwrite all existing managed files
 
 ## 4. The Working Model
 

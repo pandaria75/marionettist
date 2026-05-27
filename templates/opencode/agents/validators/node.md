@@ -4,7 +4,7 @@ Use this guidance when the repository clearly uses Node.js with npm, pnpm, yarn,
 
 ## Command Selection
 
-1. Prefer explicit commands from the caller or `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`.
+1. Prefer explicit commands from the caller or `.task/<task-id>/context-pack.md`.
 2. Prefer the package manager indicated by the committed lockfile: `pnpm-lock.yaml`, `package-lock.json`, `npm-shrinkwrap.json`, or `yarn.lock`.
 3. Prefer existing `package.json` scripts over direct tool invocations.
 4. Choose the narrowest workspace, package, or script that validates the approved slice.

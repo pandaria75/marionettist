@@ -20,7 +20,7 @@ Your bash permission is `allow` specifically so you can execute project-native v
 
 Validation scope:
 - Handle compile, build, targeted test, lint, and related validation commands.
-- Prefer explicit validation commands from `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` or the caller input.
+- Prefer explicit validation commands from `.task/<task-id>/context-pack.md` or the caller input.
 - If no explicit command is provided, choose the smallest relevant validation command for the approved slice.
 - Avoid full repository validation unless the caller explicitly asks for it or the approved scope requires it.
 - If project-local OpenCode config enables `opencode-tasks` and the caller asks for recurring validation, prefer proposing a scheduled task definition instead of inventing a manual polling loop.

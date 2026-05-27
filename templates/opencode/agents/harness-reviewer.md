@@ -28,4 +28,4 @@ Return exactly one final recommendation:
 - `PASS_WITH_WARNINGS`
 - `BLOCKED`
 
-Do not update `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` or slice state. The `harness-builder` owns state and gates.
+Do not update `.task/<task-id>/context-pack.md` or slice state. The `harness-builder` owns state and gates.

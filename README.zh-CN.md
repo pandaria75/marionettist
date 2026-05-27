@@ -12,7 +12,7 @@
 - `.task/` 作为需求、计划、上下文工件目录
 - `skills/*/SKILL.md` 作为轻量工作流编排能力
 - `.harness/manifest.json` 作为安全升级依据
-- 可选 `.opencode/` 作为命令与 agent 自动化脚手架
+- 可选 `.opencode/` 作为命令与 agent 自动化脚手架（外加项目根目录的 `opencode.jsonc`）
 
 ## 适用对象
 
@@ -54,7 +54,7 @@ task-intake
 流程会按任务复杂度裁剪：
 
 - Tier S：低风险小改动，直接编码并审查
-- Tier M：编码前完成分析并生成任务级 `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`
+- Tier M：编码前完成分析并生成任务级 `.task/<task-id>/context-pack.md`
 - Tier L：完整需求冻结、切片、gate 与审查流程
 
 最关键的规则是 gate 机制：
@@ -114,9 +114,20 @@ node C:\path\to\universal-ai-harness-framework\bin\harness.js init --project .
 初始化项目：
 
 ```powershell
+# 预览将要安装的内容
 harness init --dry-run
+
+# 完整的交互式初始化
 harness init
+
+# 使用默认值的非交互式初始化
+harness init --auto
+
+# 非交互式初始化，覆盖已有受管文件
+harness init --auto --force
 ```
+
+当 `harness init` 检测到已有文件时，会对每个文件提示冲突策略：备份（重命名为 `.bak`）、覆盖、或跳过。使用 `--auto` 可跳过交互提示，默认跳过所有已有文件；配合 `--force` 则会覆盖所有已有受管文件。
 
 使用推荐的 OpenCode 脚手架初始化：
 
@@ -136,6 +147,9 @@ harness diff
 ```powershell
 harness sync
 harness sync --dry-run
+
+# 用框架版本覆盖本地修改的受管文件
+harness sync --force
 ```
 
 诊断目标项目的 harness 安装状态：
@@ -144,7 +158,7 @@ harness sync --dry-run
 harness doctor
 ```
 
-`harness doctor` 检查 config、受管 `AGENTS.md` block、rules、knowledge map、`.task` 目录、可选 OpenCode 模板、skill frontmatter、模型 profiles 和当前活跃任务指针。
+`harness doctor` 检查 config、受管 `AGENTS.md` block、manifest、rules、knowledge map、workflow 文档、`.task` 目录、可选 OpenCode 模板、skill frontmatter、模型 profiles 和当前活跃任务指针。
 
 ## 任务状态
 
@@ -173,7 +187,7 @@ Skills 声明能力需求，如 `reasoning`、`coding`、`reflective` 或 `utili
 
 使用 `--with-opencode` 时的可选 OpenCode 资产：
 
-- `opencode.jsonc`
+- `opencode.jsonc`（项目根目录）
 - `.opencode/commands/*.md`
 - `.opencode/agents/*.md`
 - `.opencode/README.md`

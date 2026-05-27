@@ -17,8 +17,8 @@ This file governs work on the framework itself. It is not the same as `templates
 ## Repository Layout
 
 - `bin/` contains CLI entrypoints.
-- `src/commands/` contains command implementations such as `init`, `sync`, and `diff`.
-- `src/core/` contains reusable CLI helpers.
+- `src/commands/` contains command implementations: `init` (with interactive prompts from `init-prompts`), `sync`, `diff`, and `doctor`.
+- `src/core/` contains reusable CLI helpers: `plan` (builds install/sync plans), `manifest` (reads/writes `.harness/manifest.json`), `managed-block` (split-ownership markers in `AGENTS.md`), `template` (variable rendering), `apply-plan` (writes plan operations), `hash`, `args`, `cli`, `files`, and `framework-paths`.
 - `templates/` contains files installed into target projects.
 - `skills/` contains framework-managed agent skills copied into target projects.
 

@@ -9,17 +9,17 @@ risk_level: medium
 
 # Context Pack Builder
 
-Use this skill to build `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` before implementation. Read `<task-slug>` from `.task/active.json`.
+Use this skill to build `.task/<task-id>/context-pack.md` before implementation. Read `<task-id>` from `.task/active.json`.
 
 ## Workflow
 
-1. Read `.task/active.json` and `.task/<yyyy-MM-dd>/<task-slug>/state.json`.
-2. Read the requirement document if available, preferring `.task/<yyyy-MM-dd>/<task-slug>/requirement.md`.
-3. Read the implementation plan if available, preferring `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md`.
+1. Read `.task/active.json` and `.task/<task-id>/state.json`.
+2. Read the requirement document if available, preferring `.task/<task-id>/requirement.md`.
+3. Read the implementation plan if available, preferring `.task/<task-id>/implementation-plan.md`.
 4. Read `docs/project/knowledge-map.md` if involved areas need routing.
 5. Use module-inspector or workflow-inspector only when scope is unclear.
 6. Extract only the minimum context needed for coding.
-7. Create or update `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`.
+7. Create or update `.task/<task-id>/context-pack.md`.
 8. Do not implement code.
 9. If legacy `.task/context-pack.md` exists, read it only as a migration fallback and recommend moving context into the active task directory.
 

@@ -17,6 +17,8 @@ taskState:
   legacyContextPackFallback: ".task/context-pack.md"
 
 models:
+  # Maps skill frontmatter model_requirement fields to profiles.
+  # Skills declare: reasoning, coding, reflective, utility
   requirementMapping:
     reasoning: "think"
     coding: "build"

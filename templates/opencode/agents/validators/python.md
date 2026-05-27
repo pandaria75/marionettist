@@ -4,7 +4,7 @@ Use this guidance when the repository clearly uses Python with common project me
 
 ## Command Selection
 
-1. Prefer explicit commands from the caller or `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`.
+1. Prefer explicit commands from the caller or `.task/<task-id>/context-pack.md`.
 2. Prefer repository-documented commands from `Makefile`, `tox.ini`, `noxfile.py`, `pyproject.toml`, or project docs.
 3. Choose the narrowest relevant test, lint, type-check, or build command for the approved slice.
 

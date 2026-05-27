@@ -7,7 +7,7 @@ This project uses a lightweight file-based harness so requirements, knowledge ro
 This project uses a branched harness workflow based on task complexity:
 
 1. **Tier S (Minor)**: Skip `.task/` documents and gates. Direct coding and review.
-2. **Tier M (Standard)**: Analysis plus task-scoped `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` before coding. `requirement-freezer` is optional and only used when behavior or business rules are unclear.
+2. **Tier M (Standard)**: Analysis plus task-scoped `.task/<task-id>/context-pack.md` before coding. `requirement-freezer` is optional and only used when behavior or business rules are unclear.
 3. **Tier L (Complex)**: Full mandatory harness with analysis, approved slice execution, automatic slice review, and finalization.
 
 For Tier M and L, the agent must complete phases in order and must not automatically cross analysis or inter-slice gates.
@@ -20,7 +20,7 @@ The agent may perform any of the following as needed:
 - use `workflow-inspector` when execution flow or workflow impact is important
 - use `module-inspector` when module ownership, modifiability, or dependency direction is unclear
 - use `implementation-slicer` to convert requirements or goals into slices
-- use `context-pack-builder` to create `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` before coding
+- use `context-pack-builder` to create `.task/<task-id>/context-pack.md` before coding
 
 **Bugfix Fast-Track**: For bug fixes, the analysis phase is considered complete once a failing test case or clear reproduction steps are confirmed. Formal requirement freezing is usually bypassed unless expected behavior is unclear.
 
@@ -151,9 +151,16 @@ Rules define enforceable constraints. When adding, moving, renaming, or deleting
 - `docs/**/*.md` contains project knowledge and architecture explanations.
 - `docs/project/knowledge-map.md` is the routing index for ownership, docs, rules, and boundary notes.
 - `.task/active.json` selects the current task and records phase, gate, and next-command summary.
+
+  Required field: `taskId` (string, format `yyyy-MM-dd/task-slug`).
+  Optional fields: `type`, `phase`, `allowedToCode`, `currentSlice`, `lastGate`, `nextCommand`.
 - `.task/<yyyy-MM-dd>/<task-slug>/requirement.md` freezes task requirements.
 - `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md` defines executable implementation slices.
 - `.task/<yyyy-MM-dd>/<task-slug>/state.json` records durable task phase, status, gates, files, and current slice.
+
+  Optional fields: `phase`, `status`, `allowedToCode`, `requirementFrozen`, `implementationPlan`, `contextPackReady`, `currentSlice`, `currentGroup`, `completedSlices`, `reviewAttempts`, `gates`, `files`.
+
+  See `DESIGN.md` or `GUIDELINES.md` for the full task state contract schema.
 - `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` contains the compact context for the current coding slice or approved parallel group.
 
 Use the local task date for `<yyyy-MM-dd>`, for example `.task/2026-04-28/`. Keep task docs concise. Prefer references and distilled summaries over copying full source documents.

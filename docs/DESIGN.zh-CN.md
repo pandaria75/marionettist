@@ -163,7 +163,95 @@ Project-local 资产归目标仓库团队所有。
 
 这样 framework 就能持续演进仓库级 workflow 指南，同时保留团队自己的本地行为定义。
 
+当 `harness init` 遇到目标 `AGENTS.md` 中没有 managed-block 标记时，会将现有全部内容包裹在 `project-local-imported` 标记块中，并在其上方插入 framework managed block。后续 sync 只替换 managed block；project-local 内容（包括导入的和常规的 local block）都会被保留。
+
+### 4.4 Manifest 与 Sync 语义
+
+`.harness/manifest.json` 记录每个受管文件及其安装时的 hash。sync 时会为每个文件计算四态状态：
+
+- `unchanged`：本地和 framework 自上次安装后均未变化
+- `update`：framework 变化，本地未变化 — 安全覆盖
+- `modified-local`：本地变化，framework 未变化 — 默认保留
+- `conflict`：本地和 framework 都变化了 — 默认保留
+- `missing`：manifest 中有记录但磁盘上缺失 — 重新安装
+
+`--force` 会覆盖 `modified-local` 和 `conflict` 状态，使用 framework 版本。使用 force 时 manifest 记录 framework hash；不使用时保留之前的 hash。
+
+framework 中不再存在的受管文件会被报告为 `orphan-managed`，不会被自动删除。
+
 ## 5. Workflow 模型
+
+### 5.0 任务状态契约
+
+Harness 使用两个 JSON 文件作为运行时状态契约。所有 harness 参与者（skills、agents、CLI）必须一致地读写这些字段。
+
+#### `.task/active.json` — 活跃任务指针
+
+选择当前任务并记录轻量调度元数据。位于 `.task/active.json` 的单一扁平对象。
+
+| 字段 | 类型 | 必需 | 说明 |
+| --- | --- | --- | --- |
+| `taskId` | string | 是 | 任务目录路径，格式 `yyyy-MM-dd/task-slug`（如 `2026-05-27/add-login`） |
+| `type` | string | 否 | 任务分类：`feature`、`bugfix`、`refactor`、`documentation`、`investigation` |
+| `phase` | string | 否 | 当前 harness 阶段：`analysis`、`coding`、`review`、`finalization` |
+| `allowedToCode` | boolean | 否 | 用户是否已确认 analysis→coding 的 gate |
+| `currentSlice` | string | 否 | 当前已批准 slice 的标识符 |
+| `lastGate` | string | 否 | agent 最后停下的 gate（用于状态展示） |
+| `nextCommand` | string | 否 | 建议的下一个 CLI 或 skill 命令 |
+
+示例：
+
+```json
+{
+  "taskId": "2026-05-27/add-login-page",
+  "type": "feature",
+  "phase": "analysis",
+  "allowedToCode": false,
+  "currentSlice": null,
+  "lastGate": "analysis",
+  "nextCommand": "/harness-status"
+}
+```
+
+#### `.task/<yyyy-MM-dd>/<task-slug>/state.json` — 持久化任务状态
+
+在任务目录内记录完整的任务执行状态。
+
+| 字段 | 类型 | 必需 | 说明 |
+| --- | --- | --- | --- |
+| `phase` | string | 否 | 当前 harness 阶段：`analysis`、`coding`、`review`、`finalization` |
+| `status` | string | 否 | 任务状态：`in-progress`、`complete`、`blocked` |
+| `allowedToCode` | boolean | 否 | Gate：analysis→coding 转换是否已确认 |
+| `requirementFrozen` | boolean | 否 | 需求文档是否已创建并批准 |
+| `implementationPlan` | boolean | 否 | 实现计划是否存在且已批准 |
+| `contextPackReady` | boolean | 否 | 当前 slice 或 group 的 context pack 是否就绪 |
+| `currentSlice` | string | 否 | 当前已批准 slice 的标识符 |
+| `currentGroup` | string | 否 | 当前已批准并行 group 的标识符（如有） |
+| `completedSlices` | string[] | 否 | 已通过 review 的 slice 标识符列表 |
+| `reviewAttempts` | number | 否 | 当前 slice 或 group 的 review 重试次数（0-3） |
+| `gates` | object[] | 否 | Gate 转换历史：`[{gate, timestamp, status}]` |
+| `files` | string[] | 否 | 当前 slice 或 group 中创建或修改的文件 |
+
+示例：
+
+```json
+{
+  "phase": "coding",
+  "status": "in-progress",
+  "allowedToCode": true,
+  "requirementFrozen": true,
+  "implementationPlan": true,
+  "contextPackReady": true,
+  "currentSlice": "slice-2-user-session",
+  "currentGroup": null,
+  "completedSlices": ["slice-1-login-form"],
+  "reviewAttempts": 0,
+  "gates": [
+    {"gate": "analysis", "timestamp": "2026-05-27T10:00:00Z", "status": "approved"}
+  ],
+  "files": ["src/auth/login.ts", "src/auth/session.ts"]
+}
+```
 
 ### 5.1 先分析，再编码
 

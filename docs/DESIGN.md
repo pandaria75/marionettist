@@ -163,7 +163,95 @@ The default rule is preserve local work unless safety is explicit.
 
 This split allows the framework to evolve repository-wide workflow guidance while leaving team-local behavior editable.
 
+When `harness init` encounters a target `AGENTS.md` that has no managed-block markers, it wraps the entire existing content inside a `project-local-imported` marker block and inserts the framework managed block above it. On subsequent syncs, only the managed block is replaced; project-local content (including imported and regular local blocks) is preserved.
+
+### 4.4 Manifest And Sync Semantics
+
+The `.harness/manifest.json` records every managed file with its installed hash. During sync, the framework computes a four-way status per file:
+
+- `unchanged`: neither local nor framework changed since last install
+- `update`: framework changed, local unchanged — safe to overwrite
+- `modified-local`: local changed, framework unchanged — preserved by default
+- `conflict`: both local and framework changed — preserved by default
+- `missing`: file tracked in manifest but absent on disk — reinstalled
+
+`--force` overrides `modified-local` and `conflict` to overwrite with the framework version. When force is used, the manifest records the framework hash; without force, it preserves the previous hash.
+
+Managed files no longer present in the framework are reported as `orphan-managed`. They are not automatically deleted.
+
 ## 5. Workflow Model
+
+### 5.0 Task State Contract
+
+The harness uses two JSON files as the runtime state contract. All harness actors (skills, agents, CLI) must read and write these fields consistently.
+
+#### `.task/active.json` — Active Task Pointer
+
+Selects the current task and records lightweight dispatch metadata. A single flat object at `.task/active.json`.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `taskId` | string | yes | Path to the task directory, format `yyyy-MM-dd/task-slug` (e.g. `2026-05-27/add-login`) |
+| `type` | string | no | Task classification: `feature`, `bugfix`, `refactor`, `documentation`, `investigation` |
+| `phase` | string | no | Current harness phase: `analysis`, `coding`, `review`, `finalization` |
+| `allowedToCode` | boolean | no | Whether the user has confirmed the analysis→coding gate |
+| `currentSlice` | string | no | Identifier of the currently approved slice |
+| `lastGate` | string | no | The last gate the agent stopped at (for status display) |
+| `nextCommand` | string | no | Recommended next CLI or skill command |
+
+Example:
+
+```json
+{
+  "taskId": "2026-05-27/add-login-page",
+  "type": "feature",
+  "phase": "analysis",
+  "allowedToCode": false,
+  "currentSlice": null,
+  "lastGate": "analysis",
+  "nextCommand": "/harness-status"
+}
+```
+
+#### `.task/<yyyy-MM-dd>/<task-slug>/state.json` — Durable Task State
+
+Records the full task execution state within the task directory.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `phase` | string | no | Current harness phase: `analysis`, `coding`, `review`, `finalization` |
+| `status` | string | no | Task status: `in-progress`, `complete`, `blocked` |
+| `allowedToCode` | boolean | no | Gate: whether the analysis→coding transition has been confirmed |
+| `requirementFrozen` | boolean | no | Whether requirement document has been created and approved |
+| `implementationPlan` | boolean | no | Whether implementation plan exists and is approved |
+| `contextPackReady` | boolean | no | Whether context pack is ready for the current slice or group |
+| `currentSlice` | string | no | Identifier of the currently approved slice |
+| `currentGroup` | string | no | Identifier of the currently approved parallel group (if any) |
+| `completedSlices` | string[] | no | Slice identifiers that have passed review |
+| `reviewAttempts` | number | no | Current review retry count for the active slice or group (0-3) |
+| `gates` | object[] | no | History of gate transitions: `[{gate, timestamp, status}]` |
+| `files` | string[] | no | Files created or modified in the current slice or group |
+
+Example:
+
+```json
+{
+  "phase": "coding",
+  "status": "in-progress",
+  "allowedToCode": true,
+  "requirementFrozen": true,
+  "implementationPlan": true,
+  "contextPackReady": true,
+  "currentSlice": "slice-2-user-session",
+  "currentGroup": null,
+  "completedSlices": ["slice-1-login-form"],
+  "reviewAttempts": 0,
+  "gates": [
+    {"gate": "analysis", "timestamp": "2026-05-27T10:00:00Z", "status": "approved"}
+  ],
+  "files": ["src/auth/login.ts", "src/auth/session.ts"]
+}
+```
 
 ### 5.1 Analysis Before Coding
 

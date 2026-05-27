@@ -13,8 +13,10 @@ export async function doctorCommand(args) {
 
   await checkHarnessConfig(options.project, results);
   await checkAgents(options.project, results);
+  await checkManifest(options.project, results);
   await checkPath(options.project, ".aiassistant/rules", "directory", ".aiassistant/rules exists", results);
   await checkPath(options.project, "docs/project/knowledge-map.md", "file", "docs/project/knowledge-map.md exists", results);
+  await checkPath(options.project, "docs/project/harness-workflow.md", "file", "docs/project/harness-workflow.md exists", results);
   await checkPath(options.project, ".task", "directory", ".task directory exists", results);
   await checkOpencode(options.project, results);
   await checkSkills(options.project, results);
@@ -66,6 +68,55 @@ async function checkAgents(projectPath, results) {
     return;
   }
   results.push(fail("AGENTS.md managed block missing"));
+}
+
+async function checkManifest(projectPath, results) {
+  const relative = ".harness/manifest.json";
+  const absolute = path.join(projectPath, relative);
+  if (!(await exists(absolute))) {
+    results.push(fail(`${relative} missing`));
+    return;
+  }
+
+  let manifest;
+  try {
+    manifest = JSON.parse(await fs.readFile(absolute, "utf8"));
+  } catch (error) {
+    results.push(fail(`${relative} parse failed: ${error.message}`));
+    return;
+  }
+
+  if (manifest.schemaVersion !== 1) {
+    results.push(fail(`${relative} unsupported schemaVersion: ${manifest.schemaVersion}`));
+    return;
+  }
+  results.push(pass(`${relative} schemaVersion=${manifest.schemaVersion}`));
+
+  if (!manifest.frameworkVersion) {
+    results.push(fail(`${relative} missing frameworkVersion`));
+  } else {
+    results.push(pass(`${relative} frameworkVersion=${manifest.frameworkVersion}`));
+  }
+
+  if (!Array.isArray(manifest.managedFiles)) {
+    results.push(fail(`${relative} managedFiles missing or not an array`));
+    return;
+  }
+  results.push(pass(`${relative} managedFiles count=${manifest.managedFiles.length}`));
+
+  const missingManaged = [];
+  for (const file of manifest.managedFiles) {
+    if (!(await exists(path.join(projectPath, file.path)))) {
+      missingManaged.push(file.path);
+    }
+  }
+  if (missingManaged.length > 0) {
+    const preview = missingManaged.slice(0, 5).join(", ");
+    const suffix = missingManaged.length > 5 ? ` (+${missingManaged.length - 5} more)` : "";
+    results.push(warn(`manifest references ${missingManaged.length} missing managed file(s): ${preview}${suffix}`));
+  } else {
+    results.push(pass("all managed files referenced in manifest exist on disk"));
+  }
 }
 
 async function checkPath(projectPath, relative, expectedType, label, results) {

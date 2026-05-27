@@ -16,7 +16,7 @@ Current slice:
 $3
 
 Output:
-`.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`, where `<task-slug>` is read from `.task/active.json`.
+`.task/<task-id>/context-pack.md`, where `<task-id>` is read from `.task/active.json`.
 
 Requirements:
 - Keep the context pack compact.

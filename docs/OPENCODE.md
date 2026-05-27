@@ -40,7 +40,7 @@ Jobs that need consistent execution but not deep original reasoning:
 | `harness-coder` | Implements the approved slice or group within allowed scope |
 | `harness-reviewer` | Checks scope, boundaries, validation, and docs sync against an approved plan |
 
-Use a capable but cost-efficient model here. These agents work from explicit constraints already captured in `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` and the implementation plan.
+Use a capable but cost-efficient model here. These agents work from explicit constraints already captured in `.task/<task-id>/context-pack.md` and the implementation plan.
 
 **Tier 3 — Run**
 
@@ -95,7 +95,7 @@ When these assets are installed, later `harness diff` and `harness sync` runs tr
 
 Typical files:
 
-- `opencode.jsonc`
+- `opencode.jsonc` (project root)
 - `.opencode/commands/harness-feature.md`
 - `.opencode/commands/harness-bugfix.md`
 - `.opencode/commands/harness-refactor.md`
@@ -113,7 +113,7 @@ Typical files:
 
 These are editable local defaults, not locked product behavior.
 
-The framework also installs a project-local `opencode.jsonc` that enables `opencode-tasks`.
+The framework also installs `opencode.jsonc` at the project root (not under `.opencode/`) that enables `opencode-tasks`.
 
 ## 5. How OpenCode Fits The Harness
 
@@ -173,7 +173,7 @@ Expected behavior:
 
 ### `/harness-context`
 
-Use to rebuild or refresh `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`.
+Use to rebuild or refresh `.task/<task-id>/context-pack.md`.
 
 Expected behavior:
 
@@ -187,7 +187,7 @@ Use to show the current task state without modifying files.
 
 Expected behavior:
 
-- read `.task/active.json` and `.task/<yyyy-MM-dd>/<task-slug>/state.json`
+- read `.task/active.json` and `.task/<task-id>/state.json`
 - show phase, gates, current slice, next command, required files, and warnings
 - do not guess missing state
 
@@ -284,7 +284,7 @@ The validator template is project-type-aware:
 
 Expected runtime behavior:
 
-- prefer validation commands defined in `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` when available
+- prefer validation commands defined in `.task/<task-id>/context-pack.md` when available
 - otherwise choose the smallest relevant command for the current approved slice or group
 - when `opencode-tasks` is enabled and the user asks for recurring validation, prefer proposing a scheduler-backed task instead of an ad hoc loop
 - keep long-running validation artifacts under `.harness/tmp/harness-validator/<run-id>/`

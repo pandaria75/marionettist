@@ -6,7 +6,7 @@ For non-trivial tasks, do not move from analysis to coding, between coding slice
 
 ## Context Pack
 
-For Tier M and Tier L tasks, create or update `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` before coding. Read `<task-slug>` from `.task/active.json`.
+For Tier M and Tier L tasks, create or update `.task/<task-id>/context-pack.md` before coding. Read `<task-id>` from `.task/active.json`.
 
 Legacy `.task/context-pack.md` may be used only as a migration fallback and must not be the default output path for new tasks.
 

@@ -4,7 +4,7 @@ Use this guidance when the repository clearly uses Maven with `pom.xml` or a Mav
 
 ## Command Selection
 
-1. Prefer explicit commands from the caller or `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`.
+1. Prefer explicit commands from the caller or `.task/<task-id>/context-pack.md`.
 2. Prefer the committed wrapper when available: `./mvnw` on Unix-like systems or `./mvnw.cmd` on Windows.
 3. Choose the narrowest relevant module, profile, or test target first.
 

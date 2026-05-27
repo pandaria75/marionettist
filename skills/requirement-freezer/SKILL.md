@@ -25,8 +25,8 @@ Use this skill to convert raw requirements into a stable requirement document.
    - Non-blocking Assumptions
    - Deferred Questions
 4. Ask only Blocking Questions.
-5. If enough information is available, create or update `.task/<yyyy-MM-dd>/<task-slug>/requirement.md`, where `<task-slug>` is read from `.task/active.json`.
-6. Update `.task/<yyyy-MM-dd>/<task-slug>/state.json` if the caller asks you to record the requirement gate.
+5. If enough information is available, create or update `.task/<task-id>/requirement.md`, where `<task-id>` is read from `.task/active.json`.
+6. Update `.task/<task-id>/state.json` if the caller asks you to record the requirement gate.
 7. Use the local task date for `<yyyy-MM-dd>`, for example `.task/2026-04-28/`.
 8. Do not implement code.
 9. Do not write an implementation plan.

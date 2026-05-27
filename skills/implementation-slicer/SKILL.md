@@ -28,8 +28,8 @@ Use this skill to convert a requirement document into executable implementation 
    - validation command
    - done criteria
    - rollback notes
-5. Create or update `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md`, where `<task-slug>` is read from `.task/active.json`.
-6. Update `.task/<yyyy-MM-dd>/<task-slug>/state.json` if the caller asks you to record slices or gates.
+5. Create or update `.task/<task-id>/implementation-plan.md`, where `<task-id>` is read from `.task/active.json`.
+6. Update `.task/<task-id>/state.json` if the caller asks you to record slices or gates.
 7. Use the local task date for `<yyyy-MM-dd>`, for example `.task/2026-04-28/`.
 8. Do not implement code.
 

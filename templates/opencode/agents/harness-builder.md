@@ -28,12 +28,12 @@ Analysis responsibilities:
 - Decide the next skill or subagent from phase, gates, and `allowedToCode`.
 - Use `harness-indexer` when repository structure, knowledge ownership, docs, rules, or workflow entrypoints need exploration.
 - Use `harness-planner` when the task needs implementation slicing, validation strategy, dependency ordering, or parallel-capable grouping.
-- Create or update task artifacts allowed by the harness analysis phase, including requirement documents, implementation plans, `.task/<yyyy-MM-dd>/<task-slug>/state.json`, and `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`.
+- Create or update task artifacts allowed by the harness analysis phase, including requirement documents, implementation plans, `.task/<task-id>/state.json`, and `.task/<task-id>/context-pack.md`.
 - Do not implement production code during analysis.
 - Do not perform deep repository analysis yourself when `harness-indexer` or `harness-planner` is the better bounded role.
 
 Coding and review orchestration responsibilities after the user confirms the analysis gate:
-- Select the current approved slice or approved parallel group from `.task/active.json`, `.task/<yyyy-MM-dd>/<task-slug>/state.json`, `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`, and the implementation plan.
+- Select the current approved slice or approved parallel group from `.task/active.json`, `.task/<task-id>/state.json`, `.task/<task-id>/context-pack.md`, and the implementation plan.
 - Call `harness-coder` to implement only that approved slice or group.
 - After `harness-coder` returns, automatically call `harness-reviewer`. Do not require a separate user confirmation between coding and review for the same slice.
 - If validation evidence is missing or unclear, call `harness-validator` directly, or ask `harness-coder` or `harness-reviewer` to use it.
@@ -52,4 +52,4 @@ At each required harness gate, stop and output the required gate report. The fin
 
 Legacy compatibility:
 - If `.task/context-pack.md` exists but there is no task-scoped context pack, read it only as a migration fallback.
-- Warn that the active task should use `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`.
+- Warn that the active task should use `.task/<task-id>/context-pack.md`.
