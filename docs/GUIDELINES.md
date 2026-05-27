@@ -129,7 +129,7 @@ task-intake
   -> boundary-reviewer
 ```
 
-Minimum rule: create `.task/context-pack.md` before coding.
+Minimum rule: create `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` before coding.
 
 Example prompt:
 
@@ -140,7 +140,7 @@ I need to handle a standard task:
 
 Follow the current repository harness workflow.
 Start with task-intake.
-Create .task/context-pack.md before coding.
+Create .task/<yyyy-MM-dd>/<task-slug>/context-pack.md before coding.
 Do not start coding yet.
 ```
 
@@ -181,7 +181,7 @@ I need to handle a complex task:
 Follow the current repository harness workflow.
 Start with task-intake.
 If requirements or boundaries are unclear, use requirement-freezer.
-Create an implementation plan and .task/context-pack.md before coding.
+Create an implementation plan and .task/<yyyy-MM-dd>/<task-slug>/context-pack.md before coding.
 Do not start coding yet.
 ```
 
@@ -257,7 +257,7 @@ Use before coding to build the minimum working context.
 Output:
 
 ```text
-.task/context-pack.md
+.task/<yyyy-MM-dd>/<task-slug>/context-pack.md
 ```
 
 It should capture only the current slice or approved group context, not whole docs or source files.
@@ -320,7 +320,7 @@ Used before coding for non-trivial implementation work.
 Path:
 
 ```text
-.task/context-pack.md
+.task/<yyyy-MM-dd>/<task-slug>/context-pack.md
 ```
 
 It should include:
@@ -368,7 +368,7 @@ Evidence:
 Follow the current repository harness workflow.
 Start with task-intake.
 Prioritize confirming the reproduction path or failing test.
-Create .task/context-pack.md before coding.
+Create .task/<yyyy-MM-dd>/<task-slug>/context-pack.md before coding.
 Do not start coding yet.
 ```
 

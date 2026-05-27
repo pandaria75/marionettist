@@ -127,7 +127,7 @@ task-intake
   -> boundary-reviewer
 ```
 
-最低要求：编码前生成 `.task/context-pack.md`。
+最低要求：编码前生成 `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`。
 
 示例提示词：
 
@@ -138,7 +138,7 @@ task-intake
 
 请按照当前仓库的 harness workflow 推进。
 先进行 task-intake。
-编码前生成 .task/context-pack.md。
+编码前生成 .task/<yyyy-MM-dd>/<task-slug>/context-pack.md。
 不要直接编码。
 ```
 
@@ -179,7 +179,7 @@ task-intake
 请按照当前仓库的 harness workflow 推进。
 先进行 task-intake。
 如果需求或边界不清楚，使用 requirement-freezer。
-编码前生成 implementation plan 和 .task/context-pack.md。
+编码前生成 implementation plan 和 .task/<yyyy-MM-dd>/<task-slug>/context-pack.md。
 不要直接编码。
 ```
 
@@ -255,7 +255,7 @@ User confirmation required to continue.
 输出：
 
 ```text
-.task/context-pack.md
+.task/<yyyy-MM-dd>/<task-slug>/context-pack.md
 ```
 
 它应只保留当前 slice 或已批准 group 所需的上下文，而不是复制整份 docs 或源码。
@@ -318,7 +318,7 @@ User confirmation required to continue.
 路径：
 
 ```text
-.task/context-pack.md
+.task/<yyyy-MM-dd>/<task-slug>/context-pack.md
 ```
 
 它应包括：
@@ -366,7 +366,7 @@ Evidence:
 请按照当前仓库的 harness workflow 推进。
 先进行 task-intake。
 优先确认复现路径或失败测试。
-编码前生成 .task/context-pack.md。
+编码前生成 .task/<yyyy-MM-dd>/<task-slug>/context-pack.md。
 不要直接编码。
 ```
 
