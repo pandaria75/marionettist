@@ -227,7 +227,7 @@ User confirmation required to continue.
 输出：
 
 ```text
-.task/<yyyy-MM-dd>/<task-name>.requirement.md
+.task/<yyyy-MM-dd>/<task-slug>/requirement.md
 ```
 
 ### 7.3 `module-inspector`
@@ -245,7 +245,7 @@ User confirmation required to continue.
 输出：
 
 ```text
-.task/<yyyy-MM-dd>/<task-name>.implementation-plan.md
+.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md
 ```
 
 ### 7.6 `context-pack-builder`
@@ -290,7 +290,7 @@ User confirmation required to continue.
 路径：
 
 ```text
-.task/<yyyy-MM-dd>/<task-name>.requirement.md
+.task/<yyyy-MM-dd>/<task-slug>/requirement.md
 ```
 
 ### 8.2 Implementation Plan
@@ -300,7 +300,7 @@ User confirmation required to continue.
 路径：
 
 ```text
-.task/<yyyy-MM-dd>/<task-name>.implementation-plan.md
+.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md
 ```
 
 每个 slice 至少应定义：

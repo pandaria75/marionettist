@@ -229,7 +229,7 @@ Use when expected behavior, business rules, compatibility, or boundaries are unc
 Output:
 
 ```text
-.task/<yyyy-MM-dd>/<task-name>.requirement.md
+.task/<yyyy-MM-dd>/<task-slug>/requirement.md
 ```
 
 ### 7.3 `module-inspector`
@@ -247,7 +247,7 @@ Use to split complex approved work into small executable slices.
 Output:
 
 ```text
-.task/<yyyy-MM-dd>/<task-name>.implementation-plan.md
+.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md
 ```
 
 ### 7.6 `context-pack-builder`
@@ -292,7 +292,7 @@ Used when the task needs frozen requirements.
 Path:
 
 ```text
-.task/<yyyy-MM-dd>/<task-name>.requirement.md
+.task/<yyyy-MM-dd>/<task-slug>/requirement.md
 ```
 
 ### 8.2 Implementation Plan
@@ -302,7 +302,7 @@ Used when the task needs explicit slices.
 Path:
 
 ```text
-.task/<yyyy-MM-dd>/<task-name>.implementation-plan.md
+.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md
 ```
 
 Each slice should define:
