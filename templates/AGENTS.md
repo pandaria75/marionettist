@@ -158,20 +158,18 @@ The primary agent remains responsible for:
 
 ## Task Context Policy
 
-For non-trivial implementation tasks, create or update `.task/<task-id>/context-pack.md` before coding. The context pack should stay compact and reference requirement or implementation documents instead of duplicating them when possible.
+For non-trivial implementation tasks, create or update `.task/<task-id>/context-pack.md` before coding. Here `<task-id>` means the active task selected by `.task/active.json`. The context pack should stay compact and reference requirement or implementation documents instead of duplicating them when possible.
+
+The full task state contract is defined in `docs/project/harness-workflow.md`.
 
 The current task is selected by `.task/active.json`. A non-trivial task should use this structure:
 - `.task/active.json`
-- `.task/<yyyy-MM-dd>/<task-slug>/requirement.md`
-- `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md`
-- `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`
-- `.task/<yyyy-MM-dd>/<task-slug>/state.json`
+- `.task/<task-id>/requirement.md`
+- `.task/<task-id>/implementation-plan.md`
+- `.task/<task-id>/context-pack.md`
+- `.task/<task-id>/state.json`
 
-Generated requirement and implementation plan documents belong under the current local date directory:
-- `.task/<yyyy-MM-dd>/<task-slug>/requirement.md`
-- `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md`
-
-Use the local task date for `<yyyy-MM-dd>`, for example `.task/2026-04-28/`.
+Generated requirement and implementation plan documents belong under the current task directory.
 
 The context pack should include:
 - task goal
@@ -195,9 +193,9 @@ The context pack should include:
 - Do not implement broad changes directly from conversation history.
 - Do not start coding until the user explicitly confirms moving from analysis to coding.
 - Implement from one of:
-  - `.task/<yyyy-MM-dd>/<task-slug>/requirement.md`
-  - `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md`
-  - `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`
+  - `.task/<task-id>/requirement.md`
+  - `.task/<task-id>/implementation-plan.md`
+  - `.task/<task-id>/context-pack.md`
 - Prefer small slices.
 - Implement only the currently approved slice or parallel group.
 - Do not expand task scope.

@@ -162,9 +162,9 @@ harness doctor
 
 ## 任务状态
 
-非平凡任务按任务维度隔离。活跃任务由 `.task/active.json` 选定，持久化任务状态保存在 `.task/<yyyy-MM-dd>/<task-slug>/state.json`。
+非平凡任务按任务维度隔离。活跃任务由 `.task/active.json` 选定，持久化任务状态保存在 `.task/<task-id>/state.json`。
 
-新的 context pack 应写入 `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`。旧的 `.task/context-pack.md` 仅作为迁移回退路径。
+新的 context pack 应写入 `.task/<task-id>/context-pack.md`。旧的 `.task/context-pack.md` 仅作为迁移回退路径。安装到目标项目的 `docs/project/harness-workflow.md` 定义 task state contract。
 
 ## 模型 Profiles
 

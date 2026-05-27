@@ -40,7 +40,7 @@ Jobs that need consistent execution but not deep original reasoning:
 | `harness-coder` | Implements the approved slice or group within allowed scope |
 | `harness-reviewer` | Checks scope, boundaries, validation, and docs sync against an approved plan |
 
-Use a capable but cost-efficient model here. These agents work from explicit constraints already captured in `.task/<task-id>/context-pack.md` and the implementation plan.
+Use a capable but cost-efficient model here. These agents work from explicit constraints already captured in `.task/<task-id>/context-pack.md` and the implementation plan. Here `<task-id>` is selected by `.task/active.json`.
 
 **Tier 3 — Run**
 
@@ -173,7 +173,7 @@ Expected behavior:
 
 ### `/harness-context`
 
-Use to rebuild or refresh `.task/<task-id>/context-pack.md`.
+Use to rebuild or refresh `.task/<task-id>/context-pack.md`, where `<task-id>` is selected by `.task/active.json`.
 
 Expected behavior:
 

@@ -12,6 +12,8 @@ This project uses a branched harness workflow based on task complexity:
 
 For Tier M and L, the agent must complete phases in order and must not automatically cross analysis or inter-slice gates.
 
+In this file, `<task-id>` means the active `taskId` value from `.task/active.json`.
+
 ### Analysis Phase
 
 The agent may perform any of the following as needed:
@@ -26,10 +28,10 @@ The agent may perform any of the following as needed:
 
 The analysis phase may produce:
 - `.task/active.json`
-- `.task/<yyyy-MM-dd>/<task-slug>/requirement.md`
-- `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md`
-- `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`
-- `.task/<yyyy-MM-dd>/<task-slug>/state.json`
+- `.task/<task-id>/requirement.md`
+- `.task/<task-id>/implementation-plan.md`
+- `.task/<task-id>/context-pack.md`
+- `.task/<task-id>/state.json`
 
 When analysis is complete, the agent must stop and wait for explicit user confirmation before starting coding, except Tier S.
 
@@ -151,18 +153,93 @@ Rules define enforceable constraints. When adding, moving, renaming, or deleting
 - `docs/**/*.md` contains project knowledge and architecture explanations.
 - `docs/project/knowledge-map.md` is the routing index for ownership, docs, rules, and boundary notes.
 - `.task/active.json` selects the current task and records phase, gate, and next-command summary.
-
-  Required field: `taskId` (string, format `yyyy-MM-dd/task-slug`).
-  Optional fields: `type`, `phase`, `allowedToCode`, `currentSlice`, `lastGate`, `nextCommand`.
-- `.task/<yyyy-MM-dd>/<task-slug>/requirement.md` freezes task requirements.
-- `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md` defines executable implementation slices.
-- `.task/<yyyy-MM-dd>/<task-slug>/state.json` records durable task phase, status, gates, files, and current slice.
-
-  Optional fields: `phase`, `status`, `allowedToCode`, `requirementFrozen`, `implementationPlan`, `contextPackReady`, `currentSlice`, `currentGroup`, `completedSlices`, `reviewAttempts`, `gates`, `files`.
-
-  See `DESIGN.md` or `GUIDELINES.md` for the full task state contract schema.
-- `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` contains the compact context for the current coding slice or approved parallel group.
+- `.task/<task-id>/requirement.md` freezes task requirements.
+- `.task/<task-id>/implementation-plan.md` defines executable implementation slices.
+- `.task/<task-id>/state.json` records durable task phase, status, gates, files, and current slice.
+- `.task/<task-id>/context-pack.md` contains the compact context for the current coding slice or approved parallel group.
 
 Use the local task date for `<yyyy-MM-dd>`, for example `.task/2026-04-28/`. Keep task docs concise. Prefer references and distilled summaries over copying full source documents.
 
 Legacy `.task/context-pack.md` is supported only as a migration fallback. Prefer the active task directory for all new context packs.
+
+## Task State Contract
+
+`taskId` is a relative task path under `.task/`, using `yyyy-MM-dd/task-slug` such as `2026-05-27/add-login`.
+
+### `.task/active.json`
+
+`active.json` is a flat pointer to the current task.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `taskId` | string | yes | Active task path. |
+| `type` | string | no | Task classification: `feature`, `bugfix`, `refactor`, `documentation`, or `investigation`. |
+| `phase` | string | no | Current phase: `analysis`, `coding`, `review`, or `finalization`. |
+| `allowedToCode` | boolean | no | Whether the analysis-to-coding gate has been confirmed. |
+| `currentSlice` | string \| null | no | Currently approved slice identifier. |
+| `lastGate` | string \| null | no | Last gate where the agent stopped. |
+| `nextCommand` | string | no | Recommended next CLI command or skill action. |
+| `updatedAt` | string | no | Last update timestamp in ISO-8601 format. |
+
+Example:
+
+```json
+{
+  "taskId": "2026-05-27/example-task",
+  "type": "feature",
+  "phase": "analysis",
+  "allowedToCode": false,
+  "currentSlice": null,
+  "lastGate": null,
+  "nextCommand": "/harness-context",
+  "updatedAt": "2026-05-27T00:00:00Z"
+}
+```
+
+### `.task/<task-id>/state.json`
+
+`state.json` records durable task execution state. Its `taskId` must match `.task/active.json.taskId`.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `taskId` | string | yes | Same value as `.task/active.json.taskId`. |
+| `type` | string | no | Task classification: `feature`, `bugfix`, `refactor`, `documentation`, or `investigation`. |
+| `phase` | string | no | Current phase: `analysis`, `coding`, `review`, or `finalization`. |
+| `status` | string | no | Task status: `in_progress`, `completed`, or `blocked`. |
+| `allowedToCode` | boolean | no | Whether the analysis-to-coding gate has been confirmed. |
+| `currentSlice` | string \| null | no | Currently approved slice identifier. |
+| `slices` | object[] | no | Planned slices or approved groups for this task. |
+| `gates` | object | no | Gate booleans such as `requirementFrozen`, `planApproved`, `contextPackReady`, `criticPassed`, `implementationDone`, `reviewPassed`, and `validationPassed`. |
+| `files` | object | no | Task artifact paths such as `requirement`, `implementationPlan`, and `contextPack`. |
+| `updatedAt` | string | no | Last update timestamp in ISO-8601 format. |
+
+Example:
+
+```json
+{
+  "taskId": "2026-05-27/example-task",
+  "type": "feature",
+  "phase": "analysis",
+  "status": "in_progress",
+  "allowedToCode": false,
+  "currentSlice": null,
+  "slices": [],
+  "gates": {
+    "requirementFrozen": false,
+    "planApproved": false,
+    "contextPackReady": false,
+    "criticPassed": false,
+    "implementationDone": false,
+    "reviewPassed": false,
+    "validationPassed": false
+  },
+  "files": {
+    "requirement": ".task/2026-05-27/example-task/requirement.md",
+    "implementationPlan": ".task/2026-05-27/example-task/implementation-plan.md",
+    "contextPack": ".task/2026-05-27/example-task/context-pack.md"
+  },
+  "updatedAt": "2026-05-27T00:00:00Z"
+}
+```
+
+Agents may preserve extra project-local fields, but must not change the meaning of the fields above.

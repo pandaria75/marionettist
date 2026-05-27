@@ -30,7 +30,7 @@ Use this skill to convert a requirement document into executable implementation 
    - rollback notes
 5. Create or update `.task/<task-id>/implementation-plan.md`, where `<task-id>` is read from `.task/active.json`.
 6. Update `.task/<task-id>/state.json` if the caller asks you to record slices or gates.
-7. Use the local task date for `<yyyy-MM-dd>`, for example `.task/2026-04-28/`.
+7. Use the active task directory selected by `.task/active.json`.
 8. Do not implement code.
 
 ## Output Document Template

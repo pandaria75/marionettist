@@ -135,7 +135,7 @@ task-intake
   -> boundary-reviewer
 ```
 
-Minimum rule: create `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md` before coding.
+Minimum rule: create `.task/<task-id>/context-pack.md` before coding.
 
 Example prompt:
 
@@ -146,7 +146,7 @@ I need to handle a standard task:
 
 Follow the current repository harness workflow.
 Start with task-intake.
-Create .task/<yyyy-MM-dd>/<task-slug>/context-pack.md before coding.
+Create .task/<task-id>/context-pack.md before coding.
 Do not start coding yet.
 ```
 
@@ -187,7 +187,7 @@ I need to handle a complex task:
 Follow the current repository harness workflow.
 Start with task-intake.
 If requirements or boundaries are unclear, use requirement-freezer.
-Create an implementation plan and .task/<yyyy-MM-dd>/<task-slug>/context-pack.md before coding.
+Create an implementation plan and .task/<task-id>/context-pack.md before coding.
 Do not start coding yet.
 ```
 
@@ -235,7 +235,7 @@ Use when expected behavior, business rules, compatibility, or boundaries are unc
 Output:
 
 ```text
-.task/<yyyy-MM-dd>/<task-slug>/requirement.md
+.task/<task-id>/requirement.md
 ```
 
 ### 7.3 `module-inspector`
@@ -253,7 +253,7 @@ Use to split complex approved work into small executable slices.
 Output:
 
 ```text
-.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md
+.task/<task-id>/implementation-plan.md
 ```
 
 ### 7.6 `context-pack-builder`
@@ -263,7 +263,7 @@ Use before coding to build the minimum working context.
 Output:
 
 ```text
-.task/<yyyy-MM-dd>/<task-slug>/context-pack.md
+.task/<task-id>/context-pack.md
 ```
 
 It should capture only the current slice or approved group context, not whole docs or source files.
@@ -298,7 +298,7 @@ Used when the task needs frozen requirements.
 Path:
 
 ```text
-.task/<yyyy-MM-dd>/<task-slug>/requirement.md
+.task/<task-id>/requirement.md
 ```
 
 ### 8.2 Implementation Plan
@@ -308,7 +308,7 @@ Used when the task needs explicit slices.
 Path:
 
 ```text
-.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md
+.task/<task-id>/implementation-plan.md
 ```
 
 Each slice should define:
@@ -326,7 +326,7 @@ Used before coding for non-trivial implementation work.
 Path:
 
 ```text
-.task/<yyyy-MM-dd>/<task-slug>/context-pack.md
+.task/<task-id>/context-pack.md
 ```
 
 It should include:
@@ -374,7 +374,7 @@ Evidence:
 Follow the current repository harness workflow.
 Start with task-intake.
 Prioritize confirming the reproduction path or failing test.
-Create .task/<yyyy-MM-dd>/<task-slug>/context-pack.md before coding.
+Create .task/<task-id>/context-pack.md before coding.
 Do not start coding yet.
 ```
 

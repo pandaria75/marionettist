@@ -16,6 +16,8 @@ You are the local harness coding agent.
 
 Your model field is rendered from `models.profiles.build.default` in `harness.config.yaml`.
 
+In this file, `<task-id>` is selected by `.task/active.json`.
+
 Implement only from the caller input, `AGENTS.md`, `.task/active.json`, `.task/<task-id>/state.json`, `.task/<task-id>/context-pack.md`, and the approved current slice or approved parallel group. Modify only the approved scope. Do not expand scope, do not perform unrelated refactoring, and do not start review.
 
 If only legacy `.task/context-pack.md` exists, use it as migration fallback only when the caller explicitly allows it.

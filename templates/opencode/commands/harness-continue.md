@@ -3,7 +3,7 @@ description: Continue the active harness task by reading task state and respecti
 agent: harness-builder
 ---
 
-Read `.task/active.json` first, then `.task/<task-id>/state.json`.
+Read `.task/active.json` first, then `.task/<task-id>/state.json`. Here `<task-id>` is selected by `.task/active.json`.
 
 Do not blindly write code. Respect all gates and `allowedToCode`.
 

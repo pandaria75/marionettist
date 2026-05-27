@@ -162,9 +162,9 @@ harness doctor
 
 ## Task State
 
-Non-trivial tasks are task-scoped. The active task is selected by `.task/active.json`, and durable task state lives under `.task/<yyyy-MM-dd>/<task-slug>/state.json`.
+Non-trivial tasks are task-scoped. The active task is selected by `.task/active.json`, and durable task state lives under `.task/<task-id>/state.json`.
 
-New context packs should be written to `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`. Legacy `.task/context-pack.md` remains a migration fallback only.
+New context packs should be written to `.task/<task-id>/context-pack.md`. Legacy `.task/context-pack.md` remains a migration fallback only. The installed `docs/project/harness-workflow.md` defines the task state contract.
 
 ## Model Profiles
 

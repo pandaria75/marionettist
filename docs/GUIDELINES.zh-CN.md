@@ -50,8 +50,15 @@ harness init --with-opencode
 
 - 已有 project-local 文件会被保留
 - `AGENTS.md` 只更新 managed block
+- 如果目标 `AGENTS.md` 不含 managed-block 标记，则其现有全部内容会被保留为 project-local imported 区域
 - `.task/` 是本地任务状态，不属于 managed file
 - 后续升级由 manifest 判断哪些内容可以安全更新
+
+`harness init` 冲突处理（交互模式）：
+
+- 对每个已存在文件，CLI 会询问是备份（重命名为 `.bak`）、覆盖还是跳过
+- 使用 `--auto` 可跳过提示，并默认跳过所有已存在文件
+- 搭配 `--force` 可覆盖所有已存在的受管文件
 
 ## 4. 这套 Harness 应该怎么用
 
@@ -127,7 +134,7 @@ task-intake
   -> boundary-reviewer
 ```
 
-最低要求：编码前生成 `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`。
+最低要求：编码前生成 `.task/<task-id>/context-pack.md`。
 
 示例提示词：
 
@@ -138,7 +145,7 @@ task-intake
 
 请按照当前仓库的 harness workflow 推进。
 先进行 task-intake。
-编码前生成 .task/<yyyy-MM-dd>/<task-slug>/context-pack.md。
+编码前生成 .task/<task-id>/context-pack.md。
 不要直接编码。
 ```
 
@@ -179,7 +186,7 @@ task-intake
 请按照当前仓库的 harness workflow 推进。
 先进行 task-intake。
 如果需求或边界不清楚，使用 requirement-freezer。
-编码前生成 implementation plan 和 .task/<yyyy-MM-dd>/<task-slug>/context-pack.md。
+编码前生成 implementation plan 和 .task/<task-id>/context-pack.md。
 不要直接编码。
 ```
 
@@ -227,7 +234,7 @@ User confirmation required to continue.
 输出：
 
 ```text
-.task/<yyyy-MM-dd>/<task-slug>/requirement.md
+.task/<task-id>/requirement.md
 ```
 
 ### 7.3 `module-inspector`
@@ -245,7 +252,7 @@ User confirmation required to continue.
 输出：
 
 ```text
-.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md
+.task/<task-id>/implementation-plan.md
 ```
 
 ### 7.6 `context-pack-builder`
@@ -255,7 +262,7 @@ User confirmation required to continue.
 输出：
 
 ```text
-.task/<yyyy-MM-dd>/<task-slug>/context-pack.md
+.task/<task-id>/context-pack.md
 ```
 
 它应只保留当前 slice 或已批准 group 所需的上下文，而不是复制整份 docs 或源码。
@@ -290,7 +297,7 @@ User confirmation required to continue.
 路径：
 
 ```text
-.task/<yyyy-MM-dd>/<task-slug>/requirement.md
+.task/<task-id>/requirement.md
 ```
 
 ### 8.2 Implementation Plan
@@ -300,7 +307,7 @@ User confirmation required to continue.
 路径：
 
 ```text
-.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md
+.task/<task-id>/implementation-plan.md
 ```
 
 每个 slice 至少应定义：
@@ -318,7 +325,7 @@ User confirmation required to continue.
 路径：
 
 ```text
-.task/<yyyy-MM-dd>/<task-slug>/context-pack.md
+.task/<task-id>/context-pack.md
 ```
 
 它应包括：
@@ -366,7 +373,7 @@ Evidence:
 请按照当前仓库的 harness workflow 推进。
 先进行 task-intake。
 优先确认复现路径或失败测试。
-编码前生成 .task/<yyyy-MM-dd>/<task-slug>/context-pack.md。
+编码前生成 .task/<task-id>/context-pack.md。
 不要直接编码。
 ```
 

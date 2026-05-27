@@ -17,10 +17,10 @@ If the user already provides structured task artifacts or a clearly scoped ongoi
 
 Structured task artifacts include:
 - `.task/active.json`
-- `.task/<yyyy-MM-dd>/<task-slug>/state.json`
-- `.task/<yyyy-MM-dd>/<task-slug>/requirement.md`
-- `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md`
-- `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`
+- `.task/<task-id>/state.json`
+- `.task/<task-id>/requirement.md`
+- `.task/<task-id>/implementation-plan.md`
+- `.task/<task-id>/context-pack.md`
 
 Use the local task date for `<yyyy-MM-dd>`, for example `.task/2026-04-28/`.
 
@@ -45,7 +45,7 @@ For fast-path tasks:
 4. Ask only the minimum blocking questions required to choose the next workflow.
 5. Do not implement code.
 6. Do not create large documents unless the task requires them.
-7. For non-trivial new tasks, create a task directory `.task/<yyyy-MM-dd>/<task-slug>/` and point `.task/active.json` to it.
+7. For non-trivial new tasks, create a dated task directory and point `.task/active.json` to it.
 8. Route to the correct next skill or workflow.
 
 ## Questions To Ask

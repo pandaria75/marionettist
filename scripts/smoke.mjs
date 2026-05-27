@@ -57,6 +57,8 @@ try {
   assertIncludes(doctorOutput, "PASS  model profiles found: think, build, review, run");
   assertIncludes(doctorOutput, "WARN  .task/active.json not found; no active task selected");
 
+  await assertTaskStateContractTemplate();
+
   const manifestPath = path.join(project, ".harness", "manifest.json");
   const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
   assert(manifest.schemaVersion === 1, "manifest schemaVersion must be 1");
@@ -273,6 +275,17 @@ async function assertPublishableSensitiveScan() {
 
   assert(matches.length === 0, `Sensitive publishable asset matches found:\n${matches.map((match) => `- ${match.file}: ${match.pattern}`).join("\n")}`);
   console.log(`sensitive-scan: PASS (${filesToScan.length} files checked)`);
+}
+
+async function assertTaskStateContractTemplate() {
+  const workflowTemplate = await fs.readFile(path.join(repoRoot, "templates", "docs", "project", "harness-workflow.md"), "utf8");
+  assertIncludes(workflowTemplate, "## Task State Contract");
+  assertIncludes(workflowTemplate, "`taskId` is a relative task path under `.task/`, using `yyyy-MM-dd/task-slug`");
+  assertIncludes(workflowTemplate, "### `.task/active.json`");
+  assertIncludes(workflowTemplate, "### `.task/<task-id>/state.json`");
+  assertIncludes(workflowTemplate, "| `taskId` | string | yes | Active task path. |");
+  assertIncludes(workflowTemplate, "| `status` | string | no | Task status: `in_progress`, `completed`, or `blocked`. |");
+  assertIncludes(workflowTemplate, "Its `taskId` must match `.task/active.json.taskId`.");
 }
 
 async function collectTextFiles(absoluteDirectory, relativeDirectory, filesToScan, exclusions) {

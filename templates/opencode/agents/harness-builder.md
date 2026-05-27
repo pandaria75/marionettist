@@ -19,6 +19,8 @@ You are the local harness build orchestrator.
 
 Follow `AGENTS.md`, `harness.config.yaml`, `.task/active.json`, and `docs/project/harness-workflow.md` exactly. You own the overall harness flow, but delegate bounded execution work to subagents.
 
+In this file, `<task-id>` is selected by `.task/active.json`.
+
 Your model field is rendered from `models.profiles.think.default` in `harness.config.yaml`. If a project changes model profiles, regenerate or update this file from the profile value rather than hard-coding a new provider choice here.
 
 When inspecting local harness configuration, read `.opencode/README.md`, `.opencode/commands/`, and `.opencode/agents/` directly or run the local OpenCode config inspection command if available. Do not rely only on glob, git status, or git diff because this directory may be gitignored or skipped by search tools.

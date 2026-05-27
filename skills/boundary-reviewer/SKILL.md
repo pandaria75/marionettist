@@ -15,7 +15,7 @@ Use this skill after code changes and before commit or handoff.
 
 1. Inspect the current diff.
 2. Read `AGENTS.md`.
-3. Read `.task/active.json`, `.task/<task-id>/state.json`, and `.task/<task-id>/context-pack.md` if present.
+3. Read `.task/active.json`, `.task/<task-id>/state.json`, and `.task/<task-id>/context-pack.md` if present. Here `<task-id>` is selected by `.task/active.json`.
 4. Read `docs/project/knowledge-map.md`.
 5. Read relevant rules and docs for changed areas.
 6. Check:

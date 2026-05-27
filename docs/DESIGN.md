@@ -183,75 +183,11 @@ Managed files no longer present in the framework are reported as `orphan-managed
 
 ### 5.0 Task State Contract
 
-The harness uses two JSON files as the runtime state contract. All harness actors (skills, agents, CLI) must read and write these fields consistently.
+The harness uses two JSON files as the runtime state contract: `.task/active.json` and `.task/<task-id>/state.json`.
 
-#### `.task/active.json` — Active Task Pointer
+The canonical field schema belongs in the installed target-project workflow document, `templates/docs/project/harness-workflow.md`, which becomes `docs/project/harness-workflow.md` after `harness init`.
 
-Selects the current task and records lightweight dispatch metadata. A single flat object at `.task/active.json`.
-
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `taskId` | string | yes | Path to the task directory, format `yyyy-MM-dd/task-slug` (e.g. `2026-05-27/add-login`) |
-| `type` | string | no | Task classification: `feature`, `bugfix`, `refactor`, `documentation`, `investigation` |
-| `phase` | string | no | Current harness phase: `analysis`, `coding`, `review`, `finalization` |
-| `allowedToCode` | boolean | no | Whether the user has confirmed the analysis→coding gate |
-| `currentSlice` | string | no | Identifier of the currently approved slice |
-| `lastGate` | string | no | The last gate the agent stopped at (for status display) |
-| `nextCommand` | string | no | Recommended next CLI or skill command |
-
-Example:
-
-```json
-{
-  "taskId": "2026-05-27/add-login-page",
-  "type": "feature",
-  "phase": "analysis",
-  "allowedToCode": false,
-  "currentSlice": null,
-  "lastGate": "analysis",
-  "nextCommand": "/harness-status"
-}
-```
-
-#### `.task/<yyyy-MM-dd>/<task-slug>/state.json` — Durable Task State
-
-Records the full task execution state within the task directory.
-
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `phase` | string | no | Current harness phase: `analysis`, `coding`, `review`, `finalization` |
-| `status` | string | no | Task status: `in-progress`, `complete`, `blocked` |
-| `allowedToCode` | boolean | no | Gate: whether the analysis→coding transition has been confirmed |
-| `requirementFrozen` | boolean | no | Whether requirement document has been created and approved |
-| `implementationPlan` | boolean | no | Whether implementation plan exists and is approved |
-| `contextPackReady` | boolean | no | Whether context pack is ready for the current slice or group |
-| `currentSlice` | string | no | Identifier of the currently approved slice |
-| `currentGroup` | string | no | Identifier of the currently approved parallel group (if any) |
-| `completedSlices` | string[] | no | Slice identifiers that have passed review |
-| `reviewAttempts` | number | no | Current review retry count for the active slice or group (0-3) |
-| `gates` | object[] | no | History of gate transitions: `[{gate, timestamp, status}]` |
-| `files` | string[] | no | Files created or modified in the current slice or group |
-
-Example:
-
-```json
-{
-  "phase": "coding",
-  "status": "in-progress",
-  "allowedToCode": true,
-  "requirementFrozen": true,
-  "implementationPlan": true,
-  "contextPackReady": true,
-  "currentSlice": "slice-2-user-session",
-  "currentGroup": null,
-  "completedSlices": ["slice-1-login-form"],
-  "reviewAttempts": 0,
-  "gates": [
-    {"gate": "analysis", "timestamp": "2026-05-27T10:00:00Z", "status": "approved"}
-  ],
-  "files": ["src/auth/login.ts", "src/auth/session.ts"]
-}
-```
+Framework-maintenance docs should describe why this contract exists; target-project workflow docs define the exact fields agents must read and write.
 
 ### 5.1 Analysis Before Coding
 
@@ -262,10 +198,10 @@ They start from classification, boundary reading, and artifact creation.
 Depending on the task, analysis may produce:
 
 - `.task/active.json`
-- `.task/<yyyy-MM-dd>/<task-slug>/requirement.md`
-- `.task/<yyyy-MM-dd>/<task-slug>/implementation-plan.md`
-- `.task/<yyyy-MM-dd>/<task-slug>/context-pack.md`
-- `.task/<yyyy-MM-dd>/<task-slug>/state.json`
+- `.task/<task-id>/requirement.md`
+- `.task/<task-id>/implementation-plan.md`
+- `.task/<task-id>/context-pack.md`
+- `.task/<task-id>/state.json`
 
 These files convert conversational intent into executable repository state.
 
