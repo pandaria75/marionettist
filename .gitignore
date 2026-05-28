@@ -11,3 +11,4 @@ build
 $null
 .antigravitycli
 .playwright-mcp
+.harness-self/

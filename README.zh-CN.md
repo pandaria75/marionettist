@@ -262,10 +262,20 @@ Harness 文档是为设计知识服务的，不是为代码索引服务的。
 - 内部 URL
 - 从源项目复制来的品牌化默认值
 
+## 框架自举 Profile
+
+当前仓库是框架源码仓库，不是普通 target project。维护自身时使用 `harness self init`、`harness self doctor` 和 `harness self test`。
+
+- `.harness/self/` 是版本化 self profile。
+- `.harness-self/` 是可删除的本地运行态和 sandbox 输出。
+- `fixtures/` 存放版本化 sandbox 输入。
+- `templates/` 和 `skills/` 是可发布源资产，不能写入 self-only 规则。
+
 ## 验证
 
 运行：
 
 ```powershell
 npm run smoke
+npm run self:smoke
 ```
