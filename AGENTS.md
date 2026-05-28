@@ -26,6 +26,9 @@ This file governs work on the framework itself. It is not the same as `templates
 
 - `templates/AGENTS.md` defines target-project agent behavior.
 - Root `AGENTS.md` defines framework maintenance behavior.
+- Framework self-bootstrap behavior belongs in `.harness/self/` and self OpenCode files, not target-project templates.
+- `templates/opencode/` remains the only source of truth for target-project OpenCode agents and commands.
+- Root `.opencode/` may contain both self-only files and generated mirrors from `templates/opencode/` for local framework maintenance.
 - Template files must not assume a specific language, build tool, backend framework, frontend framework, or module layout.
 - Template files may reference `harness.config.yaml` as the target-project source of local configuration.
 - Managed template sections must be safe for `harness sync` to update without overwriting project-local sections.
@@ -41,6 +44,8 @@ This file governs work on the framework itself. It is not the same as `templates
 ## CLI Policy
 
 - `harness init` must be safe by default and must not overwrite existing project-local content without an explicit force option.
+- Do not use regular `harness init` to bootstrap this framework repository; use `harness self init --apply` or `harness self init --apply --with-opencode`.
+- Regular target-project `harness init --with-opencode` and framework `harness self init --apply --with-opencode` are separate paths with separate OpenCode content.
 - `harness sync` must update framework-managed files while preserving project-local docs, rules, skills, and task files.
 - `harness diff` must show what would change before sync.
 - Destructive behavior is forbidden unless explicitly requested by the user and implemented behind clear flags.
@@ -48,6 +53,10 @@ This file governs work on the framework itself. It is not the same as `templates
 ## Validation
 
 When changing CLI code, run the relevant Node command or smoke test.
+
+When changing self-bootstrap or OpenCode boundary logic, run:
+- `npm run smoke`
+- `npm run self:smoke`
 
 When changing templates or skills, validate that:
 - no project-specific terms leaked into core assets
@@ -58,4 +67,6 @@ When changing templates or skills, validate that:
 
 - Do not implement broad behavior changes without updating templates and docs consistently.
 - Do not mix framework-maintenance rules with target-project harness rules.
+- Do not put self-only OpenCode commands, agents, or policy into `templates/AGENTS.md`, `templates/opencode/`, or `skills/`.
+- Do not edit generated `.opencode/agents/harness-*.md`, `.opencode/agents/validators/**`, or `.opencode/commands/harness-*.md` directly; edit `templates/opencode/**` and rerun `harness self init --apply --with-opencode`.
 - Do not treat generated target-project docs as code indexes.

@@ -8,7 +8,20 @@ node_modules
 dist
 build
 .idea
-$null
 .antigravitycli
 .playwright-mcp
 .harness-self/
+
+# Generated self-opencode mirrors from templates/opencode.
+# Source of truth is templates/opencode/**.
+.opencode/agents/harness-*.md
+.opencode/agents/validators/
+.opencode/commands/harness-*.md
+
+# Keep framework self-opencode files tracked.
+!.opencode/README.md
+!.opencode/agents/
+!.opencode/agents/harness-framework-*.md
+!.opencode/commands/
+!.opencode/commands/harness-self-*.md
+!opencode.jsonc

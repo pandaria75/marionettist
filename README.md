@@ -136,6 +136,22 @@ harness init --dry-run --with-opencode
 harness init --with-opencode
 ```
 
+This command is for ordinary target projects. Do not use regular `harness init` to bootstrap this framework repository.
+
+Bootstrap OpenCode files for maintaining this framework repository itself:
+
+```powershell
+harness self init --with-opencode
+harness self init --apply --with-opencode
+```
+
+Self OpenCode files are separate from target-project OpenCode templates. They live in this repository root and are only for framework maintenance. Target-project OpenCode templates remain under `templates/opencode/` and are installed only by regular target-project `harness init --with-opencode`.
+
+When self OpenCode is enabled for this framework repository, root `.opencode/` contains two kinds of files:
+
+- framework self-only OpenCode files for maintaining this repository
+- generated local runtime mirrors copied from `templates/opencode/**`
+
 Preview framework-managed changes:
 
 ```powershell
@@ -192,6 +208,27 @@ Optional OpenCode assets when `--with-opencode` is used:
 - `.opencode/agents/*.md`
 - `.opencode/README.md`
 
+Framework self-bootstrap uses a different command and different content:
+
+- `harness self init --apply --with-opencode`
+- root `opencode.jsonc`
+- `.opencode/commands/harness-self-*.md`
+- `.opencode/agents/harness-framework-*.md`
+- generated mirrors under `.opencode/agents/harness-*.md`
+- generated mirrors under `.opencode/agents/validators/**`
+- generated mirrors under `.opencode/commands/harness-*.md`
+
+Those self files are for maintaining this framework codebase. They must not be copied into `templates/AGENTS.md`, `templates/opencode/`, or `skills/`.
+
+`templates/opencode/**` remains the only source of truth for target-project OpenCode agents and commands. If you need to change the standard harness builder/coder/planner/reviewer/validator or harness slash commands, edit `templates/opencode/**`, then run:
+
+```powershell
+harness self init --apply --with-opencode
+harness self doctor
+```
+
+Do not edit generated mirror files under root `.opencode/agents/harness-*.md`, `.opencode/agents/validators/**`, or `.opencode/commands/harness-*.md` directly.
+
 ## Managed And Local Content
 
 This framework is designed to evolve without taking ownership of project-local work.
@@ -223,6 +260,32 @@ OpenCode is recommended for two reasons:
 2. **Faster execution.** Reusable slash commands, local agent roles, and validator scaffolding reduce repeated prompting overhead.
 
 When enabled, the framework installs editable local scaffolding rather than hard product behavior. Teams can adapt models, permissions, and validator strategy to their own environment.
+
+For this framework repository, use `harness self init --apply --with-opencode` instead. It generates self-only OpenCode commands and agents for working on `src/commands`, `src/core`, `templates`, and `skills` while preserving the boundary between framework maintenance rules and target-project templates.
+
+Files intended to be committed for framework self OpenCode are:
+
+- `opencode.jsonc`
+- `.opencode/README.md`
+- `.opencode/agents/harness-framework-*.md`
+- `.opencode/commands/harness-self-*.md`
+
+Generated mirror files that should not be treated as source of truth are:
+
+- `.opencode/agents/harness-builder.md`
+- `.opencode/agents/harness-coder.md`
+- `.opencode/agents/harness-indexer.md`
+- `.opencode/agents/harness-planner.md`
+- `.opencode/agents/harness-reviewer.md`
+- `.opencode/agents/harness-validator.md`
+- `.opencode/agents/validators/**`
+- `.opencode/commands/harness-bugfix.md`
+- `.opencode/commands/harness-context.md`
+- `.opencode/commands/harness-continue.md`
+- `.opencode/commands/harness-docs.md`
+- `.opencode/commands/harness-feature.md`
+- `.opencode/commands/harness-refactor.md`
+- `.opencode/commands/harness-status.md`
 
 See [docs/OPENCODE.md](./docs/OPENCODE.md).
 

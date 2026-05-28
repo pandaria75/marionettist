@@ -9,12 +9,29 @@ import { doctorCommand } from "./doctor.js";
 const selfProfileRelative = ".harness/self/README.md";
 const selfRuntimeRelative = ".harness-self/";
 const templatesAgentsRelative = "templates/AGENTS.md";
+const templatesOpencodeRelative = "templates/opencode";
+const selfOpencodeMirrorRoots = ["agents", "commands"];
+const selfOpencodeRequiredFiles = [
+  "opencode.jsonc",
+  ".opencode/README.md",
+  ".opencode/commands/harness-self-init.md",
+  ".opencode/commands/harness-self-review.md",
+  ".opencode/commands/harness-self-test.md",
+  ".opencode/agents/harness-framework-planner.md",
+  ".opencode/agents/harness-framework-reviewer.md"
+];
+const selfOpencodeBoundaryTerms = [
+  "Do not run regular harness init against this framework repository",
+  "templates/ and skills/ are product source assets, not self runtime output",
+  ".harness-self/ is local runtime sandbox state",
+  "self-only rules must not be written into target-project templates"
+];
 const selfPolicyStart = "<!-- HARNESS_SELF_POLICY_BEGIN -->";
 const selfPolicyEnd = "<!-- HARNESS_SELF_POLICY_END -->";
 const selfHelp = `Harness self-dogfooding commands
 
 Usage:
-  harness self init [--apply]
+  harness self init [--apply] [--with-opencode]
   harness self doctor
   harness self test
 `;
@@ -56,6 +73,156 @@ const forbiddenTemplateTerms = [
   "framework self profile"
 ];
 
+const forbiddenSelfOpencodeOutputHints = [
+  "output self opencode to templates",
+  "write self opencode to templates",
+  "copy self opencode into skills",
+  "sync self-only rules into templates/AGENTS.md"
+];
+
+const selfOpencodeContents = new Map([
+  ["opencode.jsonc", [
+    "{",
+    "  \"$schema\": \"https://opencode.ai/config.json\",",
+    "  \"instructions\": [\"AGENTS.md\", \".harness/self/README.md\"],",
+    "  \"plugin\": [\"opencode-tasks\"]",
+    "}",
+    ""
+  ].join("\n")],
+  [".opencode/README.md", [
+    "# Framework Self OpenCode",
+    "",
+    "These OpenCode files are for maintaining this harness framework repository itself.",
+    "",
+    "This directory intentionally contains two kinds of files:",
+    "- framework self-only files that may be committed",
+    "- generated local runtime mirrors copied from `templates/opencode/**`",
+    "",
+    "Boundary rules:",
+    "- Do not run regular harness init against this framework repository; use `harness self init --apply --with-opencode` for self setup.",
+    "- templates/ and skills/ are product source assets, not self runtime output.",
+    "- .harness-self/ is local runtime sandbox state and must stay disposable.",
+    "- self-only rules must not be written into target-project templates, including `templates/AGENTS.md`.",
+    "- Framework private implementation details must not be copied into target-project templates.",
+    "",
+    "Source of truth:",
+    "- Self-only files in `.opencode/agents/harness-framework-*.md` and `.opencode/commands/harness-self-*.md` are maintained for this repository.",
+    "- Target-project OpenCode agents and commands still come only from `templates/opencode/**`.",
+    "- Mirrored files under `.opencode/agents/harness-*.md`, `.opencode/agents/validators/**`, and `.opencode/commands/harness-*.md` must not be edited directly.",
+    "- Edit `templates/opencode/**` instead, then rerun `harness self init --apply --with-opencode`, then run `harness self doctor`.",
+    "",
+    "Commit policy:",
+    "- Commit `opencode.jsonc`.",
+    "- Commit `.opencode/README.md`.",
+    "- Commit `.opencode/agents/harness-framework-*.md`.",
+    "- Commit `.opencode/commands/harness-self-*.md`.",
+    "- Do not commit generated mirrors from `templates/opencode/**`.",
+    "",
+    "Before changing `src/commands`, `src/core`, `templates`, or `skills`, inspect the current boundary and run relevant smoke tests.",
+    "",
+    "Recommended validation:",
+    "- `npm run smoke`",
+    "- `npm run self:smoke`",
+    ""
+  ].join("\n")],
+  [".opencode/commands/harness-self-init.md", [
+    "---",
+    "description: Initialize or refresh framework self-dogfooding files",
+    "agent: harness-framework-planner",
+    "---",
+    "",
+    "Run framework self setup for this repository only.",
+    "",
+    "Use:",
+    "- `harness self init --with-opencode` to preview self OpenCode files.",
+    "- `harness self init --apply --with-opencode` to write self OpenCode files.",
+    "",
+    "Do not run regular harness init against this framework repository. templates/ and skills/ are product source assets, not self runtime output. .harness-self/ is local runtime sandbox state. self-only rules must not be written into target-project templates.",
+    ""
+  ].join("\n")],
+  [".opencode/commands/harness-self-review.md", [
+    "---",
+    "description: Review framework changes for boundary leaks",
+    "agent: harness-framework-reviewer",
+    "---",
+    "",
+    "Review the current diff for harness framework maintenance risks.",
+    "",
+    "Focus on:",
+    "- target-project templates staying project-neutral",
+    "- self-only rules staying out of `templates/AGENTS.md` and target OpenCode templates",
+    "- init/sync/diff/doctor behavior staying safe and reversible",
+    "- tests covering template, skill, and self-opencode boundaries",
+    "",
+    "Do not run regular harness init against this framework repository. templates/ and skills/ are product source assets, not self runtime output. .harness-self/ is local runtime sandbox state. self-only rules must not be written into target-project templates.",
+    ""
+  ].join("\n")],
+  [".opencode/commands/harness-self-test.md", [
+    "---",
+    "description: Run framework smoke tests",
+    "agent: harness-framework-reviewer",
+    "---",
+    "",
+    "Run the regression tests for framework changes.",
+    "",
+    "Recommended commands:",
+    "- `npm run smoke`",
+    "- `npm run self:smoke`",
+    "",
+    "Run these after changing `src/commands`, `src/core`, `templates`, `skills`, sync/init/diff/doctor logic, or self OpenCode files.",
+    "",
+    "Do not run regular harness init against this framework repository. templates/ and skills/ are product source assets, not self runtime output. .harness-self/ is local runtime sandbox state. self-only rules must not be written into target-project templates.",
+    ""
+  ].join("\n")],
+  [".opencode/agents/harness-framework-planner.md", [
+    "---",
+    "description: Plans changes to the harness framework repository while preserving target/self boundaries.",
+    "model: openai/gpt-5.5",
+    "---",
+    "",
+    "# Harness Framework Planner",
+    "",
+    "You plan maintenance work for the universal AI harness framework repository.",
+    "",
+    "Rules:",
+    "- Read relevant files before proposing or editing changes.",
+    "- Do not run regular harness init against this framework repository.",
+    "- templates/ and skills/ are product source assets, not self runtime output.",
+    "- .harness-self/ is local runtime sandbox state.",
+    "- self-only rules must not be written into target-project templates.",
+    "- Do not copy framework-private implementation details into target-project templates.",
+    "- Keep changes minimal and update tests when touching init, sync, diff, doctor, templates, or skills.",
+    "",
+    "Validation to recommend:",
+    "- `npm run smoke`",
+    "- `npm run self:smoke`",
+    ""
+  ].join("\n")],
+  [".opencode/agents/harness-framework-reviewer.md", [
+    "---",
+    "description: Reviews harness framework changes for regressions and boundary contamination.",
+    "model: deepseek/deepseek-v4-pro",
+    "---",
+    "",
+    "# Harness Framework Reviewer",
+    "",
+    "Review diffs in this framework repository with findings first.",
+    "",
+    "Check:",
+    "- regular target-project `harness init --with-opencode` remains separate from `harness self init --apply --with-opencode`",
+    "- self-only rules are not added to `templates/AGENTS.md`, `templates/opencode`, or `skills/`",
+    "- templates/ and skills/ remain product source assets, not self runtime output",
+    "- .harness-self/ remains local runtime sandbox state",
+    "- managed block markers in `templates/AGENTS.md` are present",
+    "- changes to templates, skills, sync/init/diff/doctor logic have smoke coverage",
+    "",
+    "Do not run regular harness init against this framework repository. self-only rules must not be written into target-project templates.",
+    ""
+  ].join("\n")]
+]);
+
+const selfOnlyOpencodePaths = new Set(selfOpencodeContents.keys());
+
 const sensitivePatterns = [
   { label: "Windows user path", regex: new RegExp(["C:", "Users"].join("\\\\"), "i") },
   { label: "local AI workspace path", regex: new RegExp(["E:", "AI_WORK"].join("\\\\"), "i") },
@@ -91,7 +258,8 @@ export async function selfCommand(args) {
 
 async function selfInit(args) {
   const options = parseSelfArgs(args, { allowApply: true });
-  const operations = await buildSelfInitOperations();
+  if (options.help) return;
+  const operations = await buildSelfInitOperations(options);
 
   printSelfPlan(operations, options.apply ? "write" : "dry-run");
 
@@ -108,12 +276,14 @@ async function selfInit(args) {
 }
 
 async function selfDoctor(args) {
-  parseSelfArgs(args);
+  const options = parseSelfArgs(args);
+  if (options.help) return;
   const results = [];
 
   await checkPath("AGENTS.md", "file", "root AGENTS.md exists", results);
-  await checkPath(".harness/self", "directory", ".harness/self profile exists", results);
+  await checkPath(selfProfileRelative, "file", `${selfProfileRelative} exists`, results);
   await checkGitignore(results);
+  await checkSelfOpencode(results);
   await checkTemplatesClean(results);
   await checkFixtures(results);
   await checkSmokeEntrypoint(results);
@@ -127,7 +297,8 @@ async function selfDoctor(args) {
 }
 
 async function selfTest(args) {
-  parseSelfArgs(args);
+  const options = parseSelfArgs(args);
+  if (options.help) return;
   const runId = `self-test-${new Date().toISOString().replace(/[:.]/g, "-")}`;
   const runRoot = path.join(frameworkRoot, ".harness-self", "sandbox-runs", runId);
   const results = [];
@@ -222,7 +393,7 @@ function assertOutputIncludes(output, expected, label, results) {
   results.push(output.includes(expected) ? pass(label) : fail(`${label}: expected output to include ${expected}`));
 }
 
-async function buildSelfInitOperations() {
+async function buildSelfInitOperations(options = {}) {
   const operations = [];
   const profilePath = path.join(frameworkRoot, selfProfileRelative);
   const profileExists = await exists(profilePath);
@@ -249,6 +420,29 @@ async function buildSelfInitOperations() {
     note: `root AGENTS.md is not rewritten; any future self policy must use ${selfPolicyStart} / ${selfPolicyEnd}`
   });
 
+  if (options.withOpencode) {
+    for (const [relative, content] of selfOpencodeContents.entries()) {
+      const absolute = path.join(frameworkRoot, relative);
+      const current = await readOptional(absolute);
+      operations.push({
+        path: relative,
+        action: textEquals(current, content) ? "unchanged" : current === null ? "create" : "update",
+        content
+      });
+    }
+
+    for (const mirror of await buildSelfOpencodeMirrorEntries()) {
+      const absolute = path.join(frameworkRoot, mirror.path);
+      const current = await readOptional(absolute);
+      operations.push({
+        path: mirror.path,
+        action: textEquals(current, mirror.content) ? "unchanged" : current === null ? "create" : "update",
+        content: mirror.content,
+        note: `generated mirror from ${mirror.source}`
+      });
+    }
+  }
+
   return operations;
 }
 
@@ -270,6 +464,63 @@ async function checkGitignore(results) {
   }
   const ignored = content.split(/\r?\n/).some((line) => line.trim() === selfRuntimeRelative || line.trim() === ".harness-self");
   results.push(ignored ? pass(".harness-self/ is ignored") : fail(".harness-self/ is not ignored by .gitignore"));
+}
+
+async function checkSelfOpencode(results) {
+  const hasOpencode = await exists(path.join(frameworkRoot, ".opencode")) || await exists(path.join(frameworkRoot, "opencode.jsonc"));
+  if (!hasOpencode) {
+    results.push(warn("self OpenCode files not installed"));
+    return;
+  }
+
+  const contents = [];
+  for (const relative of selfOpencodeRequiredFiles) {
+    const absolute = path.join(frameworkRoot, relative);
+    const content = await readOptional(absolute);
+    if (content === null) {
+      results.push(fail(`${relative} missing`));
+      continue;
+    }
+    results.push(pass(`${relative} exists`));
+    contents.push({ relative, content });
+  }
+
+  const combined = contents.map((entry) => entry.content).join("\n").toLowerCase();
+  for (const term of selfOpencodeBoundaryTerms) {
+    results.push(combined.includes(term.toLowerCase()) ? pass(`self OpenCode boundary rule present: ${term}`) : fail(`self OpenCode boundary rule missing: ${term}`));
+  }
+
+  const badPaths = selfOpencodeRequiredFiles.filter((relative) => relative.startsWith("templates/") || relative.startsWith("skills/"));
+  results.push(badPaths.length === 0 ? pass("self OpenCode outputs are outside templates/ and skills/") : fail(`self OpenCode outputs target product assets: ${badPaths.join(", ")}`));
+
+  const badHints = forbiddenSelfOpencodeOutputHints.filter((hint) => combined.includes(hint.toLowerCase()));
+  results.push(badHints.length === 0 ? pass("self OpenCode files do not redirect output into target templates") : fail(`self OpenCode output boundary hints found: ${badHints.join(", ")}`));
+
+  await checkSelfOpencodeMirrors(results);
+}
+
+async function checkSelfOpencodeMirrors(results) {
+  let mirrors;
+  try {
+    mirrors = await buildSelfOpencodeMirrorEntries();
+  } catch (error) {
+    results.push(fail(error instanceof Error ? error.message : String(error)));
+    return;
+  }
+
+  for (const mirror of mirrors) {
+    const target = path.join(frameworkRoot, mirror.path);
+    const current = await readOptional(target);
+    if (current === null) {
+      results.push(fail(`${mirror.path} missing; mirror drift from ${mirror.source}. Edit templates/opencode/** instead, then rerun harness self init --apply --with-opencode.`));
+      continue;
+    }
+    if (!textEquals(current, mirror.content)) {
+      results.push(fail(`${mirror.path} drifted from ${mirror.source}. Edit templates/opencode/** instead, then rerun harness self init --apply --with-opencode.`));
+      continue;
+    }
+    results.push(pass(`${mirror.path} matches ${mirror.source}`));
+  }
 }
 
 async function checkTemplatesClean(results) {
@@ -372,14 +623,19 @@ async function collectTextFiles(absolute, relative, files) {
 }
 
 function parseSelfArgs(args, { allowApply = false } = {}) {
-  const options = { apply: false };
+  const options = { apply: false, withOpencode: false, help: false };
   for (const arg of args) {
     if (arg === "--apply" && allowApply) {
       options.apply = true;
       continue;
     }
+    if (arg === "--with-opencode") {
+      options.withOpencode = true;
+      continue;
+    }
     if (arg === "--help" || arg === "-h") {
       console.log(selfHelp);
+      options.help = true;
       return options;
     }
     throw new Error(`Unknown option: ${arg}`);
@@ -394,6 +650,56 @@ function ensureLine(content, line) {
     lines.push(line);
   }
   return `${lines.join("\n")}\n`;
+}
+
+async function buildSelfOpencodeMirrorEntries() {
+  const entries = [];
+  const seenTargets = new Set();
+
+  for (const root of selfOpencodeMirrorRoots) {
+    const sourceRoot = path.join(frameworkRoot, templatesOpencodeRelative, root);
+    if (!(await exists(sourceRoot))) {
+      continue;
+    }
+
+    for (const sourcePath of await collectFilesRecursive(sourceRoot)) {
+      const sourceRelative = toPosix(path.relative(path.join(frameworkRoot, templatesOpencodeRelative), sourcePath));
+      const targetRelative = toPosix(path.join(".opencode", sourceRelative));
+
+      if (selfOnlyOpencodePaths.has(targetRelative)) {
+        throw new Error(`self-opencode path conflict: ${targetRelative} is reserved for self-only files but would also mirror ${toPosix(path.join(templatesOpencodeRelative, sourceRelative))}`);
+      }
+      if (seenTargets.has(targetRelative)) {
+        throw new Error(`self-opencode mirror path conflict: multiple template files map to ${targetRelative}`);
+      }
+
+      seenTargets.add(targetRelative);
+      entries.push({
+        path: targetRelative,
+        source: toPosix(path.join(templatesOpencodeRelative, sourceRelative)),
+        content: await fs.readFile(sourcePath, "utf8")
+      });
+    }
+  }
+
+  entries.sort((left, right) => left.path.localeCompare(right.path));
+  return entries;
+}
+
+async function collectFilesRecursive(rootPath) {
+  const files = [];
+  const entries = await fs.readdir(rootPath, { withFileTypes: true });
+  for (const entry of entries) {
+    const absolute = path.join(rootPath, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...await collectFilesRecursive(absolute));
+      continue;
+    }
+    if (entry.isFile()) {
+      files.push(absolute);
+    }
+  }
+  return files;
 }
 
 function textEquals(left, right) {
