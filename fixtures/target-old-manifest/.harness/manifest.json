@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "frameworkVersion": "0.0.0-fixture",
+  "installedAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "managedFiles": [
+    {
+      "path": "AGENTS.md",
+      "source": "templates/AGENTS.md",
+      "kind": "managed-block",
+      "hash": "fixture-old-hash"
+    }
+  ]
+}

@@ -262,10 +262,20 @@ Do not publish:
 - internal-only URLs
 - source-project branding copied into defaults
 
+## Framework Self Profile
+
+This repository is the framework source, not a normal target project. Use `harness self init`, `harness self doctor`, and `harness self test` for self-dogfooding.
+
+- `.harness/self/` is the versioned self profile.
+- `.harness-self/` is disposable local runtime state and sandbox output.
+- `fixtures/` contains versioned sandbox inputs.
+- `templates/` and `skills/` remain publishable source assets and must not receive self-only rules.
+
 ## Validation
 
 Run:
 
 ```powershell
 npm run smoke
+npm run self:smoke
 ```
