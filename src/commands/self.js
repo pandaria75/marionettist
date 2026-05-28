@@ -229,7 +229,7 @@ async function buildSelfInitOperations() {
   const profileCurrent = profileExists ? await fs.readFile(profilePath, "utf8") : null;
   operations.push({
     path: selfProfileRelative,
-    action: profileCurrent === selfProfileContent ? "unchanged" : profileExists ? "update" : "create",
+    action: textEquals(profileCurrent, selfProfileContent) ? "unchanged" : profileExists ? "update" : "create",
     content: selfProfileContent
   });
 
@@ -238,7 +238,7 @@ async function buildSelfInitOperations() {
   const gitignoreNext = ensureLine(gitignoreCurrent ?? "", selfRuntimeRelative);
   operations.push({
     path: ".gitignore",
-    action: gitignoreCurrent === gitignoreNext ? "unchanged" : gitignoreCurrent === null ? "create" : "update",
+    action: textEquals(gitignoreCurrent, gitignoreNext) ? "unchanged" : gitignoreCurrent === null ? "create" : "update",
     content: gitignoreNext
   });
 
@@ -394,6 +394,10 @@ function ensureLine(content, line) {
     lines.push(line);
   }
   return `${lines.join("\n")}\n`;
+}
+
+function textEquals(left, right) {
+  return left !== null && left.replace(/\r\n/g, "\n") === right.replace(/\r\n/g, "\n");
 }
 
 async function readOptional(filePath) {
