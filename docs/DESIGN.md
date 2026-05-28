@@ -66,6 +66,8 @@ Within one approved slice, coding may continue directly into review. Outside tha
 
 This gate model keeps human approval focused on the moments where scope and risk change.
 
+For Tier L or otherwise high-risk work, a dedicated `harness-critic` role can audit the requirement, slices, context pack, and validation plan before coding and again before the approved work is declared done. The critic is a gate-strengthening role, not a coding authorization source.
+
 ### 2.4 OpenCode Is Optional Scaffolding
 
 The harness core must work without OpenCode.
@@ -265,6 +267,13 @@ Docs should not capture:
 
 Rules exist to enforce behavior. Docs exist to explain meaning. The framework keeps both, but separates them.
 
+Context routing should stay file-based and minimal:
+
+- start from `docs/project/knowledge-map.md`
+- match by generic area fields such as `Areas`, `Tags`, `Docs`, `Rules`, `Read When`, `Boundaries`, and `Validation`
+- when target paths are known, also walk upward for nearby `MODULE_RULES.md`, `AGENTS.md`, and `HARNESS_RULES.md`
+- record loaded and excluded sources in the task context pack instead of loading all docs by default
+
 ## 7. CLI Model
 
 The current CLI is a text-asset installer and synchronizer.
@@ -290,6 +299,8 @@ When a team enables `--with-opencode`, the framework installs project-local scaf
 - `opencode.jsonc` with project-level scheduler enablement
 
 The `harness-builder` remains the primary orchestrator. Its core responsibility is state reading, gate decisions, subagent routing, result aggregation, and user confirmation at gates. Deep analysis, implementation, review, and validation should be delegated to bounded roles.
+
+That delegated role set may include `harness-critic` for critic-gated work, plus evidence-first incident support through `/harness-incident`, `incident-pack-builder`, and `hypothesis-critic` before any implementation begins.
 
 Model selection is profile-driven. `harness.config.yaml` defines stable profiles named `think`, `build`, `review`, and `run`; optional OpenCode agent files render concrete model values from those profiles.
 

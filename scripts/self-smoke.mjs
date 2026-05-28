@@ -25,8 +25,16 @@ const mirrorChecks = [
     target: ".opencode/agents/harness-planner.md"
   },
   {
+    source: templateOpencodePath("agents", "harness-critic.md"),
+    target: ".opencode/agents/harness-critic.md"
+  },
+  {
     source: templateOpencodePath("commands", "harness-feature.md"),
     target: ".opencode/commands/harness-feature.md"
+  },
+  {
+    source: templateOpencodePath("commands", "harness-incident.md"),
+    target: ".opencode/commands/harness-incident.md"
   },
   {
     source: templateOpencodePath("agents", "validators", "generic-fallback.md"),

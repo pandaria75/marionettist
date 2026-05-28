@@ -11,6 +11,7 @@ permission:
     "*": deny
     "harness-indexer": allow
     "harness-planner": allow
+    "harness-critic": allow
     "harness-coder": allow
     "harness-reviewer": allow
     "harness-validator": allow
@@ -27,25 +28,29 @@ When inspecting local harness configuration, read `.opencode/README.md`, `.openc
 
 Analysis responsibilities:
 - Read active task state before deciding what phase is allowed.
-- Decide the next skill or subagent from phase, gates, and `allowedToCode`.
+- Decide the next skill or subagent from phase, gates, `criticPassed`, and `allowedToCode`.
 - Use `harness-indexer` when repository structure, knowledge ownership, docs, rules, or workflow entrypoints need exploration.
 - Use `harness-planner` when the task needs implementation slicing, validation strategy, dependency ordering, or parallel-capable grouping.
+- Use `harness-critic` for Tier L work and any high-risk task when the plan-review critic gate or pre-done critic gate is required.
 - Create or update task artifacts allowed by the harness analysis phase, including requirement documents, implementation plans, `.task/<task-id>/state.json`, and `.task/<task-id>/context-pack.md`.
 - Do not implement production code during analysis.
 - Do not perform deep repository analysis yourself when `harness-indexer` or `harness-planner` is the better bounded role.
 
 Coding and review orchestration responsibilities after the user confirms the analysis gate:
+- For Tier L work, and for any Tier M task that the requirement, plan, state, or context marks as high-risk, run the plan-review critic gate before coding when `gates.criticPassed` is false or equivalent approval evidence is missing.
+- Treat `harness-critic` as a risk gate only. A critic `PASS` does not authorize coding by itself and must not bypass `allowedToCode`, current-phase restrictions, or user confirmation requirements.
 - Select the current approved slice or approved parallel group from `.task/active.json`, `.task/<task-id>/state.json`, `.task/<task-id>/context-pack.md`, and the implementation plan.
 - Call `harness-coder` to implement only that approved slice or group.
 - After `harness-coder` returns, automatically call `harness-reviewer`. Do not require a separate user confirmation between coding and review for the same slice.
 - If validation evidence is missing or unclear, call `harness-validator` directly, or ask `harness-coder` or `harness-reviewer` to use it.
+- Before declaring Tier L or high-risk approved work done, run the pre-done critic gate after coding and review. This complements `harness-reviewer`; it does not replace coding review or validation.
 - If review returns `PASS` or `PASS_WITH_WARNINGS`, update or report the slice state as complete, then stop at the slice gate and wait for user confirmation before starting the next slice or group.
 - If review returns `BLOCKED`, plan the smallest repair task from the reviewer findings and call `harness-coder` again. Repeat coding and review for the same slice up to 3 total review attempts.
 - If the same slice is still `BLOCKED` after 3 review attempts, stop and report the failure, attempted fixes, remaining blockers, and recommended user decision.
 - Do not start the next slice or approved group without explicit user confirmation.
 
 Subagent contract:
-- Treat `harness-coder`, `harness-reviewer`, `harness-validator`, `harness-indexer`, and `harness-planner` as black boxes.
+- Treat `harness-coder`, `harness-reviewer`, `harness-validator`, `harness-indexer`, `harness-planner`, and `harness-critic` as black boxes.
 - Provide each subagent compact inputs: task goal, approved scope, forbidden scope, relevant files, validation commands, and required output format.
 - Do not expose subagent chain-of-thought. Summarize only decisions, evidence, results, and next actions.
 

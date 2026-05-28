@@ -58,6 +58,7 @@ try {
   assertIncludes(doctorOutput, "WARN  .task/active.json not found; no active task selected");
 
   await assertTaskStateContractTemplate();
+  await assertP1DocsAndTemplateCoverage();
 
   const manifestPath = path.join(project, ".harness", "manifest.json");
   const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
@@ -132,6 +133,7 @@ async function assertOpencodeInstall(projectPath) {
   const doctorOutput = await harness("doctor", "--project", projectPath);
   assertIncludes(doctorOutput, "PASS  opencode.jsonc parsed");
   assertIncludes(doctorOutput, "PASS  .opencode/commands/harness-status.md frontmatter parsed");
+  assertIncludes(doctorOutput, "PASS  .opencode/commands/harness-incident.md frontmatter parsed");
 
   const manifest = await readManifest(projectPath);
   assert(manifest.managedFiles.some((file) => file.path === ".opencode/commands/harness-feature.md"), "manifest must include OpenCode commands");
@@ -227,8 +229,45 @@ async function assertOpencodeCommandsAndAgents(projectPath) {
   assert(await pathExists(path.join(projectPath, ".opencode", "commands", "harness-feature.md")), "OpenCode command must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "commands", "harness-status.md")), "OpenCode status command must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "commands", "harness-continue.md")), "OpenCode continue command must exist");
+  assert(await pathExists(path.join(projectPath, ".opencode", "commands", "harness-incident.md")), "OpenCode incident command must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-builder.md")), "OpenCode harness-builder agent must exist");
+  assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-critic.md")), "OpenCode harness-critic agent must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-validator.md")), "OpenCode harness-validator agent must exist");
+}
+
+async function assertP1DocsAndTemplateCoverage() {
+  const criticTemplate = await fs.readFile(path.join(repoRoot, "templates", "opencode", "agents", "harness-critic.md"), "utf8");
+  const incidentCommand = await fs.readFile(path.join(repoRoot, "templates", "opencode", "commands", "harness-incident.md"), "utf8");
+  const incidentSkill = await fs.readFile(path.join(repoRoot, "skills", "incident-pack-builder", "SKILL.md"), "utf8");
+  const hypothesisSkill = await fs.readFile(path.join(repoRoot, "skills", "hypothesis-critic", "SKILL.md"), "utf8");
+  const contextPackSkill = await fs.readFile(path.join(repoRoot, "skills", "context-pack-builder", "SKILL.md"), "utf8");
+  const knowledgeMapTemplate = await fs.readFile(path.join(repoRoot, "templates", "docs", "project", "knowledge-map.md"), "utf8");
+
+  assertIncludes(criticTemplate, "model: {{MODEL_PROFILE_REVIEW}}");
+  assertIncludes(criticTemplate, "Your model field is rendered from `models.profiles.review.default` in `harness.config.yaml`.");
+
+  const incidentFrontmatter = parseSimpleFrontmatter(incidentCommand);
+  assert(incidentFrontmatter.description?.length > 0, "harness-incident template must declare description frontmatter");
+  assert(incidentFrontmatter.agent === "harness-builder", "harness-incident template must route to harness-builder");
+
+  const incidentSkillFrontmatter = parseSimpleFrontmatter(incidentSkill);
+  assert(incidentSkillFrontmatter.name === "incident-pack-builder", "incident-pack-builder skill must declare its name");
+  assert(incidentSkillFrontmatter.description?.length > 0, "incident-pack-builder skill must declare description frontmatter");
+
+  const hypothesisSkillFrontmatter = parseSimpleFrontmatter(hypothesisSkill);
+  assert(hypothesisSkillFrontmatter.name === "hypothesis-critic", "hypothesis-critic skill must declare its name");
+  assert(hypothesisSkillFrontmatter.description?.length > 0, "hypothesis-critic skill must declare description frontmatter");
+
+  assertIncludes(contextPackSkill, "Read `docs/project/knowledge-map.md` to route only the most relevant docs and rules.");
+  assertIncludes(contextPackSkill, "load only nearby `MODULE_RULES.md`, `AGENTS.md`, or `HARNESS_RULES.md` files");
+  assertIncludes(contextPackSkill, "### Global Rules");
+  assertIncludes(contextPackSkill, "### Knowledge Map Matches");
+  assertIncludes(contextPackSkill, "### Path-Proximity Rules");
+  assertIncludes(contextPackSkill, "### Excluded Context");
+
+  for (const field of ["- Areas:", "- Tags:", "- Docs:", "- Rules:", "- Read When:", "- Boundaries:", "- Validation:"]) {
+    assertIncludes(knowledgeMapTemplate, field);
+  }
 }
 
 async function readManifest(projectPath) {
@@ -310,6 +349,26 @@ async function collectTextFiles(absoluteDirectory, relativeDirectory, filesToSca
 
 function shouldExcludeFromPublishableScan(relativePath) {
   return publishableScanExcludedDirectories.some((excludedDirectory) => relativePath === excludedDirectory || relativePath.startsWith(`${excludedDirectory}${path.sep}`));
+}
+
+function parseSimpleFrontmatter(content) {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  assert(match, "Expected Markdown file to start with frontmatter");
+  const frontmatter = {};
+  for (const rawLine of match[1].split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+    const separatorIndex = line.indexOf(":");
+    if (separatorIndex === -1) {
+      continue;
+    }
+    const key = line.slice(0, separatorIndex).trim();
+    const value = line.slice(separatorIndex + 1).trim();
+    frontmatter[key] = value;
+  }
+  return frontmatter;
 }
 
 function isBinaryLikePath(relativePath) {

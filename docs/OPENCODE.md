@@ -39,6 +39,7 @@ Jobs that need consistent execution but not deep original reasoning:
 | --- | --- |
 | `harness-coder` | Implements the approved slice or group within allowed scope |
 | `harness-reviewer` | Checks scope, boundaries, validation, and docs sync against an approved plan |
+| `harness-critic` | Audits requirement clarity, plan safety, context sufficiency, and validation gaps at critic gates |
 
 Use a capable but cost-efficient model here. These agents work from explicit constraints already captured in `.task/<task-id>/context-pack.md` and the implementation plan. Here `<task-id>` is selected by `.task/active.json`.
 
@@ -101,6 +102,7 @@ Typical files:
 - `.opencode/commands/harness-refactor.md`
 - `.opencode/commands/harness-docs.md`
 - `.opencode/commands/harness-context.md`
+- `.opencode/commands/harness-incident.md`
 - `.opencode/commands/harness-status.md`
 - `.opencode/commands/harness-continue.md`
 - `.opencode/agents/harness-builder.md`
@@ -108,6 +110,7 @@ Typical files:
 - `.opencode/agents/harness-indexer.md`
 - `.opencode/agents/harness-planner.md`
 - `.opencode/agents/harness-reviewer.md`
+- `.opencode/agents/harness-critic.md`
 - `.opencode/agents/harness-validator.md`
 - `.opencode/README.md`
 
@@ -127,7 +130,8 @@ The expected mapping is:
 4. builder selects the current approved slice or group
 5. coder implements that approved work only (Tier 2 model)
 6. reviewer checks that same approved work immediately after coding (Tier 2 model)
-7. builder stops at the next slice gate
+7. when critic-gated, critic checks the gate artifact before coding and again before done
+8. builder stops at the next slice gate
 
 OpenCode should make this flow easier to execute. It should not weaken the gate model.
 
@@ -181,6 +185,20 @@ Expected behavior:
 - update context only
 - not authorize coding by itself
 
+### `/harness-incident`
+
+Use for an evidence-first incident or on-site investigation.
+
+Expected behavior:
+
+- route to `harness-builder`
+- read `.task/active.json` first, then task state when present
+- create or update `.task/<task-id>/incident.md` as an analysis artifact only
+- organize user-provided symptoms, logs, screenshots, packets, config, environment details, reproduction notes, and unknowns
+- avoid assuming local reproduction or site access
+- avoid automatic terminal log capture
+- stop before coding and prepare the artifact for future `incident-pack-builder` and `hypothesis-critic` handoff
+
 ### `/harness-status`
 
 Use to show the current task state without modifying files.
@@ -210,6 +228,7 @@ Expected behavior:
 | `harness-planner` | Creates requirements, implementation slices, validation strategy, and context-pack planning. | Tier 1 |
 | `harness-coder` | Implements only the current approved slice or approved group. | Tier 2 |
 | `harness-reviewer` | Reviews boundary safety, actual scope, validation coverage, and docs or rules sync needs. | Tier 2 |
+| `harness-critic` | Audits requirement, plan, context, scope, and validation risk before coding or before critic-gated work is declared done. | Tier 2 (`review` profile) |
 | `harness-indexer` | Read-only repository explorer for docs, rules, boundaries, and workflow entrypoints. | Tier 3 |
 | `harness-validator` | Runs build, compile, test, lint, or other validation commands and returns concise diagnostics. | Tier 3 |
 
@@ -221,6 +240,12 @@ Required gates:
 
 - analysis complete -> before coding starts
 - current approved slice or approved group complete -> before the next slice or group starts
+
+Additional critic-gated behavior:
+
+- when task state or workflow policy marks work as critic-gated, `harness-continue` should route to `harness-critic` before any coding handoff when `criticPassed` is false
+- critic `PASS` does not bypass `allowedToCode`, current phase rules, or user confirmation
+- when coding, review, and required validation are complete for critic-gated work, route back to `harness-critic` before declaring the approved work done
 
 Important details:
 
@@ -248,7 +273,7 @@ Stable profiles:
 
 - `think`: builder and planner
 - `build`: coder
-- `review`: reviewer
+- `review`: reviewer and critic
 - `run`: indexer and validator
 
 Skill model requirements map to profiles as follows:

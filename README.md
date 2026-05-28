@@ -63,6 +63,15 @@ The key harness rule is the gate model:
 - stop after each approved slice or approved parallel group
 - allow coding to flow directly into review only for that same approved slice or group
 
+Recent P1 workflow additions keep that model explicit:
+
+- `harness-critic` adds a plan-and-gate audit role for Tier L or high-risk work
+- critic gates sit before coding and again before declaring critic-gated work done
+- `/harness-incident` starts an evidence-first incident flow without authorizing code changes
+- `incident-pack-builder` and `hypothesis-critic` structure incident evidence and challenge root-cause claims before implementation
+- `context-pack-builder` routes docs through `docs/project/knowledge-map.md`, then narrows further with nearby `MODULE_RULES.md`, `AGENTS.md`, and `HARNESS_RULES.md`
+- task context packs should record `Loaded Context` categories such as global rules, knowledge-map matches, path-proximity rules, and excluded context
+
 ## Install For Local Development
 
 ### Install from GitHub
@@ -186,7 +195,7 @@ New context packs should be written to `.task/<task-id>/context-pack.md`. Legacy
 
 `harness.config.yaml` defines stable model profiles: `think`, `build`, `review`, and `run`.
 
-Skills declare capability needs such as `reasoning`, `coding`, `reflective`, or `utility`. OpenCode agent files may render concrete `model` fields, but those values come from the configured profiles rather than being chosen independently inside each skill.
+Skills declare capability needs such as `reasoning`, `coding`, `reflective`, or `utility`. OpenCode agent files may render concrete `model` fields, but those values come from the configured profiles rather than being chosen independently inside each skill. In the default P1 workflow, the `review` profile backs both `harness-reviewer` and `harness-critic`.
 
 ## What `harness init` Installs
 
@@ -281,6 +290,7 @@ Generated mirror files that should not be treated as source of truth are:
 - `.opencode/agents/validators/**`
 - `.opencode/commands/harness-bugfix.md`
 - `.opencode/commands/harness-context.md`
+- `.opencode/commands/harness-incident.md`
 - `.opencode/commands/harness-continue.md`
 - `.opencode/commands/harness-docs.md`
 - `.opencode/commands/harness-feature.md`

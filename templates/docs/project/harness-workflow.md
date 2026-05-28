@@ -12,6 +12,13 @@ This project uses a branched harness workflow based on task complexity:
 
 For Tier M and L, the agent must complete phases in order and must not automatically cross analysis or inter-slice gates.
 
+Critic defaults by tier are:
+- **Tier S**: no critic by default
+- **Tier M**: critic optional, but recommended for risky or boundary-sensitive work
+- **Tier L**: critic required before coding and before declaring approved work done
+
+Treat a task as high-risk when it includes sensitive refactors, workflow-sensitive changes, boundary ambiguity, unusual validation uncertainty, or explicit high-risk wording in the task artifacts.
+
 In this file, `<task-id>` means the active `taskId` value from `.task/active.json`.
 
 ### Analysis Phase
@@ -33,7 +40,30 @@ The analysis phase may produce:
 - `.task/<task-id>/context-pack.md`
 - `.task/<task-id>/state.json`
 
+When building `.task/<task-id>/context-pack.md`, route context in this order:
+1. load global rules and task artifacts first
+2. use `docs/project/knowledge-map.md` to match only the relevant knowledge areas
+3. if target files are known, walk upward from those paths to load nearby `MODULE_RULES.md`, `AGENTS.md`, and `HARNESS_RULES.md`
+4. exclude unrelated docs and note the exclusion briefly
+
+For incident or bugfix work, include `.task/<task-id>/incident.md` when it exists and is relevant.
+
 When analysis is complete, the agent must stop and wait for explicit user confirmation before starting coding, except Tier S.
+
+### Critic Gates
+
+The critic gate is a risk-control checkpoint, not a coding authorization.
+
+1. **Plan-review critic gate**
+   - Runs after the relevant requirement, implementation plan, and context pack exist.
+   - Required for Tier L and high-risk work before coding starts.
+   - Optional for Tier M when the work is straightforward and low-risk.
+   - A critic `PASS` may satisfy `criticPassed`, but it does not bypass `allowedToCode`, the current phase, or human confirmation.
+
+2. **Pre-done critic gate**
+   - Runs after coding and review for Tier L or high-risk approved work.
+   - Checks for unresolved scope, validation, context, and boundary risks before the agent declares the approved work done.
+   - Does not replace `harness-reviewer`, validation, or the normal slice gate.
 
 ### Coding Phase
 
@@ -53,6 +83,8 @@ When a confirmed parallel slice group is active:
 - the primary agent remains responsible for merging results, resolving conflicts, and running group validation
 
 When the current coding slice is complete, the agent must automatically perform review for that same slice before stopping at the slice gate.
+
+For Tier L or high-risk work, the agent should also run the pre-done critic gate after coding and review, then include the result in the slice or final summary.
 
 When the current approved work is a parallel slice group, the agent must stop only after the whole approved group is complete, merged, validated, and reviewed, then wait for explicit user confirmation before the next slice or group.
 
@@ -76,6 +108,8 @@ Review includes:
 - rule conflict check
 - validation status check
 - docs, rules, and knowledge-map sync decision
+
+For critic-gated work, review remains mandatory even if the critic already passed.
 
 ## Human Confirmation
 
@@ -144,6 +178,14 @@ Docs explain design, architecture, functional behavior, workflow, and boundaries
 
 Docs must not become source-code indexes. Use IDE tools or local search for code navigation.
 
+Context packs should record loaded context compactly under categories such as:
+- Global Rules
+- Knowledge Map Matches
+- Path-Proximity Rules
+- Excluded Context
+
+When local path-proximity rules conflict with repository-global safety or boundary rules, the global rules win.
+
 Rules define enforceable constraints. When adding, moving, renaming, or deleting docs or rules, update `docs/project/knowledge-map.md`.
 
 ## File Roles
@@ -209,7 +251,7 @@ Example:
 | `allowedToCode` | boolean | no | Whether the analysis-to-coding gate has been confirmed. |
 | `currentSlice` | string \| null | no | Currently approved slice identifier. |
 | `slices` | object[] | no | Planned slices or approved groups for this task. |
-| `gates` | object | no | Gate booleans such as `requirementFrozen`, `planApproved`, `contextPackReady`, `criticPassed`, `implementationDone`, `reviewPassed`, and `validationPassed`. |
+| `gates` | object | no | Gate booleans such as `requirementFrozen`, `planApproved`, `contextPackReady`, `criticPassed`, `implementationDone`, `reviewPassed`, and `validationPassed`. `criticPassed` records the plan-review critic gate, not permission to code by itself. |
 | `files` | object | no | Task artifact paths such as `requirement`, `implementationPlan`, and `contextPack`. |
 | `updatedAt` | string | no | Last update timestamp in ISO-8601 format. |
 

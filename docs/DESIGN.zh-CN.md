@@ -66,6 +66,8 @@ task-intake
 
 这种 gate 模型让人工确认聚焦在真正发生范围变化和风险变化的节点上。
 
+对于 Tier L 或其他高风险工作，还可以引入专门的 `harness-critic` 角色，在编码前以及宣告已批准工作完成前，审查 requirement、slices、context pack 和 validation plan。critic 的职责是加强 gate，而不是提供编码授权。
+
 ### 2.4 OpenCode 是可选脚手架
 
 Harness core 必须在没有 OpenCode 的情况下也能正常工作。
@@ -265,6 +267,13 @@ Harness docs 是设计知识，不是源码索引。
 
 Rules 的职责是约束行为，docs 的职责是解释含义。Framework 同时保留两者，但严格分离。
 
+上下文路由也应保持文件化且最小化：
+
+- 先从 `docs/project/knowledge-map.md` 开始
+- 使用通用 area 字段进行匹配，如 `Areas`、`Tags`、`Docs`、`Rules`、`Read When`、`Boundaries`、`Validation`
+- 当目标路径已知时，再向上查找就近的 `MODULE_RULES.md`、`AGENTS.md` 和 `HARNESS_RULES.md`
+- 在 task context pack 中记录已加载和已排除的来源，而不是默认加载全部 docs
+
 ## 7. CLI 模型
 
 当前 CLI 的职责是安装和同步文本型资产。
@@ -290,6 +299,8 @@ OpenCode 支持被有意设计为次级能力。
 - 带项目级调度启用配置的 `opencode.jsonc`
 
 `harness-builder` 仍是主编排者。其核心职责是状态读取、gate 决策、subagent 路由、结果汇总和 gate 处的人工确认。深度分析、实现、review 和验证应委托给边界明确的角色。
+
+这组委托角色也可以包括用于 critic-gated 工作的 `harness-critic`，以及在任何实现开始前先走 `/harness-incident`、`incident-pack-builder`、`hypothesis-critic` 的证据优先 incident 支持链路。
 
 模型选择基于 profile 驱动。`harness.config.yaml` 定义了名为 `think`、`build`、`review` 和 `run` 的稳定 profiles；可选 OpenCode agent 文件从这些 profiles 渲染具体的模型值。
 

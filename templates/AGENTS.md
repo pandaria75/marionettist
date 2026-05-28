@@ -33,6 +33,8 @@ Do not treat knowledge sources as stronger than constraint sources.
 
 Docs are read on demand. Do not load all docs by default.
 
+Use `docs/project/knowledge-map.md` as a routing guide, not as a code index or a reason to load all docs.
+
 Use `module-inspector` when the task involves:
 - modifying a module, package, feature area, or bounded subsystem
 - cross-module or cross-area changes
@@ -40,6 +42,9 @@ Use `module-inspector` when the task involves:
 - boundary or modifiability decisions
 
 For module-level work, start from `docs/project/knowledge-map.md`, then read only the relevant docs and rules.
+
+If target files are already known, also check for nearby `MODULE_RULES.md`, `AGENTS.md`, and `HARNESS_RULES.md` by walking upward from those paths.
+If a local path rule conflicts with repository-global safety or boundary rules, follow the global rules.
 
 Use `workflow-inspector` when the task involves:
 - process or workflow design
