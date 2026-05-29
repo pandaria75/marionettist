@@ -76,6 +76,29 @@ Harness core 必须在没有 OpenCode 的情况下也能正常工作。
 
 真正的事实来源仍然是仓库文件和 harness 方法本身。
 
+### 2.5 设计记录：OpenCode 模型与权限放置
+
+OpenCode 在多个位置支持操作级 agent 设置：`.opencode/agents/*.md` 下的基于文件的 agent frontmatter，以及 `opencode.jsonc` 中的内联 agent 配置。harness 有意将生成的目标项目 agent 文件保留为当前的渲染运行时产物，同时将模型选择策略移至 `.harness/model-profiles.yml`。
+
+当前决策：
+
+- `.harness/model-profiles.yml` 是模型 profile 选择的权威 harness 来源。
+- `templates/opencode/agents/*.md` 仍作为生成 OpenCode agent prompt、frontmatter 和权限默认值的源模板。
+- 目标项目的 `.opencode/agents/*.md` 仍是由 `harness init --with-opencode` 生成、并由 manifest-aware sync 更新的具体 OpenCode 运行时文件。
+- `opencode.jsonc` 仍为项目级 OpenCode 配置，目前 harness 用它进行插件等共享运行时设置。
+- 模型或权限漂移应由 `harness doctor` 检测并报告，不应被静默覆盖。
+
+设计理由：
+
+- Agent markdown 将 prompt 文本、model、mode 和权限默认值保存在一个可审查的文件中。
+- Manifest-aware sync 已能安全管理 `.opencode/agents/*.md`，并可检测本地修改。
+- `.harness/model-profiles.yml` 消除了模型 ID 的主要重复风险，且无需立即迁移 OpenCode 配置。
+- 将全部模型和权限设置移入 `opencode.jsonc` 会导致操作设置与 prompt 文本分离，需要一个全新的合并/冲突模型，且有覆盖团队本地 OpenCode 配置的风险。
+
+短期建议：将模型和权限字段保留在生成的 agent markdown 中，从 `.harness/model-profiles.yml` 渲染模型值，并通过 doctor 诊断检测漂移。
+
+长期方向：考虑未来可选的适配器层，可为偏好中央 OpenCode 配置的团队渲染等效的内联 `opencode.jsonc` agent 配置。该迁移必须是显式的、可通过 `harness diff` 预览的、可逆的、且有冲突报告保护。不应作为隐式同步行为引入。
+
 ## 3. 设计目标
 
 ### 3.1 项目中立

@@ -33,6 +33,8 @@ harness init --with-opencode
 2. 在 `AGENTS.md` 的 `project-local` 区域补充团队规则和默认值。
 3. 根据项目实际情况调整 `harness.config.yaml`、rules 和 `docs/project/knowledge-map.md`。
 
+当安装了 OpenCode 脚手架后，优先通过 `.harness/model-profiles.yml` 调整 harness agent 模型。生成的 `.opencode/agents/*.md` 文件是具体的 OpenCode 运行时文件，而 `opencode.jsonc` 应保持为项目级 OpenCode 配置，除非团队有意选择本地覆盖。
+
 ## 3. 初始化后会得到什么
 
 核心文件：

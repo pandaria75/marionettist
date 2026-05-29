@@ -269,6 +269,8 @@ start the next approved slice
 
 安装后的 `.opencode/agents/*.md` 文件包含面向 OpenCode 兼容性的具体模型字段；当项目存在 `.harness/model-profiles.yml` 时，这些值从该文件的模型 profiles 渲染，只有在需要兼容旧项目时才回退到 `harness.config.yaml` 的 `models.profiles.*`。
 
+Harness 目前将模型和权限运行时字段保留在生成的 agent markdown 中。`opencode.jsonc` 不是 harness agent 的权威模型或权限来源。如果项目同时在 `opencode.jsonc` 中定义了 agent 模型设置，`harness doctor` 应将与 `.harness/model-profiles.yml` 的不一致作为配置冲突处理，而非静默选择一方胜出。
+
 稳定 profiles：
 
 - `think`：builder 和 planner
@@ -298,6 +300,16 @@ Skill 模型需求与 profiles 的映射关系如下：
 - 第三层 agent 通常需要的权限比第一层少
 
 除非团队有意共享默认值，否则应把这些文件视为团队本地脚手架。
+
+设计指导：
+
+- 更改 harness agent 模型时，优先更新 `.harness/model-profiles.yml`
+- 让 `harness diff` 和 `harness sync --with-opencode` 将这些模型值渲染到 `.opencode/agents/*.md`
+- 仅在团队有意选择本地权限策略时才编辑 agent markdown 的权限配置
+- 避免在 `opencode.jsonc` 中重复 harness agent 的模型或权限值，除非你也接受额外的漂移/冲突面
+- 不要依赖 `opencode.jsonc` 覆盖生成的 harness agent frontmatter 作为隐藏的迁移路径
+
+未来 harness 版本可能增加显式的 OpenCode 适配器模式，将内联 agent 配置渲染到 `opencode.jsonc`，但这将是单独的可选迁移，具备预览和冲突处理能力。
 
 ## 10. Validator 行为
 
