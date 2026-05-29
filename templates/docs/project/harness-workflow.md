@@ -61,9 +61,10 @@ The critic gate is a risk-control checkpoint, not a coding authorization.
    - A critic `PASS` may satisfy `criticPassed`, but it does not bypass `allowedToCode`, the current phase, or human confirmation.
 
 2. **Pre-done critic gate**
-   - Runs after coding and review for Tier L or high-risk approved work.
-   - Checks for unresolved scope, validation, context, and boundary risks before the agent declares the approved work done.
-   - Does not replace `harness-reviewer`, validation, or the normal slice gate.
+    - Runs after coding and review for Tier L or high-risk approved work.
+   - Checks gate evidence before the agent declares the approved work done: reviewer verdict, validation result, unresolved blockers, changed-file inventory, forbidden-file status, and state/gate consistency.
+    - Does not replace `harness-reviewer`, validation, or the normal slice gate.
+   - Must not repeat full code review or broad repository discovery. If evidence is missing, report the missing evidence instead of rediscovering the repository.
 
 ### Coding Phase
 
@@ -108,6 +109,10 @@ Review includes:
 - rule conflict check
 - validation status check
 - docs, rules, and knowledge-map sync decision
+
+Review is diff-first and bounded to the current approved slice or group. The reviewer starts from the changed-file inventory and reads only changed files plus directly required context. Repository-wide search is exceptional and should be tied to a specific unresolved risk.
+
+The coding agent may perform lightweight self-check to report changed files and obvious forbidden-scope issues, but independent diff review belongs to `harness-reviewer`. The pre-done critic gate audits evidence and gate readiness; it does not redo the reviewer role.
 
 For critic-gated work, review remains mandatory even if the critic already passed.
 

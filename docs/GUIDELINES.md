@@ -35,6 +35,8 @@ After initialization, do these three things:
 2. Fill the `project-local` block in `AGENTS.md` with team-specific rules and defaults.
 3. Adjust `harness.config.yaml`, rules, and `docs/project/knowledge-map.md` for the real project.
 
+When OpenCode scaffolding is installed, adjust harness agent models through `.harness/model-profiles.yml` first. The generated `.opencode/agents/*.md` files are the concrete OpenCode runtime files, while `opencode.jsonc` should remain project-level OpenCode configuration unless your team deliberately opts into local overrides.
+
 ## 3. What To Expect After Init
 
 Core files:

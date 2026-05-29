@@ -24,6 +24,8 @@ models:
     coding: "build"
     reflective: "review"
     utility: "run"
+  # Legacy fallback profile location.
+  # Canonical source is .harness/model-profiles.yml when present.
   profiles:
     think:
       description: "Deep reasoning, planning, and gate decisions"

@@ -79,6 +79,16 @@ try {
     assert((await readRelative(check.target)) === (await readRelative(check.source)), `${check.target} must exactly mirror ${check.source}`);
   }
 
+  const selfOpencodeReadme = await readRelative(".opencode/README.md");
+  assertIncludes(selfOpencodeReadme, "must not be edited directly");
+  assertIncludes(selfOpencodeReadme, "Edit `templates/opencode/**` instead");
+
+  const selfReviewer = await readRelative(".opencode/agents/harness-framework-reviewer.md");
+  assertIncludes(selfReviewer, "model: opencode-go/glm-5.1");
+
+  const mirroredBuilder = await readRelative(".opencode/agents/harness-builder.md");
+  assertIncludes(mirroredBuilder, "model: {{MODEL_PROFILE_THINK}}");
+
   assert((await fs.readFile(path.join(repoRoot, "templates", "AGENTS.md"), "utf8")) === beforeTemplateAgents, "self OpenCode init must not modify templates/AGENTS.md");
   assertSameFileSnapshot(beforeTemplateOpencode, await snapshotDirectory(path.join(repoRoot, "templates", "opencode")), "self OpenCode init must not modify templates/opencode sources");
   assertSameFileSnapshot(beforeSkills, await snapshotDirectory(path.join(repoRoot, "skills")), "self OpenCode init must not modify skills");
@@ -218,6 +228,9 @@ async function assertOrdinaryOpencodeInitDoesNotInstallSelfFiles() {
   assertIncludes(output, "new-managed: .opencode/agents/harness-planner.md");
   assert(await pathExists(path.join(ordinaryOpencodeProject, "opencode.jsonc")), "ordinary init --with-opencode must still generate opencode.jsonc");
   assert(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "agents", "harness-planner.md")), "ordinary init must still generate template agent files");
+  const ordinaryBuilder = await fs.readFile(path.join(ordinaryOpencodeProject, ".opencode", "agents", "harness-builder.md"), "utf8");
+  assertIncludes(ordinaryBuilder, "model: openai/gpt-5.5");
+  assertExcludes(ordinaryBuilder, "{{MODEL_PROFILE_THINK}}");
   assert(!(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "commands", "harness-self-init.md"))), "ordinary init must not install self command files");
   assert(!(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "commands", "harness-self-review.md"))), "ordinary init must not install self review command files");
   assert(!(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "commands", "harness-self-test.md"))), "ordinary init must not install self test command files");

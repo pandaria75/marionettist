@@ -1,24 +1,40 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { parseCommonArgs } from "../core/args.js";
+import { parseSimpleYaml } from "../core/yaml.js";
 
 const managedBlockStart = "<!-- harness-kit:start -->";
 const managedBlockEnd = "<!-- harness-kit:end -->";
 const requiredModelProfiles = ["think", "build", "review", "run"];
 const codingPhases = new Set(["coding", "review", "validation", "finalization"]);
+const opencodeAgentRoleMap = new Map([
+  ["harness-builder", "think"],
+  ["harness-planner", "think"],
+  ["harness-coder", "build"],
+  ["harness-reviewer", "review"],
+  ["harness-critic", "review"],
+  ["harness-validator", "run"],
+  ["harness-indexer", "run"]
+]);
+const opencodeAdapterConfigRelatives = [
+  ".harness/adapters/opencode.yml",
+  ".harness/adapters/opencode.yaml"
+];
+const modelDriftRemediation = "Reconcile the local model sources, then run `harness diff --project <path>` or `harness sync --project <path> --with-opencode` to preview or apply the safe regeneration.";
 
 export async function doctorCommand(args) {
   const options = parseCommonArgs(args);
   const results = [];
 
-  await checkHarnessConfig(options.project, results);
+  const harnessConfig = await checkHarnessConfig(options.project, results);
   await checkAgents(options.project, results);
   await checkManifest(options.project, results);
   await checkPath(options.project, ".aiassistant/rules", "directory", ".aiassistant/rules exists", results);
   await checkPath(options.project, "docs/project/knowledge-map.md", "file", "docs/project/knowledge-map.md exists", results);
   await checkPath(options.project, "docs/project/harness-workflow.md", "file", "docs/project/harness-workflow.md exists", results);
   await checkPath(options.project, ".task", "directory", ".task directory exists", results);
-  await checkOpencode(options.project, results);
+  const opencodeConfig = await checkOpencode(options.project, results);
+  await checkOpenCodeModelDrift(options.project, harnessConfig, opencodeConfig, results);
   await checkSkills(options.project, results);
   await checkActiveTask(options.project, results);
 
@@ -34,25 +50,26 @@ async function checkHarnessConfig(projectPath, results) {
   const absolute = path.join(projectPath, relative);
   if (!(await exists(absolute))) {
     results.push(fail(`${relative} missing`));
-    return;
+    return null;
   }
 
   let parsed;
   try {
-    parsed = parseSimpleYaml(await fs.readFile(absolute, "utf8"));
+    parsed = parseSimpleYaml(await fs.readFile(absolute, "utf8"), { validateIndentation: true });
     results.push(pass(`${relative} parsed`));
   } catch (error) {
     results.push(fail(`${relative} parse failed: ${error.message}`));
-    return;
+    return null;
   }
 
   const profiles = parsed.models?.profiles ?? {};
   const missing = requiredModelProfiles.filter((profile) => !profiles[profile]);
   if (missing.length > 0) {
     results.push(warn(`model profiles missing: ${missing.join(", ")}`));
-    return;
+    return parsed;
   }
   results.push(pass("model profiles found: think, build, review, run"));
+  return parsed;
 }
 
 async function checkAgents(projectPath, results) {
@@ -132,9 +149,10 @@ async function checkPath(projectPath, relative, expectedType, label, results) {
 
 async function checkOpencode(projectPath, results) {
   const configPath = path.join(projectPath, "opencode.jsonc");
+  let parsedConfig = null;
   if (await exists(configPath)) {
     try {
-      JSON.parse(stripJsonComments(await fs.readFile(configPath, "utf8")));
+      parsedConfig = JSON.parse(stripJsonComments(await fs.readFile(configPath, "utf8")));
       results.push(pass("opencode.jsonc parsed"));
     } catch (error) {
       results.push(fail(`opencode.jsonc parse failed: ${error.message}`));
@@ -145,6 +163,273 @@ async function checkOpencode(projectPath, results) {
 
   await checkMarkdownFrontmatterDirectory(projectPath, [".opencode/agent", ".opencode/agents"], "OpenCode agent", results);
   await checkMarkdownFrontmatterDirectory(projectPath, [".opencode/command", ".opencode/commands"], "OpenCode command", results);
+  return parsedConfig;
+}
+
+async function checkOpenCodeModelDrift(projectPath, harnessConfig, opencodeConfig, results) {
+  const agentDirectory = await findFirstDirectory(projectPath, [".opencode/agent", ".opencode/agents"]);
+  if (!agentDirectory) {
+    return;
+  }
+
+  const canonicalSource = await readModelProfileSource(path.join(projectPath, ".harness", "model-profiles.yml"), "canonical");
+  const legacySource = harnessConfig
+    ? { label: "harness.config.yaml", exists: true, profiles: normalizeProfileDefaults(harnessConfig.models?.profiles), parseError: null }
+    : { label: "harness.config.yaml", exists: false, profiles: null, parseError: null };
+  const adapterSource = await readAdapterModelSource(projectPath);
+  const opencodeAssignments = extractOpencodeModelAssignments(opencodeConfig);
+
+  if (canonicalSource.parseError) {
+    results.push(fail(`.harness/model-profiles.yml parse failed: ${canonicalSource.parseError.message}`));
+    return;
+  }
+  if (adapterSource.parseError) {
+    results.push(fail(`${adapterSource.label} parse failed: ${adapterSource.parseError.message}`));
+    return;
+  }
+
+  for (const [agentName, role] of opencodeAgentRoleMap.entries()) {
+    const agentRelative = toPosix(path.join(path.relative(projectPath, agentDirectory), `${agentName}.md`));
+    const agentAbsolute = path.join(projectPath, agentRelative);
+    const agentExists = await exists(agentAbsolute);
+    const agentContent = agentExists ? await fs.readFile(agentAbsolute, "utf8") : null;
+    const evaluation = evaluateAgentModelStatus({
+      role,
+      agentName,
+      canonicalSource,
+      legacySource,
+      adapterSource,
+      opencodeAssignments,
+      agentExists,
+      agentContent,
+      agentRelative
+    });
+    results.push(statusResult(evaluation.status, evaluation.message));
+  }
+}
+
+function evaluateAgentModelStatus(context) {
+  const {
+    role,
+    agentName,
+    canonicalSource,
+    legacySource,
+    adapterSource,
+    opencodeAssignments,
+    agentExists,
+    agentContent,
+    agentRelative
+  } = context;
+
+  const canonicalValue = readProfileDefault(canonicalSource.profiles, role);
+  const legacyValue = readProfileDefault(legacySource.profiles, role);
+  const adapterValue = readAdapterExpectedModel(adapterSource, role, agentName);
+  const opencodeValue = readOpencodeExpectedModel(opencodeAssignments, role, agentName);
+
+  if (canonicalSource.exists) {
+    if (!canonicalValue) {
+      return buildModelStatus("MISSING", `${agentRelative} expected profile ${role}.default is missing from .harness/model-profiles.yml. ${modelDriftRemediation}`);
+    }
+  }
+
+  if (!canonicalSource.exists && legacySource.exists) {
+    if (!legacyValue) {
+      return buildModelStatus("MISSING", `${agentRelative} expected legacy profile ${role}.default is missing from harness.config.yaml. ${modelDriftRemediation}`);
+    }
+  }
+
+  if (!canonicalSource.exists && !legacySource.exists) {
+    return buildModelStatus("MISSING", `${agentRelative} cannot determine expected model because neither .harness/model-profiles.yml nor harness.config.yaml provides profile ${role}. ${modelDriftRemediation}`);
+  }
+
+  if (canonicalValue && legacyValue && canonicalValue !== legacyValue) {
+    return buildModelStatus("CONFLICT", `${agentRelative} profile ${role}.default conflicts between .harness/model-profiles.yml (${canonicalValue}) and harness.config.yaml (${legacyValue}). ${modelDriftRemediation}`);
+  }
+
+  const expectedModel = canonicalValue ?? legacyValue;
+
+  if (adapterValue && adapterValue !== expectedModel) {
+    return buildModelStatus("CONFLICT", `${agentRelative} adapter config ${adapterSource.label} expects ${adapterValue} for ${agentName}, but profile ${role}.default expects ${expectedModel}. ${modelDriftRemediation}`);
+  }
+
+  if (opencodeValue && opencodeValue !== expectedModel) {
+    return buildModelStatus("CONFLICT", `${agentRelative} opencode.jsonc model data expects ${opencodeValue} for ${agentName}, but profile ${role}.default expects ${expectedModel}. ${modelDriftRemediation}`);
+  }
+
+  if (!agentExists) {
+    return buildModelStatus("MISSING", `${agentRelative} missing; expected model ${expectedModel} from profile ${role}.default. ${modelDriftRemediation}`);
+  }
+
+  try {
+    const frontmatter = parseFrontmatter(agentContent);
+    const actualModel = typeof frontmatter.model === "string" && frontmatter.model.length > 0
+      ? frontmatter.model
+      : null;
+
+    if (!actualModel) {
+      return buildModelStatus("MISSING", `${agentRelative} is missing frontmatter model; expected ${expectedModel} from profile ${role}.default. ${modelDriftRemediation}`);
+    }
+
+    if (actualModel !== expectedModel) {
+      return buildModelStatus("DRIFTED", `${agentRelative} model drifted to ${actualModel}; expected ${expectedModel} from profile ${role}.default. ${modelDriftRemediation}`);
+    }
+
+    return buildModelStatus("OK", `${agentRelative} model ${actualModel} matches profile ${role}.default.`);
+  } catch (error) {
+    return buildModelStatus("MISSING", `${agentRelative} frontmatter could not be parsed for model drift inspection: ${error.message}. ${modelDriftRemediation}`);
+  }
+}
+
+async function readModelProfileSource(filePath, sourceType) {
+  const label = sourceType === "canonical" ? ".harness/model-profiles.yml" : path.basename(filePath);
+  if (!(await exists(filePath))) {
+    return { label, exists: false, profiles: null, parseError: null };
+  }
+
+  try {
+    const parsed = parseSimpleYaml(await fs.readFile(filePath, "utf8"), { validateIndentation: true });
+    return {
+      label,
+      exists: true,
+      profiles: normalizeProfileDefaults(sourceType === "legacy" ? parsed.models?.profiles : parsed.profiles),
+      parseError: null
+    };
+  } catch (error) {
+    return { label, exists: true, profiles: null, parseError: error };
+  }
+}
+
+async function readAdapterModelSource(projectPath) {
+  for (const relative of opencodeAdapterConfigRelatives) {
+    const absolute = path.join(projectPath, relative);
+    if (!(await exists(absolute))) {
+      continue;
+    }
+
+    try {
+      const parsed = parseSimpleYaml(await fs.readFile(absolute, "utf8"), { validateIndentation: true });
+      return {
+        label: relative,
+        exists: true,
+        profiles: normalizeProfileDefaults(parsed.profiles ?? parsed.modelProfiles ?? parsed.models?.profiles),
+        agentModels: normalizeNamedModelMap(parsed.agents),
+        parseError: null
+      };
+    } catch (error) {
+      return { label: relative, exists: true, profiles: null, agentModels: {}, parseError: error };
+    }
+  }
+
+  return { label: opencodeAdapterConfigRelatives[0], exists: false, profiles: null, agentModels: {}, parseError: null };
+}
+
+function extractOpencodeModelAssignments(opencodeConfig) {
+  if (!opencodeConfig || typeof opencodeConfig !== "object") {
+    return { byAgent: {}, byRole: {}, globalModel: null };
+  }
+
+  return {
+    globalModel: readString(opencodeConfig.model),
+    byAgent: {
+      ...normalizeNamedModelMap(opencodeConfig.agents),
+      ...normalizeNamedModelMap(opencodeConfig.models)
+    },
+    byRole: {
+      ...normalizeNamedModelMap(opencodeConfig.roles),
+      ...pickKnownRoleModels(opencodeConfig.models)
+    }
+  };
+}
+
+function pickKnownRoleModels(value) {
+  const result = {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return result;
+  }
+  for (const role of requiredModelProfiles) {
+    const model = readModelField(value[role]);
+    if (model) {
+      result[role] = model;
+    }
+  }
+  return result;
+}
+
+function normalizeProfileDefaults(rawProfiles) {
+  if (!rawProfiles || typeof rawProfiles !== "object" || Array.isArray(rawProfiles)) {
+    return null;
+  }
+
+  const normalized = {};
+  for (const role of requiredModelProfiles) {
+    normalized[role] = {
+      default: readModelField(rawProfiles[role]?.default ?? rawProfiles[role])
+    };
+  }
+  return normalized;
+}
+
+function normalizeNamedModelMap(rawMap) {
+  if (!rawMap || typeof rawMap !== "object" || Array.isArray(rawMap)) {
+    return {};
+  }
+
+  const normalized = {};
+  for (const [key, value] of Object.entries(rawMap)) {
+    const model = readModelField(value);
+    if (model) {
+      normalized[key] = model;
+    }
+  }
+  return normalized;
+}
+
+function readProfileDefault(profiles, role) {
+  const value = profiles?.[role]?.default;
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function readAdapterExpectedModel(adapterSource, role, agentName) {
+  return adapterSource.agentModels?.[agentName] ?? readProfileDefault(adapterSource.profiles, role);
+}
+
+function readOpencodeExpectedModel(opencodeAssignments, role, agentName) {
+  return opencodeAssignments.byAgent?.[agentName] ?? opencodeAssignments.byRole?.[role] ?? opencodeAssignments.globalModel;
+}
+
+function readModelField(value) {
+  if (typeof value === "string" && value.length > 0) {
+    return value;
+  }
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return readString(value.model) ?? readString(value.default);
+  }
+  return null;
+}
+
+function readString(value) {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function buildModelStatus(status, message) {
+  return { status, message: `OpenCode model [${status}] ${message}` };
+}
+
+function statusResult(status, message) {
+  if (status === "OK") {
+    return pass(message);
+  }
+  return warn(message);
+}
+
+async function findFirstDirectory(projectPath, relatives) {
+  for (const relative of relatives) {
+    const absolute = path.join(projectPath, relative);
+    if (await isDirectory(absolute)) {
+      return absolute;
+    }
+  }
+  return null;
 }
 
 async function checkMarkdownFrontmatterDirectory(projectPath, relatives, label, results) {
@@ -280,78 +565,7 @@ function parseFrontmatter(content) {
   if (!match) {
     throw new Error("missing closing ---");
   }
-  return parseSimpleYaml(match[1]);
-}
-
-function parseSimpleYaml(content) {
-  const root = {};
-  const stack = [{ indent: -1, value: root }];
-  const lines = content.split(/\r?\n/);
-
-  for (let index = 0; index < lines.length; index += 1) {
-    const rawLine = lines[index];
-    if (!rawLine.trim() || rawLine.trimStart().startsWith("#")) {
-      continue;
-    }
-    const indent = rawLine.match(/^ */)[0].length;
-    if (indent % 2 !== 0) {
-      throw new Error(`line ${index + 1}: indentation must use two-space levels`);
-    }
-    const line = rawLine.trim();
-    while (stack.length > 1 && indent <= stack.at(-1).indent) {
-      stack.pop();
-    }
-    const parent = stack.at(-1).value;
-
-    if (line.startsWith("- ")) {
-      if (!Array.isArray(parent)) {
-        throw new Error(`line ${index + 1}: list item has no list parent`);
-      }
-      parent.push(parseScalar(line.slice(2).trim()));
-      continue;
-    }
-
-    const separator = line.indexOf(":");
-    if (separator === -1) {
-      throw new Error(`line ${index + 1}: expected key-value pair`);
-    }
-    const key = line.slice(0, separator).trim();
-    const rawValue = line.slice(separator + 1).trim();
-    if (!key) {
-      throw new Error(`line ${index + 1}: empty key`);
-    }
-    if (rawValue === "") {
-      const nextMeaningful = nextMeaningfulLine(lines, index + 1);
-      const value = nextMeaningful?.trim().startsWith("- ") ? [] : {};
-      parent[key] = value;
-      stack.push({ indent, value });
-      continue;
-    }
-    parent[key] = parseScalar(rawValue);
-  }
-
-  return root;
-}
-
-function nextMeaningfulLine(lines, start) {
-  for (let index = start; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (line.trim() && !line.trimStart().startsWith("#")) {
-      return line;
-    }
-  }
-  return null;
-}
-
-function parseScalar(rawValue) {
-  const value = rawValue.replace(/\s+#.*$/, "");
-  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-    return value.slice(1, -1);
-  }
-  if (value === "true") return true;
-  if (value === "false") return false;
-  if (value === "null") return null;
-  return value;
+  return parseSimpleYaml(match[1], { validateIndentation: true });
 }
 
 function stripJsonComments(content) {

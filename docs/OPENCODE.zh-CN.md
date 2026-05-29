@@ -267,7 +267,7 @@ start the next approved slice
 
 ## 9. 模型 Profiles 与权限定制
 
-安装后的 `.opencode/agents/*.md` 文件包含面向 OpenCode 兼容性的具体模型字段，但这些值来自 `harness.config.yaml` 的模型 profiles。
+安装后的 `.opencode/agents/*.md` 文件包含面向 OpenCode 兼容性的具体模型字段；当项目存在 `.harness/model-profiles.yml` 时，这些值从该文件的模型 profiles 渲染，只有在需要兼容旧项目时才回退到 `harness.config.yaml` 的 `models.profiles.*`。
 
 稳定 profiles：
 

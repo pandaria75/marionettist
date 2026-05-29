@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildPlan } from "../src/core/plan.js";
+import { parseSimpleYaml } from "../src/core/yaml.js";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(scriptPath), "..");
@@ -129,11 +130,19 @@ async function assertOpencodeInstall(projectPath) {
   assertIncludes(initOutput, "note: project-level opencode-tasks is enabled via opencode.jsonc");
 
   await assertOpencodeCommandsAndAgents(projectPath);
+  await assertRenderedOpencodeModels(projectPath);
+  await assertCanonicalProfileOverridesRender(projectPath);
 
   const doctorOutput = await harness("doctor", "--project", projectPath);
   assertIncludes(doctorOutput, "PASS  opencode.jsonc parsed");
   assertIncludes(doctorOutput, "PASS  .opencode/commands/harness-status.md frontmatter parsed");
   assertIncludes(doctorOutput, "PASS  .opencode/commands/harness-incident.md frontmatter parsed");
+  assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-builder.md model openai/gpt-5.5 matches profile think.default.");
+  assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-coder.md model openai/gpt-5.3-codex matches profile build.default.");
+  assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-reviewer.md model opencode-go/glm-5.1 matches profile review.default.");
+  assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-validator.md model opencode-go/deepseek-v4-flash matches profile run.default.");
+
+  await assertDoctorModelDriftStates(projectPath);
 
   const manifest = await readManifest(projectPath);
   assert(manifest.managedFiles.some((file) => file.path === ".opencode/commands/harness-feature.md"), "manifest must include OpenCode commands");
@@ -147,7 +156,7 @@ async function assertOpencodeInstall(projectPath) {
   const validatorContent = await fs.readFile(path.join(projectPath, ".opencode", "agents", "harness-validator.md"), "utf8");
   assertIncludes(validatorContent, "# Generic Validator Guidance");
   assertIncludes(validatorContent, "# Scheduled Validator Guidance");
-  assertIncludes(validatorContent, "model: deepseek/deepseek-v4-flash");
+  assertIncludes(validatorContent, "model: opencode-go/deepseek-v4-flash");
   assertExcludes(validatorContent, validatorSnippetPathText);
   assert(!(await pathExists(path.join(projectPath, ".opencode", "agents", "validators"))), "project must not contain installed validator snippet directory");
 }
@@ -232,11 +241,111 @@ async function assertOpencodeCommandsAndAgents(projectPath) {
   assert(await pathExists(path.join(projectPath, ".opencode", "commands", "harness-incident.md")), "OpenCode incident command must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-builder.md")), "OpenCode harness-builder agent must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-critic.md")), "OpenCode harness-critic agent must exist");
+  assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-indexer.md")), "OpenCode harness-indexer agent must exist");
+  assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-planner.md")), "OpenCode harness-planner agent must exist");
+  assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-reviewer.md")), "OpenCode harness-reviewer agent must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-validator.md")), "OpenCode harness-validator agent must exist");
 }
 
+async function assertRenderedOpencodeModels(projectPath) {
+  const expectedModels = await readExpectedAgentModels(projectPath);
+
+  for (const [agentName, expectedModel] of Object.entries(expectedModels)) {
+    assert(typeof expectedModel === "string" && expectedModel.length > 0, `Expected model profile default for ${agentName}`);
+    const agentContent = await fs.readFile(path.join(projectPath, ".opencode", "agents", `${agentName}.md`), "utf8");
+    assertIncludes(agentContent, `model: ${expectedModel}`);
+    assertExcludes(agentContent, "{{MODEL_PROFILE_");
+  }
+}
+
+async function assertCanonicalProfileOverridesRender(projectPath) {
+  const modelProfilesPath = path.join(projectPath, ".harness", "model-profiles.yml");
+  const originalProfiles = await fs.readFile(modelProfilesPath, "utf8");
+  const overriddenProfiles = originalProfiles
+    .replace("default: \"openai/gpt-5.5\"", "default: \"smoke/think-override\"")
+    .replace("default: \"openai/gpt-5.3-codex\"", "default: \"smoke/build-override\"")
+    .replace("default: \"opencode-go/glm-5.1\"", "default: \"smoke/review-override\"")
+    .replace("default: \"opencode-go/deepseek-v4-flash\"", "default: \"smoke/run-override\"");
+  assert(overriddenProfiles !== originalProfiles, "Expected canonical profile override fixture to change model defaults");
+
+  try {
+    await fs.writeFile(modelProfilesPath, overriddenProfiles, "utf8");
+    const diffOutput = await harness("diff", "--project", projectPath, "--with-opencode");
+    assertIncludes(diffOutput, "update: .opencode/agents/harness-builder.md");
+    assertIncludes(diffOutput, "update: .opencode/agents/harness-coder.md");
+    assertIncludes(diffOutput, "update: .opencode/agents/harness-reviewer.md");
+    assertIncludes(diffOutput, "update: .opencode/agents/harness-validator.md");
+
+    await harness("sync", "--project", projectPath, "--with-opencode");
+    const overriddenModels = await readExpectedAgentModels(projectPath);
+    for (const [agentName, expectedModel] of Object.entries(overriddenModels)) {
+      const agentContent = await fs.readFile(path.join(projectPath, ".opencode", "agents", `${agentName}.md`), "utf8");
+      assertIncludes(agentContent, `model: ${expectedModel}`);
+    }
+  } finally {
+    await fs.writeFile(modelProfilesPath, originalProfiles, "utf8");
+    await harness("sync", "--project", projectPath, "--with-opencode");
+    await assertRenderedOpencodeModels(projectPath);
+  }
+}
+
+async function assertDoctorModelDriftStates(projectPath) {
+  const builderPath = path.join(projectPath, ".opencode", "agents", "harness-builder.md");
+  const reviewerPath = path.join(projectPath, ".opencode", "agents", "harness-reviewer.md");
+  const configPath = path.join(projectPath, "harness.config.yaml");
+  const expectedModels = await readExpectedAgentModels(projectPath);
+
+  const originalBuilder = await fs.readFile(builderPath, "utf8");
+  const originalReviewer = await fs.readFile(reviewerPath, "utf8");
+  const originalConfig = await fs.readFile(configPath, "utf8");
+
+  const driftedBuilder = originalBuilder.replace(`model: ${expectedModels["harness-builder"]}`, "model: smoke/drifted-think");
+  assert(driftedBuilder !== originalBuilder, "Expected harness-builder test fixture replacement to change the model");
+
+  try {
+    await fs.writeFile(builderPath, driftedBuilder, "utf8");
+    let doctor = await harnessAllowFailure("doctor", "--project", projectPath);
+    assert(doctor.code === 0, "doctor drift diagnostics should report DRIFTED without hard failure");
+    assertIncludes(doctor.stdout, `WARN  OpenCode model [DRIFTED] .opencode/agents/harness-builder.md model drifted to smoke/drifted-think; expected ${expectedModels["harness-builder"]} from profile think.default.`);
+
+    await fs.writeFile(builderPath, originalBuilder, "utf8");
+    await fs.rm(reviewerPath);
+    doctor = await harnessAllowFailure("doctor", "--project", projectPath);
+    assert(doctor.code === 0, "doctor drift diagnostics should report MISSING without hard failure");
+    assertIncludes(doctor.stdout, `WARN  OpenCode model [MISSING] .opencode/agents/harness-reviewer.md missing; expected model ${expectedModels["harness-reviewer"]} from profile review.default.`);
+
+    await fs.writeFile(reviewerPath, originalReviewer, "utf8");
+    await fs.writeFile(configPath, originalConfig.replace("default: \"openai/gpt-5.5\"", "default: \"legacy/conflict-think\""), "utf8");
+    doctor = await harnessAllowFailure("doctor", "--project", projectPath);
+    assert(doctor.code === 0, "doctor drift diagnostics should report CONFLICT without hard failure");
+    assertIncludes(doctor.stdout, `WARN  OpenCode model [CONFLICT] .opencode/agents/harness-builder.md profile think.default conflicts between .harness/model-profiles.yml (${expectedModels["harness-builder"]}) and harness.config.yaml (legacy/conflict-think).`);
+  } finally {
+    await fs.writeFile(builderPath, originalBuilder, "utf8");
+    await fs.writeFile(reviewerPath, originalReviewer, "utf8");
+    await fs.writeFile(configPath, originalConfig, "utf8");
+  }
+}
+
+async function readExpectedAgentModels(projectPath) {
+  const profileSource = parseSimpleYaml(await fs.readFile(path.join(projectPath, ".harness", "model-profiles.yml"), "utf8"));
+  return {
+    "harness-builder": profileSource.profiles?.think?.default,
+    "harness-planner": profileSource.profiles?.think?.default,
+    "harness-coder": profileSource.profiles?.build?.default,
+    "harness-reviewer": profileSource.profiles?.review?.default,
+    "harness-critic": profileSource.profiles?.review?.default,
+    "harness-validator": profileSource.profiles?.run?.default,
+    "harness-indexer": profileSource.profiles?.run?.default
+  };
+}
+
 async function assertP1DocsAndTemplateCoverage() {
+  const builderTemplate = await fs.readFile(path.join(repoRoot, "templates", "opencode", "agents", "harness-builder.md"), "utf8");
+  const coderTemplate = await fs.readFile(path.join(repoRoot, "templates", "opencode", "agents", "harness-coder.md"), "utf8");
   const criticTemplate = await fs.readFile(path.join(repoRoot, "templates", "opencode", "agents", "harness-critic.md"), "utf8");
+  const reviewerTemplate = await fs.readFile(path.join(repoRoot, "templates", "opencode", "agents", "harness-reviewer.md"), "utf8");
+  const continueCommand = await fs.readFile(path.join(repoRoot, "templates", "opencode", "commands", "harness-continue.md"), "utf8");
+  const workflowTemplate = await fs.readFile(path.join(repoRoot, "templates", "docs", "project", "harness-workflow.md"), "utf8");
   const incidentCommand = await fs.readFile(path.join(repoRoot, "templates", "opencode", "commands", "harness-incident.md"), "utf8");
   const incidentSkill = await fs.readFile(path.join(repoRoot, "skills", "incident-pack-builder", "SKILL.md"), "utf8");
   const hypothesisSkill = await fs.readFile(path.join(repoRoot, "skills", "hypothesis-critic", "SKILL.md"), "utf8");
@@ -244,7 +353,24 @@ async function assertP1DocsAndTemplateCoverage() {
   const knowledgeMapTemplate = await fs.readFile(path.join(repoRoot, "templates", "docs", "project", "knowledge-map.md"), "utf8");
 
   assertIncludes(criticTemplate, "model: {{MODEL_PROFILE_REVIEW}}");
-  assertIncludes(criticTemplate, "Your model field is rendered from `models.profiles.review.default` in `harness.config.yaml`.");
+  assertIncludes(criticTemplate, "Your model field is rendered from `.harness/model-profiles.yml` profile `profiles.review.default` when present, with legacy fallback to `harness.config.yaml` `models.profiles.review.default` only when needed.");
+  assertIncludes(coderTemplate, "Your responsibility is implementation plus lightweight self-check, not independent review.");
+  assertIncludes(coderTemplate, "Do not perform broad `git diff` review, repository-wide search, gate audit, requirement audit, or docs/knowledge-map review");
+  assertIncludes(reviewerTemplate, "## Diff-First Review Protocol");
+  assertIncludes(reviewerTemplate, "Do not re-review requirement freezing, implementation-plan quality, context-pack sufficiency, or harness gate state");
+  assertIncludes(reviewerTemplate, "Repository-wide search is an exception, not the default.");
+  assertIncludes(criticTemplate, "The caller must state the critic mode:");
+  assertIncludes(criticTemplate, "`plan-review`: runs before coding for Tier L or high-risk work.");
+  assertIncludes(criticTemplate, "`pre-done`: runs after coding, validation, and `harness-reviewer` for the current approved slice or group.");
+  assertIncludes(criticTemplate, "Do not read full code diffs in `pre-done` unless reviewer evidence is missing");
+  assertIncludes(criticTemplate, "PASS | PASS_WITH_WARNINGS | BLOCKED");
+  assertIncludes(builderTemplate, "For `harness-coder`, request implementation plus lightweight self-check only.");
+  assertIncludes(builderTemplate, "For `harness-reviewer`, request `diff-review` of the current slice or repair and provide changed files.");
+  assertIncludes(builderTemplate, "For `harness-critic`, always state `plan-review` or `pre-done`.");
+  assertIncludes(continueCommand, "route to `harness-reviewer` in bounded `diff-review` mode");
+  assertIncludes(continueCommand, "route to `harness-critic` in `pre-done` mode");
+  assertIncludes(workflowTemplate, "Review is diff-first and bounded to the current approved slice or group.");
+  assertIncludes(workflowTemplate, "The coding agent may perform lightweight self-check");
 
   const incidentFrontmatter = parseSimpleFrontmatter(incidentCommand);
   assert(incidentFrontmatter.description?.length > 0, "harness-incident template must declare description frontmatter");

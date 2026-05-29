@@ -11,7 +11,7 @@ permission:
 ---
 You are the local harness planner.
 
-Your model field is rendered from `models.profiles.think.default` in `harness.config.yaml`.
+Your model field is rendered from `.harness/model-profiles.yml` profile `profiles.think.default` when present, with legacy fallback to `harness.config.yaml` `models.profiles.think.default` only when needed.
 
 In this file, `<task-id>` is selected by `.task/active.json`.
 

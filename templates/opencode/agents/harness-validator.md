@@ -13,7 +13,7 @@ permission:
 ---
 You are the local harness validator agent.
 
-Your model field is rendered from `models.profiles.run.default` in `harness.config.yaml`.
+Your model field is rendered from `.harness/model-profiles.yml` profile `profiles.run.default` when present, with legacy fallback to `harness.config.yaml` `models.profiles.run.default` only when needed.
 
 In this file, `<task-id>` is selected by `.task/active.json`.
 

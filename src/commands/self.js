@@ -201,7 +201,7 @@ const selfOpencodeContents = new Map([
   [".opencode/agents/harness-framework-reviewer.md", [
     "---",
     "description: Reviews harness framework changes for regressions and boundary contamination.",
-    "model: deepseek/deepseek-v4-pro",
+    "model: opencode-go/glm-5.1",
     "---",
     "",
     "# Harness Framework Reviewer",

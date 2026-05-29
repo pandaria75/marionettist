@@ -267,7 +267,9 @@ If the same slice remains `BLOCKED` after three total review attempts, stop and 
 
 ## 9. Model Profiles And Permission Customization
 
-The installed `.opencode/agents/*.md` files contain concrete model fields for OpenCode compatibility, but those values are rendered from `harness.config.yaml` model profiles.
+The installed `.opencode/agents/*.md` files contain concrete model fields for OpenCode compatibility, but those values are rendered from `.harness/model-profiles.yml` model profiles when present, with legacy fallback to `harness.config.yaml` `models.profiles.*` only where needed.
+
+The harness keeps model and permission runtime fields in generated agent markdown for now. `opencode.jsonc` is not the canonical model or permission source for harness agents. If a project also defines agent model settings in `opencode.jsonc`, `harness doctor` should treat disagreements with `.harness/model-profiles.yml` as configuration conflict rather than choosing a winner silently.
 
 Stable profiles:
 
@@ -298,6 +300,16 @@ Additional settings:
 - Tier 3 agents often need fewer permissions than Tier 1 agents
 
 Treat these files as team-local scaffolding unless your team intentionally wants shared defaults.
+
+Design guidance:
+
+- update `.harness/model-profiles.yml` first when changing harness agent models
+- let `harness diff` and `harness sync --with-opencode` render those model values into `.opencode/agents/*.md`
+- edit agent markdown permissions only when the team intentionally wants a local permission policy
+- avoid duplicating harness agent model or permission values in `opencode.jsonc` unless you also accept the extra drift/conflict surface
+- do not rely on `opencode.jsonc` to override generated harness agent frontmatter as a hidden migration path
+
+A future harness version may add an explicit OpenCode adapter mode that renders inline agent config into `opencode.jsonc`, but that would be a separate opt-in migration with preview and conflict handling.
 
 ## 10. Validator Behavior
 
