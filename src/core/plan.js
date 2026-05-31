@@ -5,7 +5,7 @@ import { renderTemplate } from "./template.js";
 import { extractManagedBlock, replaceManagedBlock } from "./managed-block.js";
 import { sha256 } from "./hash.js";
 import { buildManifest, manifestFileMap, manifestRelative, readManifest } from "./manifest.js";
-import { parseSimpleYaml } from "./yaml.js";
+import { buildModelProfileTemplateVariables, loadModelProfiles } from "./model-profiles.js";
 
 const coreTemplateTargets = new Map([
   ["AGENTS.md", "AGENTS.md"],
@@ -20,9 +20,6 @@ const coreTemplateTargets = new Map([
 const opencodeManagedPrefix = ".opencode/";
 const opencodeValidatorTemplatePrefix = "agents/validators/";
 const opencodeProjectConfigSource = "opencode.jsonc";
-const modelProfilesSourceRelative = ".harness/model-profiles.yml";
-const legacyHarnessConfigRelative = "harness.config.yaml";
-const requiredModelProfiles = ["think", "build", "review", "run"];
 
 async function buildFrameworkAssets(projectPath, options = {}) {
   const variables = options.variables ?? {};
@@ -114,94 +111,7 @@ async function buildOpencodeAssets(projectPath, variables = {}) {
 async function resolveOpencodeVariables(projectPath, variables = {}) {
   const profiles = await loadModelProfiles(projectPath);
 
-  return {
-    ...variables,
-    modelProfileThink: profiles.think.default,
-    modelProfileBuild: profiles.build.default,
-    modelProfileReview: profiles.review.default,
-    modelProfileRun: profiles.run.default
-  };
-}
-
-async function loadModelProfiles(projectPath) {
-  const frameworkDefaultSource = await readModelProfilesFromPath(
-    path.join(templatesRoot, modelProfilesSourceRelative),
-    "canonical"
-  );
-  const frameworkDefaults = frameworkDefaultSource ? normalizeModelProfiles(frameworkDefaultSource) : null;
-
-  if (!frameworkDefaults) {
-    throw new Error(`Framework model profile defaults not found: ${path.join(templatesRoot, modelProfilesSourceRelative)}`);
-  }
-
-  const canonicalProfiles = await readModelProfilesFromPath(
-    path.join(projectPath, modelProfilesSourceRelative),
-    "canonical"
-  );
-  if (canonicalProfiles) {
-    return mergeModelProfiles(frameworkDefaults, canonicalProfiles);
-  }
-
-  const legacyProfiles = await readModelProfilesFromPath(
-    path.join(projectPath, legacyHarnessConfigRelative),
-    "legacy"
-  );
-  if (legacyProfiles) {
-    return mergeModelProfiles(frameworkDefaults, legacyProfiles);
-  }
-
-  return frameworkDefaults;
-}
-
-async function readModelProfilesFromPath(filePath, sourceType) {
-  if (!(await pathExists(filePath))) {
-    return null;
-  }
-
-  const parsed = parseSimpleYaml(await readText(filePath));
-  const rawProfiles = sourceType === "legacy"
-    ? parsed?.models?.profiles
-    : parsed?.profiles;
-
-  if (!rawProfiles || typeof rawProfiles !== "object") {
-    return null;
-  }
-
-  return rawProfiles;
-}
-
-function normalizeModelProfiles(rawProfiles) {
-  const result = {};
-
-  for (const profileName of requiredModelProfiles) {
-    const rawProfile = rawProfiles?.[profileName];
-    result[profileName] = {
-      description: readProfileField(rawProfile, "description"),
-      default: readProfileField(rawProfile, "default"),
-      fallback: readProfileField(rawProfile, "fallback")
-    };
-  }
-
-  return result;
-}
-
-function mergeModelProfiles(defaultProfiles, overrideProfiles) {
-  const result = {};
-
-  for (const profileName of requiredModelProfiles) {
-    result[profileName] = {
-      description: readProfileField(overrideProfiles?.[profileName], "description", defaultProfiles[profileName].description),
-      default: readProfileField(overrideProfiles?.[profileName], "default", defaultProfiles[profileName].default),
-      fallback: readProfileField(overrideProfiles?.[profileName], "fallback", defaultProfiles[profileName].fallback)
-    };
-  }
-
-  return result;
-}
-
-function readProfileField(rawProfile, fieldName, fallback = "unknown") {
-  const value = rawProfile?.[fieldName];
-  return typeof value === "string" && value.length > 0 ? value : fallback;
+  return buildModelProfileTemplateVariables(profiles, variables);
 }
 
 async function buildValidatorProjectGuidance(projectPath, variables = {}) {

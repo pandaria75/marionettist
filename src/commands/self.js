@@ -1,6 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { frameworkRoot } from "../core/framework-paths.js";
+import { buildModelProfileTemplateVariables, loadCanonicalOrFrameworkModelProfiles, modelProfilesSourceRelative } from "../core/model-profiles.js";
+import { renderTemplate } from "../core/template.js";
 import { initCommand } from "./init.js";
 import { diffCommand } from "./diff.js";
 import { syncCommand } from "./sync.js";
@@ -282,6 +284,7 @@ async function selfDoctor(args) {
 
   await checkPath("AGENTS.md", "file", "root AGENTS.md exists", results);
   await checkPath(selfProfileRelative, "file", `${selfProfileRelative} exists`, results);
+  await checkPath(modelProfilesSourceRelative, "file", `${modelProfilesSourceRelative} exists`, results);
   await checkGitignore(results);
   await checkSelfOpencode(results);
   await checkTemplatesClean(results);
@@ -420,6 +423,23 @@ async function buildSelfInitOperations(options = {}) {
     note: `root AGENTS.md is not rewritten; any future self policy must use ${selfPolicyStart} / ${selfPolicyEnd}`
   });
 
+  const modelProfilesTemplatePath = path.join(frameworkRoot, "templates", modelProfilesSourceRelative);
+  const modelProfilesTemplateContent = await fs.readFile(modelProfilesTemplatePath, "utf8");
+  const modelProfilesAbsolute = path.join(frameworkRoot, modelProfilesSourceRelative);
+  const modelProfilesCurrent = await readOptional(modelProfilesAbsolute);
+  operations.push({
+    path: modelProfilesSourceRelative,
+    action: modelProfilesCurrent === null
+      ? "create"
+      : textEquals(modelProfilesCurrent, modelProfilesTemplateContent)
+        ? "unchanged"
+        : "skip-project-local",
+    content: modelProfilesTemplateContent,
+    note: modelProfilesCurrent !== null && !textEquals(modelProfilesCurrent, modelProfilesTemplateContent)
+      ? "preserved local model profile edits"
+      : undefined
+  });
+
   if (options.withOpencode) {
     for (const [relative, content] of selfOpencodeContents.entries()) {
       const absolute = path.join(frameworkRoot, relative);
@@ -513,6 +533,10 @@ async function checkSelfOpencodeMirrors(results) {
     const current = await readOptional(target);
     if (current === null) {
       results.push(fail(`${mirror.path} missing; mirror drift from ${mirror.source}. Edit templates/opencode/** instead, then rerun harness self init --apply --with-opencode.`));
+      continue;
+    }
+    if (containsUnresolvedModelProfilePlaceholder(current)) {
+      results.push(fail(`${mirror.path} still contains unresolved MODEL_PROFILE placeholders. Rerun harness self init --apply --with-opencode after reconciling .harness/model-profiles.yml.`));
       continue;
     }
     if (!textEquals(current, mirror.content)) {
@@ -655,6 +679,7 @@ function ensureLine(content, line) {
 async function buildSelfOpencodeMirrorEntries() {
   const entries = [];
   const seenTargets = new Set();
+  const modelProfileVariables = buildModelProfileTemplateVariables(await loadCanonicalOrFrameworkModelProfiles(frameworkRoot));
 
   for (const root of selfOpencodeMirrorRoots) {
     const sourceRoot = path.join(frameworkRoot, templatesOpencodeRelative, root);
@@ -674,10 +699,11 @@ async function buildSelfOpencodeMirrorEntries() {
       }
 
       seenTargets.add(targetRelative);
+      const sourceContent = await fs.readFile(sourcePath, "utf8");
       entries.push({
         path: targetRelative,
         source: toPosix(path.join(templatesOpencodeRelative, sourceRelative)),
-        content: await fs.readFile(sourcePath, "utf8")
+        content: renderTemplate(sourceContent, modelProfileVariables)
       });
     }
   }
@@ -704,6 +730,10 @@ async function collectFilesRecursive(rootPath) {
 
 function textEquals(left, right) {
   return left !== null && left.replace(/\r\n/g, "\n") === right.replace(/\r\n/g, "\n");
+}
+
+function containsUnresolvedModelProfilePlaceholder(content) {
+  return /\{\{MODEL_PROFILE_[A-Z_]+\}\}/.test(content);
 }
 
 async function readOptional(filePath) {

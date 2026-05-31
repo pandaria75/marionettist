@@ -17,7 +17,7 @@ These files are optional local OpenCode assets for repositories that want a harn
 
 ### Customization
 
-- Model defaults are rendered from `.harness/model-profiles.yml` profiles. Update `profiles.think/build/review/run` there first, then regenerate or manually align the agent `model` fields. If a project has not adopted `.harness/model-profiles.yml` yet, `harness.config.yaml` `models.profiles.*` remains the legacy fallback.
+- Model defaults are rendered from `.harness/model-profiles.yml` profiles. Update `profiles.think/build/review/run` there first, then run `harness diff --with-opencode` and `harness sync --with-opencode` to preview and apply regenerated agent `model` fields. If a project has not adopted `.harness/model-profiles.yml` yet, `harness.config.yaml` `models.profiles.*` remains the legacy fallback.
 - Permission settings are also examples. Tighten or relax them to fit your safety requirements.
 - Keep terminology aligned with your repository docs, rules, and `docs/project/knowledge-map.md`.
 

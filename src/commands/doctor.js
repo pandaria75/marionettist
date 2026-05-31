@@ -172,6 +172,8 @@ async function checkOpenCodeModelDrift(projectPath, harnessConfig, opencodeConfi
     return;
   }
 
+  await checkOpenCodePlaceholderDrift(projectPath, results);
+
   const canonicalSource = await readModelProfileSource(path.join(projectPath, ".harness", "model-profiles.yml"), "canonical");
   const legacySource = harnessConfig
     ? { label: "harness.config.yaml", exists: true, profiles: normalizeProfileDefaults(harnessConfig.models?.profiles), parseError: null }
@@ -205,6 +207,17 @@ async function checkOpenCodeModelDrift(projectPath, harnessConfig, opencodeConfi
       agentRelative
     });
     results.push(statusResult(evaluation.status, evaluation.message));
+  }
+}
+
+async function checkOpenCodePlaceholderDrift(projectPath, results) {
+  for (const relative of await listOpenCodeHarnessFiles(projectPath)) {
+    const content = await fs.readFile(path.join(projectPath, relative), "utf8");
+    if (!containsUnresolvedModelProfilePlaceholder(content)) {
+      continue;
+    }
+
+    results.push(fail(`OpenCode placeholder [UNRESOLVED] ${relative} still contains MODEL_PROFILE placeholders. Run \`harness diff --project <path> --with-opencode\` or \`harness sync --project <path> --with-opencode\` to regenerate runtime OpenCode files.`));
   }
 }
 
@@ -632,6 +645,34 @@ async function listFiles(directory, extensionOrName) {
     }
   }
   return files;
+}
+
+async function listOpenCodeHarnessFiles(projectPath) {
+  const files = [];
+
+  for (const root of [".opencode/agent", ".opencode/agents", ".opencode/command", ".opencode/commands"]) {
+    const absolute = path.join(projectPath, root);
+    if (!(await isDirectory(absolute))) {
+      continue;
+    }
+
+    const markdownFiles = await listFiles(absolute, ".md");
+    for (const file of markdownFiles) {
+      const relative = toPosix(path.relative(projectPath, file));
+      const basename = path.basename(relative);
+      if (!basename.startsWith("harness-")) {
+        continue;
+      }
+      files.push(relative);
+    }
+  }
+
+  files.sort((left, right) => left.localeCompare(right));
+  return files;
+}
+
+function containsUnresolvedModelProfilePlaceholder(content) {
+  return /\{\{MODEL_PROFILE_[A-Z_]+\}\}/.test(content);
 }
 
 async function exists(absolute) {

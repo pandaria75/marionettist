@@ -152,6 +152,7 @@ async function assertOpencodeInstall(projectPath) {
 
   const projectConfig = await fs.readFile(path.join(projectPath, "opencode.jsonc"), "utf8");
   assertIncludes(projectConfig, '"plugin": ["opencode-tasks"]');
+  assert(await pathExists(path.join(projectPath, ".harness", "model-profiles.yml")), "OpenCode install must include .harness/model-profiles.yml");
 
   const validatorContent = await fs.readFile(path.join(projectPath, ".opencode", "agents", "harness-validator.md"), "utf8");
   assertIncludes(validatorContent, "# Generic Validator Guidance");
@@ -307,6 +308,11 @@ async function assertDoctorModelDriftStates(projectPath) {
     let doctor = await harnessAllowFailure("doctor", "--project", projectPath);
     assert(doctor.code === 0, "doctor drift diagnostics should report DRIFTED without hard failure");
     assertIncludes(doctor.stdout, `WARN  OpenCode model [DRIFTED] .opencode/agents/harness-builder.md model drifted to smoke/drifted-think; expected ${expectedModels["harness-builder"]} from profile think.default.`);
+
+    await fs.writeFile(builderPath, originalBuilder.replace(`model: ${expectedModels["harness-builder"]}`, "model: {{MODEL_PROFILE_THINK}}"), "utf8");
+    doctor = await harnessAllowFailure("doctor", "--project", projectPath);
+    assert(doctor.code !== 0, "doctor must fail when unresolved placeholders remain in runtime OpenCode files");
+    assertIncludes(doctor.stdout, "FAIL  OpenCode placeholder [UNRESOLVED] .opencode/agents/harness-builder.md still contains MODEL_PROFILE placeholders.");
 
     await fs.writeFile(builderPath, originalBuilder, "utf8");
     await fs.rm(reviewerPath);
