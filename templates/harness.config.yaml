@@ -49,6 +49,10 @@ docs:
   rulesLanguage: "en"
   style: "design-and-architecture"
 
+knowledge:
+  mode: "{{KNOWLEDGE_MODE}}"
+  maturity: "{{KNOWLEDGE_MATURITY}}"
+
 validation:
   defaultCommands: []
 

@@ -2,6 +2,8 @@
 
 This project uses a lightweight file-based harness so requirements, knowledge routing, implementation slices, and execution context stay visible in normal repository files. The goal is to keep repository-agent work reproducible without adding a separate workflow system.
 
+When `harness.config.yaml` exists, read `knowledge.mode` and `knowledge.maturity` before deciding how much documentation, governance, and validation ceremony to apply.
+
 ## Standard Task Flow
 
 This project uses a branched harness workflow based on task complexity:
@@ -43,10 +45,38 @@ The analysis phase may produce:
 When building `.task/<task-id>/context-pack.md`, route context in this order:
 1. load global rules and task artifacts first
 2. use `docs/project/knowledge-map.md` to match only the relevant knowledge areas
-3. if target files are known, walk upward from those paths to load nearby `MODULE_RULES.md`, `AGENTS.md`, and `HARNESS_RULES.md`
-4. exclude unrelated docs and note the exclusion briefly
+3. prefer `docs/current/...` for actual present-day behavior and use `docs/target/...` only when future design matters to the task
+4. if target files are known, walk upward from those paths to load nearby `MODULE_RULES.md`, `AGENTS.md`, and `HARNESS_RULES.md`
+5. exclude unrelated docs and note the exclusion briefly
 
 For incident or bugfix work, include `.task/<task-id>/incident.md` when it exists and is relevant.
+
+### Knowledge Mode And Maturity
+
+Use `harness.config.yaml` as the local default when it defines:
+
+- `knowledge.mode`: `standard` or `mudball`
+- `knowledge.maturity`: `L0`, `L1`, `L2`, `L3`, or `L4`
+
+Knowledge mode sets the starting posture:
+
+- `standard`: balance current-state understanding with design intent
+- `mudball`: start from present-day behavior, risk, and safe-change advice; do not assume clean boundaries
+
+Knowledge maturity scales how much documentation depth and governance the agent should expect:
+
+- **L0 — Minimal capture**: task-local context, sparse docs, explicit unknowns, low ceremony
+- **L1 — Current-state map**: capture entrypoints, major flows, risk zones, unknowns, and safe-change notes first
+- **L2 — Reusable area knowledge**: maintain stable routing, important current/target docs, and reviewed rule metadata for important areas
+- **L3 — Governed knowledge**: stronger docs/rules sync, clearer ownership, and regular drift checks between current and target knowledge
+- **L4 — Strict governance**: curated high-trust knowledge, explicit hard/confirmed constraints, and strong validation/review expectations for boundary-sensitive change
+
+Scaling guidance:
+
+- At **L0-L1**, do not require broad documentation before small safe changes.
+- At **L2**, expect meaningful docs updates when design understanding changes.
+- At **L3-L4**, expect stronger docs/rules synchronization and clearer validation evidence for architecture or boundary changes.
+- In `mudball` mode, default to current-state-first behavior even when maturity is higher, and do not pressure the project toward L3/L4 unless users explicitly choose that posture.
 
 When analysis is complete, the agent must stop and wait for explicit user confirmation before starting coding, except Tier S.
 
@@ -181,6 +211,20 @@ If the current agent does not support subagents, or cannot safely coordinate par
 
 Docs explain design, architecture, functional behavior, workflow, and boundaries.
 
+For current-vs-target knowledge:
+- `docs/current/` records observed current-state behavior, risk, and safe-change guidance
+- `docs/target/` records desired future design and migration intent
+- current-state docs should label fact, inference, and unknown when certainty matters
+- target-state guidance must not be treated as proof of current behavior
+
+Use maturity to scale expectations, not to force unnecessary document volume:
+
+- `L0-L1`: compact docs are acceptable if unknowns and risks are made explicit
+- `L2`: keep reusable area docs and routing reasonably current
+- `L3-L4`: keep docs, rules, and validation evidence more tightly aligned
+
+For `knowledge.mode: mudball`, current-state capture is the default. L0 or L1 may be a valid steady state, and L2 is a reasonable gradual improvement point.
+
 Docs must not become source-code indexes. Use IDE tools or local search for code navigation.
 
 Context packs should record loaded context compactly under categories such as:
@@ -199,6 +243,8 @@ Rules define enforceable constraints. When adding, moving, renaming, or deleting
 - `.aiassistant/rules/*.md` contains enforceable agent constraints.
 - `docs/**/*.md` contains project knowledge and architecture explanations.
 - `docs/project/knowledge-map.md` is the routing index for ownership, docs, rules, and boundary notes.
+- `docs/current/**/*.md` contains current-state knowledge about how the project works today.
+- `docs/target/**/*.md` contains desired future design, migration direction, and proposed boundaries.
 - `.task/active.json` selects the current task and records phase, gate, and next-command summary.
 - `.task/<task-id>/requirement.md` freezes task requirements.
 - `.task/<task-id>/implementation-plan.md` defines executable implementation slices.

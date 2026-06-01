@@ -36,12 +36,37 @@ Use for helpful follow-up questions that do not affect the current docs or rules
 
 ## Modes
 
+Before choosing document depth, read `harness.config.yaml` when it exists and capture:
+
+- `knowledge.mode`: `standard` or `mudball`
+- `knowledge.maturity`: `L0` through `L4`
+
+Use those values as posture defaults, not as hard blockers.
+
+### Knowledge Mode And Maturity
+
+`knowledge.mode` sets the documentation starting point:
+
+- `standard`: balance current-state explanation with design intent
+- `mudball`: document present-day behavior first, especially entrypoints, call paths, implicit rules, risk zones, unknowns, and safe-change advice
+
+`knowledge.maturity` scales documentation depth and governance:
+
+- **L0**: minimal capture; create only task-relevant or high-risk docs
+- **L1**: current-state map; prioritize present-day behavior and practical safe-change guidance
+- **L2**: reusable area knowledge; maintain stable routing and important current/target docs
+- **L3**: governed knowledge; stronger docs/rules sync and clearer ownership notes
+- **L4**: strict governance; curated high-trust docs and stronger expectations for validation-linked updates
+
+Mudball projects should not be pushed toward L3/L4 by default. L0-L1 are valid adoption levels, and L2 is a reasonable gradual-improvement target.
+
 ### init
 
 Use when a project is first connected to the harness.
 
 1. Inspect project configuration and high-level structure.
-2. Identify architecture shape:
+2. Read `harness.config.yaml` if present and note `knowledge.mode` and `knowledge.maturity`.
+3. Identify architecture shape:
    - frontend
    - backend
    - fullstack
@@ -50,11 +75,16 @@ Use when a project is first connected to the harness.
    - multi-module
    - single-module
    - unknown
-3. Identify major design areas, functional domains, workflows, and high-risk boundaries.
-4. Create or update `docs/project/knowledge-map.md`.
-5. Create only high-value design docs and rule files.
-6. Do not create one doc per directory unless each directory represents a real design boundary.
-7. Keep docs and rules non-overlapping.
+4. Identify major design areas, functional domains, workflows, and high-risk boundaries.
+5. Create or update `docs/project/knowledge-map.md`.
+6. For `knowledge.mode: mudball`, prefer `docs/current/` and present-day evidence before any target-state documentation.
+7. Scale output by maturity:
+   - `L0-L1`: start small; avoid broad documentation mandates
+   - `L2`: create reusable area docs only for meaningful boundaries
+   - `L3-L4`: include stronger ownership, drift, and sync guidance where appropriate
+8. Create only high-value design docs and rule files.
+9. Do not create one doc per directory unless each directory represents a real design boundary.
+10. Keep docs and rules non-overlapping.
 
 ### refresh
 
@@ -65,6 +95,7 @@ Use for periodic maintenance.
 3. Update rules only when enforceable constraints changed.
 4. Update knowledge-map routing when docs or rules were added, moved, renamed, or deleted.
 5. Keep terminology consistent across docs, rules, and knowledge-map entries.
+6. Scale the refresh depth to `knowledge.maturity`; low-maturity projects can keep lighter docs if unknowns remain explicit.
 
 ### review
 
@@ -85,6 +116,7 @@ Use after code changes or before review.
    - `Rules Update Required`
    - `No Knowledge Update Needed`
 4. Do not update docs automatically unless the user asks for updates.
+5. Consider `knowledge.mode` and `knowledge.maturity` before recommending missing documentation; do not impose L3/L4 standards on L0-L1 or mudball projects by default.
 
 ### topic
 
@@ -170,6 +202,7 @@ Docs must not include:
 - line-by-line implementation explanation
 - information easily recoverable through IDE search
 - generated indexes of source locations
+- maturity-driven busywork that exceeds the project's configured posture
 
 ## Rules Scope
 
@@ -199,6 +232,12 @@ Each entry should include:
 
 Do not include every file, class, function, or symbol.
 
+Keep routing proportional to maturity:
+
+- `L0-L1`: enough routing to reach the right current-state docs and rules
+- `L2`: stable routing for important areas
+- `L3-L4`: clearer ownership, boundary, and validation routing where the project depends on that discipline
+
 ## Output Format
 
 When creating or updating docs:
@@ -207,6 +246,10 @@ When creating or updating docs:
 # Workspace Knowledge Result
 
 ## Mode
+
+## Knowledge Mode
+
+## Knowledge Maturity
 
 ## Project Shape
 
@@ -246,9 +289,11 @@ When reviewing docs impact:
 ## Guardrails
 
 - Base docs on actual behavior and source evidence.
+- In mudball mode, prefer current-state evidence over idealized design.
 - Prefer fewer, higher-value documents over many shallow documents.
 - Ask blocking questions only when design meaning or boundary ownership cannot be inferred.
 - Keep docs useful for human and agent understanding.
 - Keep code navigation out of docs.
 - Keep docs and rules non-overlapping.
 - Update `docs/project/knowledge-map.md` whenever routing changes.
+- Do not use maturity to force unnecessary docs volume or L3/L4 governance on low-maturity projects.

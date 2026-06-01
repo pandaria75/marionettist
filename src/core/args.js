@@ -1,13 +1,17 @@
 import path from "node:path";
 
 export function parseCommonArgs(args) {
+  const knowledgeModes = new Set(["standard", "mudball"]);
+  const knowledgeMaturities = new Set(["L0", "L1", "L2", "L3", "L4"]);
   const options = {
     project: process.cwd(),
     dryRun: false,
     force: false,
     auto: false,
     withOpencode: null,
-    opencodeCommandSurface: null
+    opencodeCommandSurface: null,
+    knowledgeMode: null,
+    knowledgeMaturity: null
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -52,6 +56,32 @@ export function parseCommonArgs(args) {
         throw new Error(`Unsupported --opencode-command-surface value: ${value}`);
       }
       options.opencodeCommandSurface = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--knowledge-mode") {
+      const value = args[index + 1];
+      if (!value) {
+        throw new Error("--knowledge-mode requires standard or mudball");
+      }
+      if (!knowledgeModes.has(value)) {
+        throw new Error(`Unsupported --knowledge-mode value: ${value}`);
+      }
+      options.knowledgeMode = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--knowledge-maturity") {
+      const value = args[index + 1];
+      if (!value) {
+        throw new Error("--knowledge-maturity requires L0, L1, L2, L3, or L4");
+      }
+      if (!knowledgeMaturities.has(value)) {
+        throw new Error(`Unsupported --knowledge-maturity value: ${value}`);
+      }
+      options.knowledgeMaturity = value;
       index += 1;
       continue;
     }

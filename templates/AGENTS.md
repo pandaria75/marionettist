@@ -22,10 +22,20 @@ Project knowledge and architecture explanations belong in `docs`.
 
 If constraints conflict, this file takes precedence unless the user explicitly overrides it.
 
+Rule files may include metadata such as `type`, `confidence`, and `source`.
+Use that metadata to decide enforcement strength:
+- `hard`: enforce by default
+- `confirmed`: follow as an active repository convention unless higher-priority instructions or newer evidence override it
+- `observed`: treat as current-state evidence, not a default hard blocker
+- `target`: treat as intended future direction, not current required behavior unless the approved task is implementing it
+
+Do not silently upgrade `observed` or `target` rules into stronger constraints.
+
 ## Knowledge Sources
 
 - `docs/**/*.md` contains project knowledge, architecture explanations, workflow notes, and boundary context.
 - `docs/project/knowledge-map.md` routes agents to relevant project knowledge.
+- `harness.config.yaml` may define `knowledge.mode` and `knowledge.maturity` for local documentation posture.
 
 Do not treat knowledge sources as stronger than constraint sources.
 
@@ -34,6 +44,22 @@ Do not treat knowledge sources as stronger than constraint sources.
 Docs are read on demand. Do not load all docs by default.
 
 Use `docs/project/knowledge-map.md` as a routing guide, not as a code index or a reason to load all docs.
+
+When `harness.config.yaml` exists, read `knowledge.mode` and `knowledge.maturity` early and scale documentation depth, routing strictness, and governance expectations accordingly.
+
+Knowledge maturity guidance:
+
+- **L0**: minimal capture; rely on task-local context and explicit unknowns
+- **L1**: current-state mapping first; good default for messy or legacy-heavy projects
+- **L2**: reusable area knowledge with stable routing and meaningful docs updates when design understanding changes
+- **L3**: governed knowledge with stronger docs/rules sync and clearer ownership expectations
+- **L4**: strict governance with curated high-trust knowledge and stronger validation expectations for sensitive changes
+
+Mudball guidance:
+
+- in `knowledge.mode: mudball`, start from `docs/current/` and observed behavior first
+- do not treat target docs as evidence of current behavior
+- do not push L3/L4 governance by default; L0-L1 may be appropriate steady states and L2 is a gradual improvement point
 
 Use `module-inspector` when the task involves:
 - modifying a module, package, feature area, or bounded subsystem
@@ -214,7 +240,7 @@ The context pack should include:
 - Do not start review for unrelated scope or the next slice until that slice is explicitly approved.
 - After implementation, check the actual diff against allowed and forbidden scope.
 - Check boundary violations.
-- Check rule conflicts.
+- Check rule conflicts, including incorrect treatment of `observed` or `target` rules as if they were automatically `hard`.
 - Check missing validation.
 - Check whether docs, rules, or `knowledge-map.md` need sync.
 
@@ -230,14 +256,24 @@ Project docs should explain software design and architecture:
 
 Project docs should not list every source file, class, function, or implementation detail.
 
-Rules should define enforceable constraints, not general design explanation.
+Rules should define behavioral constraints, not general design explanation.
+When rule files use metadata, treat only `hard` and normally `confirmed` rules as default enforcement constraints.
+Use `observed` rules for current-state caution and `target` rules for future direction unless the approved work says otherwise.
+
+Scale documentation expectations by `knowledge.maturity`:
+
+- `L0-L1`: keep docs compact and current-state-oriented; explicit unknowns are acceptable
+- `L2`: keep important routing and area knowledge maintained when meaning changes
+- `L3-L4`: keep docs, rules, and validation evidence more tightly synchronized for boundary-sensitive work
+
+Do not use maturity as a reason to turn docs into source-code indexes.
 
 ## Project Knowledge
 
 Use `docs/project/harness-workflow.md` as the task-process reference.
 Use `docs/project/knowledge-map.md` as the routing reference for docs and rules.
 
-Docs explain context; rules define constraints.
+Docs explain context; rules define constraints with possible strength metadata.
 Read detailed docs only on demand through `module-inspector`, `workflow-inspector`, or `workspace-knowledge-manager` when appropriate.
 When adding, moving, renaming, or deleting docs or rules, update `docs/project/knowledge-map.md`.
 

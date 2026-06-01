@@ -14,18 +14,36 @@ Use this skill to build `.task/<task-id>/context-pack.md` before implementation.
 ## Workflow
 
 1. Read `.task/active.json` and `.task/<task-id>/state.json`.
-2. Read the requirement document if available, preferring `.task/<task-id>/requirement.md`.
-3. Read the implementation plan if available, preferring `.task/<task-id>/implementation-plan.md`.
-4. For bugfix or incident-style work, read `.task/<task-id>/incident.md` when it exists.
-5. Read `docs/project/knowledge-map.md` to route only the most relevant docs and rules.
-6. Match involved areas using knowledge-map fields such as `Areas`, `Tags`, `Docs`, `Rules`, `Read When`, `Boundaries`, and `Validation`.
-7. If target files or directories are known, walk upward from those paths and load only nearby `MODULE_RULES.md`, `AGENTS.md`, or `HARNESS_RULES.md` files that actually constrain the work.
-8. Treat global safety and boundary rules as higher priority than local path-proximity rules when they conflict.
-9. Use module-inspector or workflow-inspector only when scope is still unclear after targeted routing.
-10. Extract only the minimum context needed for coding.
-11. Create or update `.task/<task-id>/context-pack.md`.
-12. Do not implement code.
-13. If legacy `.task/context-pack.md` exists, read it only as a migration fallback and recommend moving context into the active task directory.
+2. Read `harness.config.yaml` when it exists and note `knowledge.mode` and `knowledge.maturity`.
+3. Read the requirement document if available, preferring `.task/<task-id>/requirement.md`.
+4. Read the implementation plan if available, preferring `.task/<task-id>/implementation-plan.md`.
+5. For bugfix or incident-style work, read `.task/<task-id>/incident.md` when it exists.
+6. Read `docs/project/knowledge-map.md` to route only the most relevant docs and rules.
+7. Match involved areas using knowledge-map fields such as `Areas`, `Tags`, `Docs`, `Rules`, `Read When`, `Boundaries`, and `Validation`.
+8. If target files or directories are known, walk upward from those paths and load only nearby `MODULE_RULES.md`, `AGENTS.md`, or `HARNESS_RULES.md` files that actually constrain the work.
+9. Treat global safety and boundary rules as higher priority than local path-proximity rules when they conflict.
+10. Use module-inspector or workflow-inspector only when scope is still unclear after targeted routing.
+11. Extract only the minimum context needed for coding.
+12. Create or update `.task/<task-id>/context-pack.md`.
+13. Do not implement code.
+14. If legacy `.task/context-pack.md` exists, read it only as a migration fallback and recommend moving context into the active task directory.
+
+## Knowledge Mode And Maturity
+
+Use config values as routing defaults:
+
+- `knowledge.mode: standard` -> balance current-state and future-intent context as needed
+- `knowledge.mode: mudball` -> load current-state evidence first and prefer present-day behavior, risk, unknowns, and safe-change guidance
+
+Scale context depth by `knowledge.maturity`:
+
+- **L0**: minimum viable context; keep scope tight and unknowns explicit
+- **L1**: include current-state entrypoints, major flows, risk zones, and safe-change notes
+- **L2**: include reusable area docs and rule metadata when they materially affect the task
+- **L3**: include stronger ownership, boundary, and docs/rules sync context when relevant
+- **L4**: include curated high-trust constraints and stronger validation expectations for architecture-sensitive work
+
+Do not push mudball projects toward L3/L4 by default. L0-L1 are acceptable steady states when knowledge is still emerging.
 
 ## Output File Template
 
@@ -33,6 +51,11 @@ Use this skill to build `.task/<task-id>/context-pack.md` before implementation.
 # Task Context Pack
 
 ## Task Goal
+
+## Knowledge Posture
+
+- Mode:
+- Maturity:
 
 ## Current Slice Or Group
 
@@ -113,6 +136,7 @@ Use `Loaded Context` to explain routing decisions and why each source was includ
 ## Guardrails
 
 - Keep the context pack compact.
+- Read mode/maturity from `harness.config.yaml` when available and reflect them in the context pack.
 - Do not copy full docs or source files.
 - Include forbidden scope explicitly.
 - Include validation commands explicitly.
@@ -126,4 +150,6 @@ Use `Loaded Context` to explain routing decisions and why each source was includ
 - Record which context was loaded, why it matched, and what was intentionally excluded.
 - Prefer references to the exact docs and rules that matter instead of copying them.
 - If local path rules conflict with repository-global safety or boundary rules, follow the global rules and note the conflict.
+- For `knowledge.mode: mudball`, prefer current-state docs over target-state docs unless future design is directly relevant.
+- Do not require broad documentation context for L0-L1 tasks when a smaller safe context is sufficient.
 - Do not implement code.

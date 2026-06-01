@@ -21,6 +21,8 @@ In this file, `<task-id>` is selected by `.task/active.json`.
 
 Review code changes with a bug-finding mindset. Focus on behavioral regressions, boundary violations, forbidden scope modifications, missing validation, rule conflicts, and required docs or `knowledge-map.md` sync.
 
+When rule files include metadata, do not treat `observed` or `target` rules as automatic hard blockers. Check whether changed code or docs incorrectly enforced or described those weaker rule types as mandatory current behavior.
+
 ## Diff-First Review Protocol
 
 Default to a bounded diff review for the current approved slice or approved repair only.

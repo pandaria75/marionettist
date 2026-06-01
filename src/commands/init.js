@@ -12,14 +12,29 @@ export async function initCommand(args) {
     projectName: path.basename(options.project),
     projectType: "unknown",
     architecture: "unknown",
-    primaryLanguage: "unknown"
+    primaryLanguage: "unknown",
+    knowledgeMode: options.knowledgeMode ?? "standard",
+    knowledgeMaturity: options.knowledgeMaturity ?? "L1"
   };
   let conflictStrategies = {};
   let withOpencode = options.withOpencode;
   let opencodeCommandSurface = options.opencodeCommandSurface;
 
   if (!options.auto) {
-    variables = await promptConfig(variables.projectName);
+    const promptedVariables = await promptConfig(variables.projectName, {
+      projectType: variables.projectType,
+      architecture: variables.architecture,
+      primaryLanguage: variables.primaryLanguage,
+      knowledgeMode: variables.knowledgeMode,
+      knowledgeMaturity: variables.knowledgeMaturity,
+      skipKnowledgeModePrompt: options.knowledgeMode !== null,
+      skipKnowledgeMaturityPrompt: options.knowledgeMaturity !== null
+    });
+    variables = {
+      ...promptedVariables,
+      knowledgeMode: options.knowledgeMode ?? promptedVariables.knowledgeMode,
+      knowledgeMaturity: options.knowledgeMaturity ?? promptedVariables.knowledgeMaturity
+    };
 
     if (withOpencode === null) {
       withOpencode = await promptWithOpencode();

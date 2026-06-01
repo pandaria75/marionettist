@@ -1,6 +1,6 @@
 import { confirm, input, select } from "@inquirer/prompts";
 
-export async function promptConfig(defaultProjectName) {
+export async function promptConfig(defaultProjectName, options = {}) {
   const projectName = await input({
     message: "Project Name:",
     default: defaultProjectName,
@@ -8,24 +8,72 @@ export async function promptConfig(defaultProjectName) {
 
   const projectType = await input({
     message: "Project Type (e.g., web, library, api):",
-    default: "unknown",
+    default: options.projectType ?? "unknown",
   });
 
   const architecture = await input({
     message: "Architecture (e.g., monolith, microservices):",
-    default: "unknown",
+    default: options.architecture ?? "unknown",
   });
 
   const primaryLanguage = await input({
     message: "Primary Language:",
-    default: "unknown",
+    default: options.primaryLanguage ?? "unknown",
   });
+
+  const knowledgeMode = options.skipKnowledgeModePrompt
+    ? options.knowledgeMode
+    : await select({
+      message: "Knowledge Mode:",
+      default: options.knowledgeMode ?? "standard",
+      choices: [
+        {
+          name: "standard - balanced project knowledge guidance",
+          value: "standard",
+        },
+        {
+          name: "mudball - current-state-first guidance for messy or legacy-heavy codebases",
+          value: "mudball",
+        },
+      ],
+    });
+
+  const knowledgeMaturity = options.skipKnowledgeMaturityPrompt
+    ? options.knowledgeMaturity
+    : await select({
+      message: "Knowledge Maturity:",
+      default: options.knowledgeMaturity ?? "L1",
+      choices: [
+        {
+          name: "L0 - minimal knowledge capture",
+          value: "L0",
+        },
+        {
+          name: "L1 - lightweight current working guidance",
+          value: "L1",
+        },
+        {
+          name: "L2 - moderate structure and consistency",
+          value: "L2",
+        },
+        {
+          name: "L3 - stronger review and governance expectations",
+          value: "L3",
+        },
+        {
+          name: "L4 - highest knowledge rigor",
+          value: "L4",
+        },
+      ],
+    });
 
   return {
     projectName,
     projectType,
     architecture,
     primaryLanguage,
+    knowledgeMode,
+    knowledgeMaturity,
   };
 }
 

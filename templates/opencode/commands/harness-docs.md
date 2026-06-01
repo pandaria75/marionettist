@@ -16,6 +16,6 @@ Requirements:
 - Prefer docs-oriented routing unless another workflow is clearly a better fit.
 - Explain the selected workflow in one concise sentence, including any required gate before acting or delegating.
 - Docs should explain responsibilities, design, workflows, boundaries, and extension points.
-- Rules should express enforceable constraints only.
+- Rules should express behavioral constraints and may include metadata such as `type`, `confidence`, and `source`; do not treat `observed` or `target` rules as hard constraints by default.
 - Do not duplicate content between docs and rules.
 - If docs or rules are added, moved, renamed, or deleted, update `docs/project/knowledge-map.md` as well.

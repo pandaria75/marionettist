@@ -14,6 +14,8 @@ const coreTemplateTargets = new Map([
   ["harness.config.yaml", "harness.config.yaml"],
   ["docs/project/harness-workflow.md", "docs/project/harness-workflow.md"],
   ["docs/project/knowledge-map.md", "docs/project/knowledge-map.md"],
+  ["docs/current/system-map.md", "docs/current/system-map.md"],
+  ["docs/target/architecture-intent.md", "docs/target/architecture-intent.md"],
   ["rules/00-repository-rules.md", ".aiassistant/rules/00-repository-rules.md"],
   ["rules/workflow-rules.md", ".aiassistant/rules/workflow-rules.md"]
 ]);
@@ -37,9 +39,11 @@ const fullOnlyOpencodeCommandRelatives = new Set([
   "commands/harness-status.md",
   "commands/harness-continue.md"
 ]);
+const knowledgeModeValues = new Set(["standard", "mudball"]);
+const knowledgeMaturityValues = new Set(["L0", "L1", "L2", "L3", "L4"]);
 
 async function buildFrameworkAssets(projectPath, options = {}) {
-  const variables = options.variables ?? {};
+  const variables = normalizeKnowledgeVariables(options.variables ?? {});
   const assets = [];
 
   for (const [sourceRelative, targetRelative] of coreTemplateTargets.entries()) {
@@ -404,6 +408,33 @@ function renderHarnessConfigWithOpencodeCommandSurface(content, commandSurfaceSt
 
   const trimmed = content.replace(/\s*$/u, "");
   return `${trimmed}\n\nopencode:\n  commandSurface: "${commandSurfaceState.value}"\n`;
+}
+
+function normalizeKnowledgeVariables(variables = {}) {
+  const knowledgeMode = normalizeKnowledgeMode(variables.knowledgeMode ?? "standard");
+  const knowledgeMaturity = normalizeKnowledgeMaturity(variables.knowledgeMaturity ?? "L1");
+
+  return {
+    ...variables,
+    knowledgeMode,
+    knowledgeMaturity
+  };
+}
+
+function normalizeKnowledgeMode(value) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (!knowledgeModeValues.has(normalized)) {
+    throw new Error(`Unsupported knowledge mode: ${value}`);
+  }
+  return normalized;
+}
+
+function normalizeKnowledgeMaturity(value) {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  if (!knowledgeMaturityValues.has(normalized)) {
+    throw new Error(`Unsupported knowledge maturity: ${value}`);
+  }
+  return normalized;
 }
 
 function currentManagedContent(asset, currentContent) {

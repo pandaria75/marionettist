@@ -13,6 +13,8 @@ const frameworkVersion = (await fs.readFile(path.join(repoRoot, "VERSION"), "utf
 const tempBase = process.env.HARNESS_SMOKE_TMP || os.tmpdir();
 const dryRunProject = path.join(tempBase, `harness-smoke-dry-${process.pid}`);
 const project = path.join(tempBase, `harness-smoke-${process.pid}`);
+const mudballProject = path.join(tempBase, `harness-smoke-mudball-${process.pid}`);
+const existingLocalProject = path.join(tempBase, `harness-smoke-existing-${process.pid}`);
 const opencodeProject = path.join(tempBase, `harness-smoke-opencode-${process.pid}`);
 const backfillProject = path.join(tempBase, `harness-smoke-backfill-${process.pid}`);
 const gradleProject = path.join(tempBase, `harness-smoke-gradle-${process.pid}`);
@@ -58,7 +60,7 @@ const binaryLikeExtensions = new Set([
 ]);
 
 try {
-  await cleanupPaths(dryRunProject, project, opencodeProject, backfillProject, gradleProject);
+  await cleanupPaths(dryRunProject, project, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject);
 
   const dryRunOutput = await harness("init", "--project", dryRunProject, "--dry-run", "--auto");
   assertIncludes(dryRunOutput, "new-managed: AGENTS.md");
@@ -67,6 +69,16 @@ try {
 
   const initOutput = await harness("init", "--project", project, "--auto");
   assertIncludes(initOutput, "write-manifest: .harness/manifest.json");
+
+  await assertKnowledgeInitAndManagedDocs(project, { mode: "standard", maturity: "L1" });
+
+  const mudballInitOutput = await harness("init", "--project", mudballProject, "--auto", "--knowledge-mode", "mudball", "--knowledge-maturity", "L0");
+  assertIncludes(mudballInitOutput, "write-manifest: .harness/manifest.json");
+  await assertKnowledgeInitAndManagedDocs(mudballProject, { mode: "mudball", maturity: "L0" });
+  await assertManagedDocsLocalPreservation(mudballProject);
+  await assertManagedDocsMissingDetection(mudballProject);
+
+  await assertInitPreservesExistingLocalKnowledge(existingLocalProject);
 
   const doctorOutput = await harness("doctor", "--project", project);
   assertIncludes(doctorOutput, "PASS  harness.config.yaml parsed");
@@ -132,7 +144,74 @@ try {
 
   console.log("smoke: PASS");
 } finally {
-  await cleanupPaths(dryRunProject, project, opencodeProject, backfillProject, gradleProject);
+  await cleanupPaths(dryRunProject, project, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject);
+}
+
+async function assertKnowledgeInitAndManagedDocs(projectPath, { mode, maturity }) {
+  const config = parseSimpleYaml(await fs.readFile(path.join(projectPath, "harness.config.yaml"), "utf8"));
+  assert(config.knowledge?.mode === mode, `Expected knowledge.mode=${mode}, got ${config.knowledge?.mode}`);
+  assert(config.knowledge?.maturity === maturity, `Expected knowledge.maturity=${maturity}, got ${config.knowledge?.maturity}`);
+
+  const currentDocRelative = path.join("docs", "current", "system-map.md");
+  const targetDocRelative = path.join("docs", "target", "architecture-intent.md");
+  assert(await pathExists(path.join(projectPath, currentDocRelative)), `${currentDocRelative} must exist after init`);
+  assert(await pathExists(path.join(projectPath, targetDocRelative)), `${targetDocRelative} must exist after init`);
+
+  const manifest = await readManifest(projectPath);
+  assert(manifest.managedFiles.some((file) => file.path === toPosix(currentDocRelative)), `manifest must include ${currentDocRelative}`);
+  assert(manifest.managedFiles.some((file) => file.path === toPosix(targetDocRelative)), `manifest must include ${targetDocRelative}`);
+
+  const diffOutput = await harness("diff", "--project", projectPath);
+  assertIncludes(diffOutput, `unchanged: ${toPosix(currentDocRelative)}`);
+  assertIncludes(diffOutput, `unchanged: ${toPosix(targetDocRelative)}`);
+}
+
+async function assertManagedDocsLocalPreservation(projectPath) {
+  const currentDocPath = path.join(projectPath, "docs", "current", "system-map.md");
+  const targetDocPath = path.join(projectPath, "docs", "target", "architecture-intent.md");
+
+  await fs.appendFile(currentDocPath, "\nLocal current-state note.\n", "utf8");
+  await fs.appendFile(targetDocPath, "\nLocal target-state note.\n", "utf8");
+  const currentDocContent = await fs.readFile(currentDocPath, "utf8");
+  const targetDocContent = await fs.readFile(targetDocPath, "utf8");
+
+  const diffOutput = await harness("diff", "--project", projectPath);
+  assertIncludes(diffOutput, "modified-local: docs/current/system-map.md");
+  assertIncludes(diffOutput, "modified-local: docs/target/architecture-intent.md");
+
+  const syncDryRunOutput = await harness("sync", "--project", projectPath, "--dry-run");
+  assertIncludes(syncDryRunOutput, "modified-local: docs/current/system-map.md");
+  assertIncludes(syncDryRunOutput, "modified-local: docs/target/architecture-intent.md");
+  assert((await fs.readFile(currentDocPath, "utf8")) === currentDocContent, "sync --dry-run must preserve local docs/current bytes");
+  assert((await fs.readFile(targetDocPath, "utf8")) === targetDocContent, "sync --dry-run must preserve local docs/target bytes");
+}
+
+async function assertManagedDocsMissingDetection(projectPath) {
+  const currentDocPath = path.join(projectPath, "docs", "current", "system-map.md");
+  const targetDocPath = path.join(projectPath, "docs", "target", "architecture-intent.md");
+  await fs.rm(currentDocPath);
+  await fs.rm(targetDocPath);
+
+  const diffOutput = await harness("diff", "--project", projectPath);
+  assertIncludes(diffOutput, "missing: docs/current/system-map.md");
+  assertIncludes(diffOutput, "missing: docs/target/architecture-intent.md");
+}
+
+async function assertInitPreservesExistingLocalKnowledge(projectPath) {
+  await fs.mkdir(path.join(projectPath, "docs", "current"), { recursive: true });
+  await fs.mkdir(path.join(projectPath, ".aiassistant", "rules"), { recursive: true });
+  await fs.writeFile(path.join(projectPath, "harness.config.yaml"), "knowledge:\n  mode: \"local-only\"\n", "utf8");
+  await fs.writeFile(path.join(projectPath, "docs", "current", "system-map.md"), "# Local System Map\n\nKeep me.\n", "utf8");
+  await fs.writeFile(path.join(projectPath, ".aiassistant", "rules", "00-repository-rules.md"), "# Local Rules\n\nKeep me.\n", "utf8");
+
+  const initOutput = await harness("init", "--project", projectPath, "--auto");
+  assertIncludes(initOutput, "skip-project-local: harness.config.yaml");
+  assertIncludes(initOutput, "skip-project-local: docs/current/system-map.md");
+  assertIncludes(initOutput, "skip-project-local: .aiassistant/rules/00-repository-rules.md");
+
+  assert((await fs.readFile(path.join(projectPath, "harness.config.yaml"), "utf8")) === "knowledge:\n  mode: \"local-only\"\n", "init must preserve local harness.config.yaml");
+  assert((await fs.readFile(path.join(projectPath, "docs", "current", "system-map.md"), "utf8")) === "# Local System Map\n\nKeep me.\n", "init must preserve local docs/current/system-map.md");
+  assert((await fs.readFile(path.join(projectPath, ".aiassistant", "rules", "00-repository-rules.md"), "utf8")) === "# Local Rules\n\nKeep me.\n", "init must preserve local .aiassistant/rules/00-repository-rules.md");
 }
 
 async function assertOpencodeInstall(projectPath) {
@@ -427,6 +506,8 @@ async function readExpectedAgentModels(projectPath) {
 }
 
 async function assertP1DocsAndTemplateCoverage() {
+  const harnessConfigTemplate = await fs.readFile(path.join(repoRoot, "templates", "harness.config.yaml"), "utf8");
+  const targetAgentsTemplate = await fs.readFile(path.join(repoRoot, "templates", "AGENTS.md"), "utf8");
   const builderTemplate = await fs.readFile(path.join(repoRoot, "templates", "opencode", "agents", "harness-builder.md"), "utf8");
   const coderTemplate = await fs.readFile(path.join(repoRoot, "templates", "opencode", "agents", "harness-coder.md"), "utf8");
   const criticTemplate = await fs.readFile(path.join(repoRoot, "templates", "opencode", "agents", "harness-critic.md"), "utf8");
@@ -437,8 +518,14 @@ async function assertP1DocsAndTemplateCoverage() {
   const incidentSkill = await fs.readFile(path.join(repoRoot, "skills", "incident-pack-builder", "SKILL.md"), "utf8");
   const hypothesisSkill = await fs.readFile(path.join(repoRoot, "skills", "hypothesis-critic", "SKILL.md"), "utf8");
   const contextPackSkill = await fs.readFile(path.join(repoRoot, "skills", "context-pack-builder", "SKILL.md"), "utf8");
+  const workspaceKnowledgeSkill = await fs.readFile(path.join(repoRoot, "skills", "workspace-knowledge-manager", "SKILL.md"), "utf8");
   const knowledgeMapTemplate = await fs.readFile(path.join(repoRoot, "templates", "docs", "project", "knowledge-map.md"), "utf8");
+  const repositoryRulesTemplate = await fs.readFile(path.join(repoRoot, "templates", "rules", "00-repository-rules.md"), "utf8");
+  const workflowRulesTemplate = await fs.readFile(path.join(repoRoot, "templates", "rules", "workflow-rules.md"), "utf8");
 
+  assertIncludes(harnessConfigTemplate, "knowledge:");
+  assertIncludes(harnessConfigTemplate, 'mode: "{{KNOWLEDGE_MODE}}"');
+  assertIncludes(harnessConfigTemplate, 'maturity: "{{KNOWLEDGE_MATURITY}}"');
   assertIncludes(criticTemplate, "model: {{MODEL_PROFILE_REVIEW}}");
   assertIncludes(criticTemplate, "Your model field is rendered from `.harness/model-profiles.yml` profile `profiles.review.default` when present, with legacy fallback to `harness.config.yaml` `models.profiles.review.default` only when needed.");
   assertIncludes(coderTemplate, "Your responsibility is implementation plus lightweight self-check, not independent review.");
@@ -458,6 +545,11 @@ async function assertP1DocsAndTemplateCoverage() {
   assertIncludes(continueCommand, "route to `harness-critic` in `pre-done` mode");
   assertIncludes(workflowTemplate, "Review is diff-first and bounded to the current approved slice or group.");
   assertIncludes(workflowTemplate, "The coding agent may perform lightweight self-check");
+  assertIncludes(workflowTemplate, "read `knowledge.mode` and `knowledge.maturity`");
+  assertIncludes(workflowTemplate, "docs/current/...");
+  assertIncludes(workflowTemplate, "docs/target/...");
+  assertIncludes(workflowTemplate, "**L0 — Minimal capture**");
+  assertIncludes(workflowTemplate, "**L4 — Strict governance**");
 
   const incidentFrontmatter = parseSimpleFrontmatter(incidentCommand);
   assert(incidentFrontmatter.description?.length > 0, "harness-incident template must declare description frontmatter");
@@ -477,10 +569,42 @@ async function assertP1DocsAndTemplateCoverage() {
   assertIncludes(contextPackSkill, "### Knowledge Map Matches");
   assertIncludes(contextPackSkill, "### Path-Proximity Rules");
   assertIncludes(contextPackSkill, "### Excluded Context");
+  assertIncludes(contextPackSkill, "knowledge.mode: mudball");
+  assertIncludes(contextPackSkill, "knowledge.maturity");
+
+  assertIncludes(workspaceKnowledgeSkill, "read `harness.config.yaml` when it exists");
+  assertIncludes(workspaceKnowledgeSkill, "knowledge.mode");
+  assertIncludes(workspaceKnowledgeSkill, "knowledge.maturity");
+  assertIncludes(workspaceKnowledgeSkill, "L0-L1 are valid adoption levels");
+
+  assertIncludes(targetAgentsTemplate, "knowledge.mode");
+  assertIncludes(targetAgentsTemplate, "knowledge.maturity");
+  assertIncludes(targetAgentsTemplate, "docs/current/");
+  assertIncludes(targetAgentsTemplate, "do not treat target docs as evidence of current behavior");
+  assertIncludes(targetAgentsTemplate, "Do not silently upgrade `observed` or `target` rules into stronger constraints.");
+
+  assertIncludes(repositoryRulesTemplate, "type: observed | confirmed | target | hard");
+  assertIncludes(repositoryRulesTemplate, "confidence: low | medium | high");
+  assertIncludes(repositoryRulesTemplate, "source: <where this came from>");
+  assertIncludes(repositoryRulesTemplate, "Do not silently promote `observed` or `target` rules into `confirmed` or `hard` constraints.");
+  assertIncludes(workflowRulesTemplate, "type: hard");
+  assertIncludes(workflowRulesTemplate, "type: confirmed");
+  assertIncludes(workflowRulesTemplate, "marked `observed` describe how the project currently appears to operate");
+  assertIncludes(workflowRulesTemplate, "marked `target` describe desired future process");
+
+  assertIncludes(knowledgeMapTemplate, "docs/current/");
+  assertIncludes(knowledgeMapTemplate, "docs/target/");
+  assertIncludes(knowledgeMapTemplate, "knowledge.mode: mudball");
+  assertIncludes(knowledgeMapTemplate, "type`, `confidence`, and `source`");
+  assertIncludes(knowledgeMapTemplate, "Do not silently upgrade `observed` or `target` rules into enforceable hard constraints.");
 
   for (const field of ["- Areas:", "- Tags:", "- Docs:", "- Rules:", "- Read When:", "- Boundaries:", "- Validation:"]) {
     assertIncludes(knowledgeMapTemplate, field);
   }
+}
+
+function toPosix(relativePath) {
+  return relativePath.replace(/\\/g, "/");
 }
 
 async function readManifest(projectPath) {
