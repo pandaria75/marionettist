@@ -6,6 +6,7 @@ import { extractManagedBlock, replaceManagedBlock } from "./managed-block.js";
 import { sha256 } from "./hash.js";
 import { buildManifest, manifestFileMap, manifestRelative, readManifest } from "./manifest.js";
 import { buildModelProfileTemplateVariables, loadModelProfiles } from "./model-profiles.js";
+import { parseSimpleYaml } from "./yaml.js";
 
 const coreTemplateTargets = new Map([
   ["AGENTS.md", "AGENTS.md"],
@@ -20,6 +21,22 @@ const coreTemplateTargets = new Map([
 const opencodeManagedPrefix = ".opencode/";
 const opencodeValidatorTemplatePrefix = "agents/validators/";
 const opencodeProjectConfigSource = "opencode.jsonc";
+const opencodeCommandSurfaceValues = new Set(["minimal", "full"]);
+const minimalOpencodeCommandRelatives = new Set([
+  "commands/harness.md",
+  "commands/harness-dev.md",
+  "commands/harness-incident.md",
+  "commands/harness-docs.md",
+  "commands/harness-config.md"
+]);
+const fullOnlyOpencodeCommandRelatives = new Set([
+  "commands/harness-feature.md",
+  "commands/harness-bugfix.md",
+  "commands/harness-refactor.md",
+  "commands/harness-context.md",
+  "commands/harness-status.md",
+  "commands/harness-continue.md"
+]);
 
 async function buildFrameworkAssets(projectPath, options = {}) {
   const variables = options.variables ?? {};
@@ -27,7 +44,10 @@ async function buildFrameworkAssets(projectPath, options = {}) {
 
   for (const [sourceRelative, targetRelative] of coreTemplateTargets.entries()) {
     const sourcePath = path.join(templatesRoot, sourceRelative);
-    const content = renderTemplate(await readText(sourcePath), variables);
+    let content = renderTemplate(await readText(sourcePath), variables);
+    if (sourceRelative === "harness.config.yaml") {
+      content = renderHarnessConfigWithOpencodeCommandSurface(content, options.opencodeCommandSurfaceState);
+    }
     const kind = targetRelative === "AGENTS.md" ? "managed-block" : "file";
     const managedContent = kind === "managed-block" ? extractManagedBlock(content) : content;
     if (!managedContent) {
@@ -62,21 +82,25 @@ async function buildFrameworkAssets(projectPath, options = {}) {
   }
 
   if (options.includeOpencode) {
-    assets.push(...await buildOpencodeAssets(projectPath, variables));
+    assets.push(...await buildOpencodeAssets(projectPath, variables, options.opencodeCommandSurfaceState));
   }
 
   return assets;
 }
 
-async function buildOpencodeAssets(projectPath, variables = {}) {
+async function buildOpencodeAssets(projectPath, variables = {}, commandSurfaceState = {}) {
   const assets = [];
   const opencodeVariables = await resolveOpencodeVariables(projectPath, variables);
   const opencodeFiles = await listFiles(opencodeTemplatesRoot);
   const validatorProjectGuidance = await buildValidatorProjectGuidance(projectPath, opencodeVariables);
+  const commandSurface = normalizeOpencodeCommandSurface(commandSurfaceState.value ?? "full", "effective OpenCode command surface");
 
   for (const sourcePath of opencodeFiles) {
     const sourceRelative = toPosixPath(path.relative(opencodeTemplatesRoot, sourcePath));
     if (sourceRelative.startsWith(opencodeValidatorTemplatePrefix)) {
+      continue;
+    }
+    if (sourceRelative.startsWith("commands/") && !shouldIncludeOpencodeCommand(sourceRelative, commandSurface)) {
       continue;
     }
 
@@ -265,6 +289,10 @@ async function detectPythonProject(projectPath, variables = {}) {
 }
 
 function shouldIncludeOpencodeAssets(previousManifest, options = {}) {
+  if (options.opencodeCommandSurface) {
+    return true;
+  }
+
   if (options.withOpencode === true) {
     return true;
   }
@@ -273,7 +301,109 @@ function shouldIncludeOpencodeAssets(previousManifest, options = {}) {
     return false;
   }
 
-  return previousManifest?.managedFiles?.some((file) => file.path.startsWith(opencodeManagedPrefix)) ?? false;
+  return hasManagedOpencodeAssets(previousManifest);
+}
+
+function hasManagedOpencodeAssets(previousManifest) {
+  return previousManifest?.managedFiles?.some((file) => file.path === opencodeProjectConfigSource || file.path.startsWith(opencodeManagedPrefix)) ?? false;
+}
+
+function hasManagedAdvancedOpencodeCommands(previousManifest) {
+  return previousManifest?.managedFiles?.some((file) => fullOnlyOpencodeCommandRelatives.has(stripOpencodeManagedPrefix(file.path))) ?? false;
+}
+
+function stripOpencodeManagedPrefix(targetRelative) {
+  return targetRelative.startsWith(opencodeManagedPrefix)
+    ? targetRelative.slice(opencodeManagedPrefix.length)
+    : targetRelative;
+}
+
+function shouldIncludeOpencodeCommand(sourceRelative, commandSurface) {
+  if (!sourceRelative.startsWith("commands/")) {
+    return true;
+  }
+
+  if (commandSurface === "full") {
+    return true;
+  }
+
+  return minimalOpencodeCommandRelatives.has(sourceRelative);
+}
+
+function normalizeOpencodeCommandSurface(value, label) {
+  if (!opencodeCommandSurfaceValues.has(value)) {
+    throw new Error(`Unsupported ${label}: ${value}`);
+  }
+
+  return value;
+}
+
+async function resolveOpencodeCommandSurfaceState(projectPath, previousManifest, options = {}) {
+  const configuredCommandSurface = await readConfiguredOpencodeCommandSurface(projectPath);
+  const explicitCommandSurface = options.opencodeCommandSurface === null || options.opencodeCommandSurface === undefined
+    ? null
+    : normalizeOpencodeCommandSurface(options.opencodeCommandSurface, "--opencode-command-surface value");
+  const legacyFull = hasManagedAdvancedOpencodeCommands(previousManifest);
+  const hasOpencode = explicitCommandSurface !== null || options.withOpencode === true || hasManagedOpencodeAssets(previousManifest) || configuredCommandSurface !== null;
+
+  let value = null;
+  let source = null;
+
+  if (explicitCommandSurface !== null) {
+    value = explicitCommandSurface;
+    source = "cli";
+  } else if (configuredCommandSurface !== null) {
+    value = configuredCommandSurface;
+    source = "config";
+  } else if (legacyFull) {
+    value = "full";
+    source = "legacy-manifest";
+  } else if (hasManagedOpencodeAssets(previousManifest)) {
+    value = "minimal";
+    source = "existing-managed-assets";
+  } else if (options.withOpencode === true) {
+    value = "minimal";
+    source = "default-new-install";
+  }
+
+  return {
+    includeOpencode: options.withOpencode === false ? false : hasOpencode,
+    value,
+    source,
+    persistToHarnessConfig: value !== null && (
+      source === "cli"
+      || source === "config"
+      || options.withOpencode === true
+    )
+  };
+}
+
+async function readConfiguredOpencodeCommandSurface(projectPath) {
+  const harnessConfigPath = path.join(projectPath, "harness.config.yaml");
+  if (!(await pathExists(harnessConfigPath))) {
+    return null;
+  }
+
+  try {
+    const parsed = parseSimpleYaml(await readText(harnessConfigPath));
+    const value = parsed?.opencode?.commandSurface;
+    if (value === undefined || value === null || value === "") {
+      return null;
+    }
+
+    return normalizeOpencodeCommandSurface(String(value), "harness.config.yaml opencode.commandSurface");
+  } catch {
+    return null;
+  }
+}
+
+function renderHarnessConfigWithOpencodeCommandSurface(content, commandSurfaceState) {
+  if (!commandSurfaceState?.persistToHarnessConfig || !commandSurfaceState.value) {
+    return content;
+  }
+
+  const trimmed = content.replace(/\s*$/u, "");
+  return `${trimmed}\n\nopencode:\n  commandSurface: "${commandSurfaceState.value}"\n`;
 }
 
 function currentManagedContent(asset, currentContent) {
@@ -432,9 +562,11 @@ export async function buildPlan(projectPath, mode, options = {}) {
 
   const previousByPath = manifestFileMap(previousManifest);
   const operations = [];
+  const opencodeCommandSurfaceState = await resolveOpencodeCommandSurfaceState(projectPath, previousManifest, options);
   const assets = await buildFrameworkAssets(projectPath, {
     ...options,
-    includeOpencode: shouldIncludeOpencodeAssets(previousManifest, options)
+    includeOpencode: opencodeCommandSurfaceState.includeOpencode && shouldIncludeOpencodeAssets(previousManifest, options),
+    opencodeCommandSurfaceState
   });
   const assetPaths = new Set(assets.map((asset) => asset.targetRelative));
 

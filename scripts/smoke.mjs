@@ -19,6 +19,21 @@ const gradleProject = path.join(tempBase, `harness-smoke-gradle-${process.pid}`)
 const validatorSnippetPathText = ["templates", "opencode", "agents", "validators"].join("/");
 const publishableScanRoots = ["README.md", "README.zh-CN.md", "docs", "templates", "skills", "src", "scripts", "package.json"];
 const publishableScanExcludedDirectories = [path.join("docs", "blogs")];
+const normalOpencodeCommands = [
+  "harness.md",
+  "harness-dev.md",
+  "harness-incident.md",
+  "harness-docs.md",
+  "harness-config.md"
+];
+const advancedOpencodeCommands = [
+  "harness-feature.md",
+  "harness-bugfix.md",
+  "harness-refactor.md",
+  "harness-context.md",
+  "harness-status.md",
+  "harness-continue.md"
+];
 const forbiddenSensitivePatterns = [
   { label: "username fragment", regex: new RegExp(["haoyu", "gao"].join("\\."), "g") },
   { label: "C:\\Users\\", regex: /C:\\Users\\/g },
@@ -122,20 +137,21 @@ try {
 
 async function assertOpencodeInstall(projectPath) {
   const initOutput = await harness("init", "--project", projectPath, "--auto", "--with-opencode");
-  assertIncludes(initOutput, "new-managed: .opencode/commands/harness-feature.md");
-  assertIncludes(initOutput, "new-managed: .opencode/commands/harness-status.md");
-  assertIncludes(initOutput, "new-managed: .opencode/commands/harness-continue.md");
+  assertIncludes(initOutput, "new-managed: .opencode/commands/harness.md");
+  assertIncludes(initOutput, "new-managed: .opencode/commands/harness-dev.md");
+  assertIncludes(initOutput, "new-managed: .opencode/commands/harness-incident.md");
   assertIncludes(initOutput, "new-managed: .opencode/agents/harness-validator.md");
   assertIncludes(initOutput, "new-managed: opencode.jsonc");
   assertIncludes(initOutput, "note: project-level opencode-tasks is enabled via opencode.jsonc");
 
-  await assertOpencodeCommandsAndAgents(projectPath);
+  await assertMinimalOpencodeCommandsAndAgents(projectPath);
   await assertRenderedOpencodeModels(projectPath);
   await assertCanonicalProfileOverridesRender(projectPath);
 
   const doctorOutput = await harness("doctor", "--project", projectPath);
   assertIncludes(doctorOutput, "PASS  opencode.jsonc parsed");
-  assertIncludes(doctorOutput, "PASS  .opencode/commands/harness-status.md frontmatter parsed");
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [minimal] required normal commands present");
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [minimal] advanced commands absent");
   assertIncludes(doctorOutput, "PASS  .opencode/commands/harness-incident.md frontmatter parsed");
   assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-builder.md model openai/gpt-5.5 matches profile think.default.");
   assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-coder.md model openai/gpt-5.3-codex matches profile build.default.");
@@ -145,10 +161,14 @@ async function assertOpencodeInstall(projectPath) {
   await assertDoctorModelDriftStates(projectPath);
 
   const manifest = await readManifest(projectPath);
-  assert(manifest.managedFiles.some((file) => file.path === ".opencode/commands/harness-feature.md"), "manifest must include OpenCode commands");
+  assert(manifest.managedFiles.some((file) => file.path === ".opencode/commands/harness.md"), "manifest must include minimal OpenCode commands");
+  assert(!manifest.managedFiles.some((file) => file.path === ".opencode/commands/harness-feature.md"), "minimal install must not include advanced OpenCode commands in manifest");
   assert(manifest.managedFiles.some((file) => file.path === ".opencode/agents/harness-validator.md"), "manifest must include harness validator agent");
   assert(manifest.managedFiles.some((file) => file.path === "opencode.jsonc"), "manifest must include project OpenCode config");
   assert(!manifest.managedFiles.some((file) => file.path.startsWith(".opencode/agents/validators/")), "manifest must not install validator snippet assets");
+
+  const harnessConfig = await fs.readFile(path.join(projectPath, "harness.config.yaml"), "utf8");
+  assertIncludes(harnessConfig, 'opencode:\n  commandSurface: "minimal"');
 
   const projectConfig = await fs.readFile(path.join(projectPath, "opencode.jsonc"), "utf8");
   assertIncludes(projectConfig, '"plugin": ["opencode-tasks"]');
@@ -160,6 +180,8 @@ async function assertOpencodeInstall(projectPath) {
   assertIncludes(validatorContent, "model: opencode-go/deepseek-v4-flash");
   assertExcludes(validatorContent, validatorSnippetPathText);
   assert(!(await pathExists(path.join(projectPath, ".opencode", "agents", "validators"))), "project must not contain installed validator snippet directory");
+
+  await assertFullOpencodeInstall(path.join(path.dirname(projectPath), `${path.basename(projectPath)}-full`));
 }
 
 async function assertDoctorFailures(projectPath) {
@@ -208,15 +230,16 @@ async function assertOpencodeBackfill(projectPath) {
   assert(!manifestBeforeBackfill.managedFiles.some((file) => file.path.startsWith(".opencode/")), "backfill baseline manifest must start without OpenCode assets");
 
   await harness("init", "--project", projectPath, "--auto", "--with-opencode");
-  await assertOpencodeCommandsAndAgents(projectPath);
+  await assertMinimalOpencodeCommandsAndAgents(projectPath);
 
   const diffOutput = await harness("diff", "--project", projectPath);
-  assertIncludes(diffOutput, "unchanged: .opencode/commands/harness-feature.md");
+  assertIncludes(diffOutput, "unchanged: .opencode/commands/harness.md");
   assertIncludes(diffOutput, "unchanged: .opencode/agents/harness-validator.md");
   assertIncludes(diffOutput, "unchanged: opencode.jsonc");
 
   const manifest = await readManifest(projectPath);
-  assert(manifest.managedFiles.some((file) => file.path === ".opencode/commands/harness-feature.md"), "backfill must add OpenCode command to manifest");
+  assert(manifest.managedFiles.some((file) => file.path === ".opencode/commands/harness.md"), "backfill must add minimal OpenCode command to manifest");
+  assert(!manifest.managedFiles.some((file) => file.path === ".opencode/commands/harness-feature.md"), "backfill minimal mode must not add advanced OpenCode command to manifest");
   assert(manifest.managedFiles.some((file) => file.path === ".opencode/agents/harness-validator.md"), "backfill must add OpenCode validator agent to manifest");
   assert(manifest.managedFiles.some((file) => file.path === "opencode.jsonc"), "backfill must add project OpenCode config to manifest");
   assert(!manifest.managedFiles.some((file) => file.path.startsWith(".opencode/agents/validators/")), "backfill must not add validator snippet assets to manifest");
@@ -235,17 +258,75 @@ async function assertGradleValidatorGuidance(projectPath) {
   assertExcludes(validatorContent, validatorSnippetPathText);
 }
 
-async function assertOpencodeCommandsAndAgents(projectPath) {
-  assert(await pathExists(path.join(projectPath, ".opencode", "commands", "harness-feature.md")), "OpenCode command must exist");
-  assert(await pathExists(path.join(projectPath, ".opencode", "commands", "harness-status.md")), "OpenCode status command must exist");
-  assert(await pathExists(path.join(projectPath, ".opencode", "commands", "harness-continue.md")), "OpenCode continue command must exist");
-  assert(await pathExists(path.join(projectPath, ".opencode", "commands", "harness-incident.md")), "OpenCode incident command must exist");
+async function assertMinimalOpencodeCommandsAndAgents(projectPath) {
+  await assertCommandSurface(projectPath, { mode: "minimal" });
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-builder.md")), "OpenCode harness-builder agent must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-critic.md")), "OpenCode harness-critic agent must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-indexer.md")), "OpenCode harness-indexer agent must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-planner.md")), "OpenCode harness-planner agent must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-reviewer.md")), "OpenCode harness-reviewer agent must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-validator.md")), "OpenCode harness-validator agent must exist");
+}
+
+async function assertFullOpencodeInstall(projectPath) {
+  await cleanupPaths(projectPath);
+
+  const initOutput = await harness("init", "--project", projectPath, "--auto", "--with-opencode", "--opencode-command-surface", "full");
+  for (const command of advancedOpencodeCommands) {
+    assertIncludes(initOutput, `new-managed: .opencode/commands/${command}`);
+  }
+
+  const harnessConfig = await fs.readFile(path.join(projectPath, "harness.config.yaml"), "utf8");
+  assertIncludes(harnessConfig, 'opencode:\n  commandSurface: "full"');
+
+  await assertCommandSurface(projectPath, { mode: "full" });
+
+  let doctorOutput = await harness("doctor", "--project", projectPath);
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [full] required normal commands present");
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [full] advanced commands present");
+
+  const diffOutput = await harness("diff", "--project", projectPath);
+  assertIncludes(diffOutput, "unchanged: .opencode/commands/harness-feature.md");
+  assertIncludes(diffOutput, "unchanged: .opencode/commands/harness-status.md");
+
+  const legacyConfig = harnessConfig.replace(/\n\nopencode:\n  commandSurface: "full"\n/u, "\n");
+  await fs.writeFile(path.join(projectPath, "harness.config.yaml"), legacyConfig, "utf8");
+
+  const legacyDiffOutput = await harness("diff", "--project", projectPath);
+  assertIncludes(legacyDiffOutput, "unchanged: .opencode/commands/harness-feature.md");
+  assertIncludes(legacyDiffOutput, "unchanged: .opencode/commands/harness-status.md");
+
+  doctorOutput = await harness("doctor", "--project", projectPath);
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [legacy-full] required normal commands present");
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [legacy-full] advanced commands present");
+
+  const invalidConfig = `${legacyConfig.replace(/\s*$/u, "")}\n\nopencode:\n  commandSurface: "surprise"\n`;
+  await fs.writeFile(path.join(projectPath, "harness.config.yaml"), invalidConfig, "utf8");
+  let invalidDoctor = await harnessAllowFailure("doctor", "--project", projectPath);
+  assert(invalidDoctor.code !== 0, "doctor must fail when opencode.commandSurface is invalid");
+  assertIncludes(invalidDoctor.stdout, "FAIL  harness.config.yaml opencode.commandSurface invalid: expected minimal|full, got surprise");
+
+  await fs.writeFile(path.join(projectPath, "harness.config.yaml"), harnessConfig, "utf8");
+  await fs.rm(path.join(projectPath, ".opencode", "commands", "harness.md"));
+  invalidDoctor = await harnessAllowFailure("doctor", "--project", projectPath);
+  assert(invalidDoctor.code !== 0, "doctor must fail when a required normal command is missing");
+  assertIncludes(invalidDoctor.stdout, "FAIL  OpenCode command surface [full] missing required normal command(s): .opencode/commands/harness.md");
+}
+
+async function assertCommandSurface(projectPath, { mode }) {
+  const commandsRoot = path.join(projectPath, ".opencode", "commands");
+  for (const command of normalOpencodeCommands) {
+    assert(await pathExists(path.join(commandsRoot, command)), `${mode} OpenCode install must include ${command}`);
+  }
+
+  for (const command of advancedOpencodeCommands) {
+    const exists = await pathExists(path.join(commandsRoot, command));
+    if (mode === "full") {
+      assert(exists, `full OpenCode install must include ${command}`);
+    } else {
+      assert(!exists, `minimal OpenCode install must not include ${command}`);
+    }
+  }
 }
 
 async function assertRenderedOpencodeModels(projectPath) {

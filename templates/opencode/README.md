@@ -5,19 +5,20 @@ These files are optional local OpenCode assets for repositories that want a harn
 ### What Is Included
 
 - `opencode.jsonc`: project-level OpenCode config that enables the `opencode-tasks` plugin.
-- `commands/*.md`: starter slash commands that route users into the harness workflow, including status, continuation, context refresh, and incident-first evidence commands that read `.task/active.json`.
+- `commands/*.md`: starter slash commands that route users into the harness workflow, with `/harness` as the default builder-first entrypoint, `/harness-dev`, `/harness-incident`, `/harness-docs`, and `/harness-config` as focused wrappers, and advanced commands available in full mode.
 - `agents/*.md`: starter agent definitions for builder, coder, critic, indexer, planner, reviewer, and validator roles.
 - `agents/validators/*.md`: validator guidance variants you can copy from or adapt to your project type.
 
 ### P1 Workflow Additions
 
 - `agents/harness-critic.md` provides a dedicated critic gate role and renders its `model` from the review profile.
-- `commands/harness-incident.md` starts an evidence-first incident flow and prepares handoff to `incident-pack-builder` and `hypothesis-critic`.
+- `commands/harness-incident.md` starts an evidence-first incident flow, stops before coding, and keeps the incident artifact ready for the next approved investigation or implementation step.
 - Context refresh and coding flows should keep `docs/project/knowledge-map.md` and nearby `MODULE_RULES.md`, `AGENTS.md`, and `HARNESS_RULES.md` aligned with the current project.
 
 ### Customization
 
 - Model defaults are rendered from `.harness/model-profiles.yml` profiles. Update `profiles.think/build/review/run` there first, then run `harness diff --with-opencode` and `harness sync --with-opencode` to preview and apply regenerated agent `model` fields. If a project has not adopted `.harness/model-profiles.yml` yet, `harness.config.yaml` `models.profiles.*` remains the legacy fallback.
+- Command visibility is configured through `opencode.commandSurface: minimal|full` or `harness init --with-opencode --opencode-command-surface minimal|full`. Minimal keeps the builder-first default surface; full also installs advanced escape-hatch commands.
 - Permission settings are also examples. Tighten or relax them to fit your safety requirements.
 - Keep terminology aligned with your repository docs, rules, and `docs/project/knowledge-map.md`.
 

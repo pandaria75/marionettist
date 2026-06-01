@@ -20,6 +20,22 @@ const opencodeAdapterConfigRelatives = [
   ".harness/adapters/opencode.yml",
   ".harness/adapters/opencode.yaml"
 ];
+const validOpencodeCommandSurfaces = new Set(["minimal", "full"]);
+const requiredNormalOpencodeCommands = [
+  ".opencode/commands/harness.md",
+  ".opencode/commands/harness-dev.md",
+  ".opencode/commands/harness-incident.md",
+  ".opencode/commands/harness-docs.md",
+  ".opencode/commands/harness-config.md"
+];
+const advancedOpencodeCommands = [
+  ".opencode/commands/harness-feature.md",
+  ".opencode/commands/harness-bugfix.md",
+  ".opencode/commands/harness-refactor.md",
+  ".opencode/commands/harness-context.md",
+  ".opencode/commands/harness-status.md",
+  ".opencode/commands/harness-continue.md"
+];
 const modelDriftRemediation = "Reconcile the local model sources, then run `harness diff --project <path>` or `harness sync --project <path> --with-opencode` to preview or apply the safe regeneration.";
 
 export async function doctorCommand(args) {
@@ -34,6 +50,7 @@ export async function doctorCommand(args) {
   await checkPath(options.project, "docs/project/harness-workflow.md", "file", "docs/project/harness-workflow.md exists", results);
   await checkPath(options.project, ".task", "directory", ".task directory exists", results);
   const opencodeConfig = await checkOpencode(options.project, results);
+  await checkOpenCodeCommandSurface(options.project, harnessConfig, opencodeConfig, results);
   await checkOpenCodeModelDrift(options.project, harnessConfig, opencodeConfig, results);
   await checkSkills(options.project, results);
   await checkActiveTask(options.project, results);
@@ -207,6 +224,56 @@ async function checkOpenCodeModelDrift(projectPath, harnessConfig, opencodeConfi
       agentRelative
     });
     results.push(statusResult(evaluation.status, evaluation.message));
+  }
+}
+
+async function checkOpenCodeCommandSurface(projectPath, harnessConfig, opencodeConfig, results) {
+  const commandDirectory = await findFirstDirectory(projectPath, [".opencode/command", ".opencode/commands"]);
+  const configuredSurface = readConfiguredCommandSurface(harnessConfig);
+  const hasCommandSurfaceConfig = Object.prototype.hasOwnProperty.call(harnessConfig?.opencode ?? {}, "commandSurface");
+
+  if (hasCommandSurfaceConfig && configuredSurface.error) {
+    results.push(fail(`harness.config.yaml opencode.commandSurface invalid: ${configuredSurface.error}`));
+  }
+
+  const installedCommands = new Set();
+  if (commandDirectory) {
+    const files = await listFiles(commandDirectory, ".md");
+    for (const file of files) {
+      installedCommands.add(toPosix(path.relative(projectPath, file)));
+    }
+  }
+
+  const hasOpenCodeScaffold = Boolean(opencodeConfig) || commandDirectory !== null;
+  if (!hasOpenCodeScaffold) {
+    return;
+  }
+
+  const hasAdvancedCommands = advancedOpencodeCommands.some((relative) => installedCommands.has(relative));
+  const effectiveSurface = configuredSurface.value ?? (hasAdvancedCommands ? "legacy-full" : "minimal");
+
+  const missingNormalCommands = requiredNormalOpencodeCommands.filter((relative) => !installedCommands.has(relative));
+  if (missingNormalCommands.length > 0) {
+    results.push(fail(`OpenCode command surface [${effectiveSurface}] missing required normal command(s): ${missingNormalCommands.join(", ")}`));
+  } else {
+    results.push(pass(`OpenCode command surface [${effectiveSurface}] required normal commands present`));
+  }
+
+  if (effectiveSurface === "full" || effectiveSurface === "legacy-full") {
+    const missingAdvancedCommands = advancedOpencodeCommands.filter((relative) => !installedCommands.has(relative));
+    if (missingAdvancedCommands.length > 0) {
+      results.push(fail(`OpenCode command surface [${effectiveSurface}] missing advanced command(s): ${missingAdvancedCommands.join(", ")}`));
+    } else {
+      results.push(pass(`OpenCode command surface [${effectiveSurface}] advanced commands present`));
+    }
+    return;
+  }
+
+  const presentAdvancedCommands = advancedOpencodeCommands.filter((relative) => installedCommands.has(relative));
+  if (presentAdvancedCommands.length > 0) {
+    results.push(warn(`OpenCode command surface [minimal] includes advanced command(s): ${presentAdvancedCommands.join(", ")}`));
+  } else {
+    results.push(pass("OpenCode command surface [minimal] advanced commands absent"));
   }
 }
 
@@ -673,6 +740,23 @@ async function listOpenCodeHarnessFiles(projectPath) {
 
 function containsUnresolvedModelProfilePlaceholder(content) {
   return /\{\{MODEL_PROFILE_[A-Z_]+\}\}/.test(content);
+}
+
+function readConfiguredCommandSurface(harnessConfig) {
+  const value = harnessConfig?.opencode?.commandSurface;
+  if (value === undefined || value === null || value === "") {
+    return { value: null, error: null };
+  }
+
+  if (typeof value !== "string") {
+    return { value: null, error: `expected string minimal|full, got ${typeof value}` };
+  }
+
+  if (!validOpencodeCommandSurfaces.has(value)) {
+    return { value: null, error: `expected minimal|full, got ${value}` };
+  }
+
+  return { value, error: null };
 }
 
 async function exists(absolute) {

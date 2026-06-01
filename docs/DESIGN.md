@@ -323,7 +323,7 @@ When a team enables `--with-opencode`, the framework installs project-local scaf
 
 The `harness-builder` remains the primary orchestrator. Its core responsibility is state reading, gate decisions, subagent routing, result aggregation, and user confirmation at gates. Deep analysis, implementation, review, and validation should be delegated to bounded roles.
 
-That delegated role set may include `harness-critic` for critic-gated work, plus evidence-first incident support through `/harness-incident`, `incident-pack-builder`, and `hypothesis-critic` before any implementation begins.
+That delegated role set may include `harness-critic` for critic-gated work, plus evidence-first incident support through `/harness-incident` with a stop-before-coding incident artifact before any implementation begins.
 
 Model selection is profile-driven. `harness.config.yaml` defines stable profiles named `think`, `build`, `review`, and `run`; optional OpenCode agent files render concrete model values from those profiles.
 

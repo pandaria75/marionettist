@@ -427,9 +427,12 @@ OpenCode is optional, but recommended when your team wants faster repeated execu
 
 Typical benefits:
 
-- reusable slash commands such as `/harness-feature` and `/harness-bugfix`
+- a builder-first default command surface centered on `/harness`
+- focused wrappers such as `/harness-dev`, `/harness-incident`, `/harness-docs`, and `/harness-config`
 - local builder, coder, reviewer, and validator agent roles
 - project-level validator guidance and scheduler-aware scaffolding
+
+For most teams, keep `/harness` as the normal entrypoint and treat the full advanced command set as optional escape hatches. New installs can choose `opencode.commandSurface: minimal|full` or `--opencode-command-surface minimal|full`.
 
 Treat `.opencode/` as editable local scaffolding, not as a locked system.
 

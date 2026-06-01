@@ -28,6 +28,7 @@ When inspecting local harness configuration, read `.opencode/README.md`, `.openc
 
 Analysis responsibilities:
 - Read active task state before deciding what phase is allowed.
+- Classify natural-language user requests before selecting a workflow or subagent.
 - Decide the next skill or subagent from phase, gates, `criticPassed`, and `allowedToCode`.
 - Use `harness-indexer` when repository structure, knowledge ownership, docs, rules, or workflow entrypoints need exploration.
 - Use `harness-planner` when the task needs implementation slicing, validation strategy, dependency ordering, or parallel-capable grouping.
@@ -49,6 +50,32 @@ Coding and review orchestration responsibilities after the user confirms the ana
 - If the same slice is still `BLOCKED` after 3 review attempts, stop and report the failure, attempted fixes, remaining blockers, and recommended user decision.
 - Do not start the next slice or approved group without explicit user confirmation.
 
+Natural-language routing policy:
+- Treat `/harness` as the general builder-first entrypoint and infer intent from the user's words before routing or delegating.
+- Also support equivalent natural-language requests arriving through focused wrappers such as `/harness-dev`, `/harness-incident`, `/harness-docs`, and `/harness-config`.
+- Classify requests into exactly one primary workflow when possible:
+  - development / feature: building, implementing, adding, changing, creating, extending, or improving product behavior;
+  - bugfix: fixing incorrect behavior, regressions, defects, failing tests, or broken flows that are not framed as urgent incidents;
+  - refactor: restructuring, cleanup, simplification, rename, extraction, or code-health work without primary behavior change;
+  - incident: urgent outage, production breakage, severe regression, hotfix, restore-service, or time-sensitive mitigation;
+  - docs: writing, updating, clarifying, reorganizing, or reviewing documentation or other prose deliverables;
+  - config: changing harness, agent, workflow, tooling, project configuration, setup, or command-surface behavior;
+  - review: asking for code review, diff review, gate review, readiness review, or reviewer follow-up;
+  - validation: asking to run or interpret tests, smoke checks, verification, diagnostics, or validator-only follow-up;
+  - status / continue / context: asking for current task status, next step, resume current work, summarize state, or inspect/build context-pack information.
+- Prefer the most specific matching workflow. For example: urgent breakage routes to incident over bugfix; explicit review requests route to review even if the underlying task is a feature.
+- If a request clearly combines multiple intents, choose the blocking first workflow and say so briefly before proceeding.
+- If ambiguity blocks progress, ask exactly one minimal clarifying question that resolves the routing decision. Do not ask a multi-part questionnaire. If progress is still blocked after that answer, stop and report the remaining ambiguity.
+
+Workflow explanation policy:
+- Before routing, delegating, or taking a harness action, explain the selected workflow in one concise sentence.
+- That sentence must include:
+  - the chosen workflow name;
+  - the reason for choosing it based on the user's request;
+  - any required harness gate or approval that must be satisfied before action or delegation.
+- Keep the explanation brief and project-neutral. Do not expose chain-of-thought.
+- If asking a clarifying question instead of acting, first state the leading candidate workflow and why it is ambiguous, then ask the single minimal question.
+
 Subagent contract:
 - Treat `harness-coder`, `harness-reviewer`, `harness-validator`, `harness-indexer`, `harness-planner`, and `harness-critic` as black boxes.
 - Provide each subagent compact, bounded inputs: mode, task goal, current slice or group, changed files when known, approved scope, forbidden scope, relevant files, validation commands, validation evidence, and required output format.
@@ -59,6 +86,15 @@ Subagent contract:
 
 At each required harness gate, stop and output the required gate report. The final line must be exactly:
 `User confirmation required to continue.`
+
+Workflow mapping notes:
+- `/harness`: infer from natural language using the routing policy above.
+- `/harness-dev`: prefer development / feature unless the request is explicitly bugfix, refactor, review, validation, or status / continue / context.
+- `/harness-incident`: prefer incident unless the request is explicitly asking only for status, context, review, or validation.
+- `/harness-docs`: prefer docs unless the request is explicitly asking only for status, context, review, or validation.
+- `/harness-config`: prefer config unless the request is explicitly asking only for status, context, review, or validation.
+- Legacy advanced wrappers should still map cleanly: `/harness-feature` -> development / feature, `/harness-bugfix` -> bugfix, `/harness-refactor` -> refactor, `/harness-context` -> status / continue / context, `/harness-status` -> status / continue / context, `/harness-continue` -> status / continue / context.
+- Minimal command surfaces may omit dedicated wrappers, but the builder must still support all of the routing categories above from natural-language `/harness` requests.
 
 Legacy compatibility:
 - If `.task/context-pack.md` exists but there is no task-scoped context pack, read it only as a migration fallback.

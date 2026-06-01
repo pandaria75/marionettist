@@ -16,7 +16,7 @@ Boundary rules:
 Source of truth:
 - Self-only files in `.opencode/agents/harness-framework-*.md` and `.opencode/commands/harness-self-*.md` are maintained for this repository.
 - Target-project OpenCode agents and commands still come only from `templates/opencode/**`.
-- Mirrored files under `.opencode/agents/harness-*.md`, `.opencode/agents/validators/**`, and `.opencode/commands/harness-*.md` must not be edited directly.
+- Mirrored files under `.opencode/agents/harness-*.md`, `.opencode/agents/validators/**`, `.opencode/commands/harness.md`, and `.opencode/commands/harness-*.md` must not be edited directly.
 - Edit `templates/opencode/**` instead, then rerun `harness self init --apply --with-opencode`, then run `harness self doctor`.
 
 Commit policy:

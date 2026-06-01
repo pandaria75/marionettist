@@ -1,13 +1,17 @@
 ---
-description: Start an incident-first evidence workflow for the active harness task
+description: Start focused incident investigation through the builder-first harness flow
 agent: harness-builder
 ---
 
-Read `.task/active.json` first. If an active task exists, then read `.task/<task-id>/state.json`. Here `<task-id>` is selected by `.task/active.json`.
+Use this command for incident or urgent investigation when the user has symptoms, reports, logs, screenshots, videos, error stacks, communication packets, config, environment details, reproduction notes, or partial analysis.
 
-Use this command for incident or on-site investigation when the user has symptoms, reports, logs, screenshots, videos, error stacks, communication packets, config, environment details, reproduction notes, or partial analysis.
+Incident details:
+$ARGUMENTS
 
-Primary requirements:
+Requirements:
+- Treat this as the normal-user incident wrapper and prefer an incident-first evidence workflow unless another workflow is clearly a better fit.
+- Read `.task/active.json` first. If an active task exists, then read `.task/<task-id>/state.json`. Here `<task-id>` is selected by `.task/active.json`.
+- Explain the selected workflow in one concise sentence, including any required gate before acting or delegating.
 - Create or update `.task/<task-id>/incident.md` as an analysis artifact only.
 - Do not treat this command as authorization to code, bugfix, refactor, or change production files.
 - Do not skip evidence organization and jump to code changes.
@@ -43,11 +47,5 @@ Write `.task/<task-id>/incident.md` with at least:
 - missing evidence
 - forbidden assumptions and non-goals
 - recommended next analysis step
-
-Intended route:
-- prepare the artifact for future `incident-pack-builder`
-- then future `hypothesis-critic`
-- do not create those skills in this workflow
-- if those skills are unavailable, stop after the incident artifact and explain the intended next handoff
 
 Before any next-phase recommendation, explicitly remind the user that incident analysis is not coding authorization.

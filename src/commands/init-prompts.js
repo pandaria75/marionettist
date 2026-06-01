@@ -55,3 +55,20 @@ export async function promptWithOpencode() {
     default: false,
   });
 }
+
+export async function promptOpencodeCommandSurface() {
+  return await select({
+    message: "Choose the OpenCode command surface:",
+    default: "minimal",
+    choices: [
+      {
+        name: "minimal - default builder-first commands only",
+        value: "minimal",
+      },
+      {
+        name: "full - include advanced legacy/power-user commands",
+        value: "full",
+      },
+    ],
+  });
+}

@@ -2,7 +2,7 @@ import path from "node:path";
 import { parseCommonArgs } from "../core/args.js";
 import { applyPlan, printPlan } from "../core/apply-plan.js";
 import { buildPlan } from "../core/plan.js";
-import { promptConfig, promptConflictStrategy, promptWithOpencode } from "./init-prompts.js";
+import { promptConfig, promptConflictStrategy, promptOpencodeCommandSurface, promptWithOpencode } from "./init-prompts.js";
 
 export async function initCommand(args) {
   const options = parseCommonArgs(args);
@@ -16,6 +16,7 @@ export async function initCommand(args) {
   };
   let conflictStrategies = {};
   let withOpencode = options.withOpencode;
+  let opencodeCommandSurface = options.opencodeCommandSurface;
 
   if (!options.auto) {
     variables = await promptConfig(variables.projectName);
@@ -23,12 +24,17 @@ export async function initCommand(args) {
     if (withOpencode === null) {
       withOpencode = await promptWithOpencode();
     }
+
+    if (withOpencode && opencodeCommandSurface === null) {
+      opencodeCommandSurface = await promptOpencodeCommandSurface();
+    }
   }
 
   const planningOptions = {
     ...options,
     variables,
-    withOpencode
+    withOpencode,
+    opencodeCommandSurface
   };
 
   // 2. Initial plan to detect existing files for the selected asset set

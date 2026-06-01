@@ -67,8 +67,9 @@ task-intake
 
 - `harness-critic` 为 Tier L 或高风险任务增加了 plan/gate 审核角色
 - critic gate 放在编码前，以及 critic-gated 工作宣告完成前
+- `/harness` 是默认的 builder-first OpenCode 入口，`/harness-dev`、`/harness-incident`、`/harness-docs` 和 `/harness-config` 是更聚焦的快捷包装
+- 高阶 OpenCode 命令仍然保留，但应作为逃生舱式的补充路径，而不是普通用户的默认命令面
 - `/harness-incident` 提供证据优先的 incident 流程，但不授权代码修改
-- `incident-pack-builder` 与 `hypothesis-critic` 分别负责整理 incident 证据、挑战根因假设
 - `context-pack-builder` 先通过 `docs/project/knowledge-map.md` 路由文档，再结合就近的 `MODULE_RULES.md`、`AGENTS.md` 与 `HARNESS_RULES.md` 缩小范围
 - task context pack 应记录 `Loaded Context` 分类，例如 global rules、knowledge-map matches、path-proximity rules 和 excluded context
 

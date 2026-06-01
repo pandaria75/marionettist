@@ -323,7 +323,7 @@ OpenCode 支持被有意设计为次级能力。
 
 `harness-builder` 仍是主编排者。其核心职责是状态读取、gate 决策、subagent 路由、结果汇总和 gate 处的人工确认。深度分析、实现、review 和验证应委托给边界明确的角色。
 
-这组委托角色也可以包括用于 critic-gated 工作的 `harness-critic`，以及在任何实现开始前先走 `/harness-incident`、`incident-pack-builder`、`hypothesis-critic` 的证据优先 incident 支持链路。
+这组委托角色也可以包括用于 critic-gated 工作的 `harness-critic`，以及在任何实现开始前先走 `/harness-incident`、先沉淀一个编码前停下的 incident 工件的证据优先 incident 支持链路。
 
 模型选择基于 profile 驱动。`harness.config.yaml` 定义了名为 `think`、`build`、`review` 和 `run` 的稳定 profiles；可选 OpenCode agent 文件从这些 profiles 渲染具体的模型值。
 

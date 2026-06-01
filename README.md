@@ -67,8 +67,9 @@ Recent P1 workflow additions keep that model explicit:
 
 - `harness-critic` adds a plan-and-gate audit role for Tier L or high-risk work
 - critic gates sit before coding and again before declaring critic-gated work done
+- `/harness` is the default builder-first OpenCode entrypoint, with `/harness-dev`, `/harness-incident`, `/harness-docs`, and `/harness-config` as focused shortcuts
+- advanced OpenCode commands remain available as escape hatches instead of the normal-user default surface
 - `/harness-incident` starts an evidence-first incident flow without authorizing code changes
-- `incident-pack-builder` and `hypothesis-critic` structure incident evidence and challenge root-cause claims before implementation
 - `context-pack-builder` routes docs through `docs/project/knowledge-map.md`, then narrows further with nearby `MODULE_RULES.md`, `AGENTS.md`, and `HARNESS_RULES.md`
 - task context packs should record `Loaded Context` categories such as global rules, knowledge-map matches, path-proximity rules, and excluded context
 
@@ -143,6 +144,12 @@ Initialize with recommended OpenCode scaffolding:
 ```powershell
 harness init --dry-run --with-opencode
 harness init --with-opencode
+
+# Optional: install the minimal default command surface explicitly
+harness init --with-opencode --opencode-command-surface minimal
+
+# Optional: expose the full advanced command surface
+harness init --with-opencode --opencode-command-surface full
 ```
 
 This command is for ordinary target projects. Do not use regular `harness init` to bootstrap this framework repository.
@@ -216,6 +223,16 @@ Optional OpenCode assets when `--with-opencode` is used:
 - `.opencode/commands/*.md`
 - `.opencode/agents/*.md`
 - `.opencode/README.md`
+
+New target-project installs default to the builder-first minimal command surface:
+
+- `/harness`
+- `/harness-dev`
+- `/harness-incident`
+- `/harness-docs`
+- `/harness-config`
+
+Use `opencode.commandSurface: minimal|full` or `--opencode-command-surface minimal|full` to choose whether advanced commands are installed too. Full mode keeps explicit wrappers such as `/harness-feature`, `/harness-bugfix`, `/harness-refactor`, `/harness-context`, `/harness-status`, and `/harness-continue` as escape hatches.
 
 Framework self-bootstrap uses a different command and different content:
 

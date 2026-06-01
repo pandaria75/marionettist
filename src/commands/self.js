@@ -28,6 +28,9 @@ const selfOpencodeBoundaryTerms = [
   ".harness-self/ is local runtime sandbox state",
   "self-only rules must not be written into target-project templates"
 ];
+const selfGeneratedMirrorIgnoreLines = [
+  ".opencode/commands/harness.md"
+];
 const selfPolicyStart = "<!-- HARNESS_SELF_POLICY_BEGIN -->";
 const selfPolicyEnd = "<!-- HARNESS_SELF_POLICY_END -->";
 const selfHelp = `Harness self-dogfooding commands
@@ -110,7 +113,7 @@ const selfOpencodeContents = new Map([
     "Source of truth:",
     "- Self-only files in `.opencode/agents/harness-framework-*.md` and `.opencode/commands/harness-self-*.md` are maintained for this repository.",
     "- Target-project OpenCode agents and commands still come only from `templates/opencode/**`.",
-    "- Mirrored files under `.opencode/agents/harness-*.md`, `.opencode/agents/validators/**`, and `.opencode/commands/harness-*.md` must not be edited directly.",
+    "- Mirrored files under `.opencode/agents/harness-*.md`, `.opencode/agents/validators/**`, `.opencode/commands/harness.md`, and `.opencode/commands/harness-*.md` must not be edited directly.",
     "- Edit `templates/opencode/**` instead, then rerun `harness self init --apply --with-opencode`, then run `harness self doctor`.",
     "",
     "Commit policy:",
@@ -409,7 +412,10 @@ async function buildSelfInitOperations(options = {}) {
 
   const gitignorePath = path.join(frameworkRoot, ".gitignore");
   const gitignoreCurrent = await readOptional(gitignorePath);
-  const gitignoreNext = ensureLine(gitignoreCurrent ?? "", selfRuntimeRelative);
+  let gitignoreNext = ensureLine(gitignoreCurrent ?? "", selfRuntimeRelative);
+  for (const line of selfGeneratedMirrorIgnoreLines) {
+    gitignoreNext = ensureLine(gitignoreNext, line);
+  }
   operations.push({
     path: ".gitignore",
     action: textEquals(gitignoreCurrent, gitignoreNext) ? "unchanged" : gitignoreCurrent === null ? "create" : "update",
@@ -484,6 +490,10 @@ async function checkGitignore(results) {
   }
   const ignored = content.split(/\r?\n/).some((line) => line.trim() === selfRuntimeRelative || line.trim() === ".harness-self");
   results.push(ignored ? pass(".harness-self/ is ignored") : fail(".harness-self/ is not ignored by .gitignore"));
+  for (const line of selfGeneratedMirrorIgnoreLines) {
+    const lineIgnored = content.split(/\r?\n/).some((entry) => entry.trim() === line);
+    results.push(lineIgnored ? pass(`${line} is ignored`) : fail(`${line} is not ignored by .gitignore`));
+  }
 }
 
 async function checkSelfOpencode(results) {

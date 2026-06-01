@@ -426,9 +426,12 @@ OpenCode 是可选的，但如果团队希望更高效地重复执行 harness fl
 
 典型收益：
 
-- `/harness-feature`、`/harness-bugfix` 这类可复用 slash commands
+- 以 `/harness` 为中心的 builder-first 默认命令面
+- `/harness-dev`、`/harness-incident`、`/harness-docs`、`/harness-config` 这类聚焦 wrapper
 - 本地 builder、coder、reviewer、validator agent 角色
 - 项目级 validator guidance 和带调度感知的脚手架
+
+对大多数团队，建议把 `/harness` 作为普通入口，把完整高级命令集视为可选 escape hatches。新安装可通过 `opencode.commandSurface: minimal|full` 或 `--opencode-command-surface minimal|full` 选择命令面。
 
 应把 `.opencode/` 当作可编辑的本地脚手架，而不是锁死的系统。
 

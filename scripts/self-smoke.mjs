@@ -10,6 +10,15 @@ const repoRoot = path.resolve(path.dirname(scriptPath), "..");
 const harnessBin = path.join(repoRoot, "bin", "harness.js");
 const tempBase = process.env.HARNESS_SMOKE_TMP || os.tmpdir();
 const ordinaryOpencodeProject = path.join(tempBase, `harness-self-smoke-opencode-${process.pid}`);
+const ordinaryFullOpencodeProject = path.join(tempBase, `harness-self-smoke-opencode-full-${process.pid}`);
+const advancedOpencodeCommands = [
+  "harness-feature.md",
+  "harness-bugfix.md",
+  "harness-refactor.md",
+  "harness-context.md",
+  "harness-status.md",
+  "harness-continue.md"
+];
 const templateOpencodePath = (...segments) => ["templates", "opencode", ...segments].join("/");
 const selfOpencodeFiles = [
   "opencode.jsonc",
@@ -107,6 +116,7 @@ try {
   await assertLocalSelfModelProfilesPreservedAndRendered();
   await assertMirrorResyncFromTemplateSource();
   await assertOrdinaryOpencodeInitDoesNotInstallSelfFiles();
+  await assertOrdinaryFullOpencodeInitRetainsAdvancedCommands();
 
   const templateAgents = await fs.readFile(path.join(repoRoot, "templates", "AGENTS.md"), "utf8");
   assertExcludes(templateAgents, "HARNESS_SELF_POLICY");
@@ -126,6 +136,7 @@ try {
   console.log("self-smoke: PASS");
 } finally {
   await fs.rm(ordinaryOpencodeProject, { recursive: true, force: true });
+  await fs.rm(ordinaryFullOpencodeProject, { recursive: true, force: true });
 }
 
 async function harness(...args) {
@@ -258,18 +269,34 @@ async function assertDoctorFailsForUnresolvedPlaceholder() {
 async function assertOrdinaryOpencodeInitDoesNotInstallSelfFiles() {
   await fs.rm(ordinaryOpencodeProject, { recursive: true, force: true });
   const output = await harness("init", "--project", ordinaryOpencodeProject, "--auto", "--with-opencode");
-  assertIncludes(output, "new-managed: .opencode/commands/harness-feature.md");
+  assertIncludes(output, "new-managed: .opencode/commands/harness.md");
   assertIncludes(output, "new-managed: .opencode/agents/harness-planner.md");
   assert(await pathExists(path.join(ordinaryOpencodeProject, "opencode.jsonc")), "ordinary init --with-opencode must still generate opencode.jsonc");
   assert(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "agents", "harness-planner.md")), "ordinary init must still generate template agent files");
+  assert(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "commands", "harness.md")), "ordinary init must install the minimal builder command by default");
   const ordinaryBuilder = await fs.readFile(path.join(ordinaryOpencodeProject, ".opencode", "agents", "harness-builder.md"), "utf8");
   assertIncludes(ordinaryBuilder, "model: openai/gpt-5.5");
   assertExcludes(ordinaryBuilder, "{{MODEL_PROFILE_THINK}}");
+  assert(!(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "commands", "harness-feature.md"))), "ordinary init minimal default must not install advanced feature command files");
   assert(!(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "commands", "harness-self-init.md"))), "ordinary init must not install self command files");
   assert(!(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "commands", "harness-self-review.md"))), "ordinary init must not install self review command files");
   assert(!(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "commands", "harness-self-test.md"))), "ordinary init must not install self test command files");
   assert(!(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "agents", "harness-framework-planner.md"))), "ordinary init must not install self planner agent files");
   assert(!(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "agents", "harness-framework-reviewer.md"))), "ordinary init must not install self reviewer agent files");
+}
+
+async function assertOrdinaryFullOpencodeInitRetainsAdvancedCommands() {
+  await fs.rm(ordinaryFullOpencodeProject, { recursive: true, force: true });
+  const output = await harness("init", "--project", ordinaryFullOpencodeProject, "--auto", "--with-opencode", "--opencode-command-surface", "full");
+  assertIncludes(output, "new-managed: .opencode/commands/harness-feature.md");
+  for (const command of advancedOpencodeCommands) {
+    assert(await pathExists(path.join(ordinaryFullOpencodeProject, ".opencode", "commands", command)), `ordinary full init must install ${command}`);
+  }
+  assert(!(await pathExists(path.join(ordinaryFullOpencodeProject, ".opencode", "commands", "harness-self-init.md"))), "ordinary full init must not install self command files");
+
+  const doctorOutput = await harness("doctor", "--project", ordinaryFullOpencodeProject);
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [full] required normal commands present");
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [full] advanced commands present");
 }
 
 async function getExpectedMirrorFiles() {

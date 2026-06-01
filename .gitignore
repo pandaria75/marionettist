@@ -16,6 +16,7 @@ build
 # Source of truth is templates/opencode/**.
 .opencode/agents/harness-*.md
 .opencode/agents/validators/
+.opencode/commands/harness.md
 .opencode/commands/harness-*.md
 
 # Keep framework self-opencode files tracked.

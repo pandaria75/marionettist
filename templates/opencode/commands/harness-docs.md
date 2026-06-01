@@ -1,10 +1,9 @@
 ---
-description: Update project docs or rules using workspace-knowledge-manager
+description: Start focused docs or rules work through the builder-first harness flow
 agent: harness-builder
 ---
 
-Use `workspace-knowledge-manager`.
-Use `harness-indexer` first if ownership, existing docs, rules, or `knowledge-map.md` routing is unclear.
+I want help with docs, rules, or project knowledge work.
 
 Target area:
 $1
@@ -13,6 +12,9 @@ Task:
 $2
 
 Requirements:
+- Treat this as the normal-user docs wrapper.
+- Prefer docs-oriented routing unless another workflow is clearly a better fit.
+- Explain the selected workflow in one concise sentence, including any required gate before acting or delegating.
 - Docs should explain responsibilities, design, workflows, boundaries, and extension points.
 - Rules should express enforceable constraints only.
 - Do not duplicate content between docs and rules.

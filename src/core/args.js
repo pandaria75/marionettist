@@ -6,7 +6,8 @@ export function parseCommonArgs(args) {
     dryRun: false,
     force: false,
     auto: false,
-    withOpencode: null
+    withOpencode: null,
+    opencodeCommandSurface: null
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -42,7 +43,24 @@ export function parseCommonArgs(args) {
       continue;
     }
 
+    if (arg === "--opencode-command-surface") {
+      const value = args[index + 1];
+      if (!value) {
+        throw new Error("--opencode-command-surface requires minimal or full");
+      }
+      if (value !== "minimal" && value !== "full") {
+        throw new Error(`Unsupported --opencode-command-surface value: ${value}`);
+      }
+      options.opencodeCommandSurface = value;
+      index += 1;
+      continue;
+    }
+
     throw new Error(`Unknown option: ${arg}`);
+  }
+
+  if (options.opencodeCommandSurface && options.withOpencode !== false) {
+    options.withOpencode = true;
   }
 
   options.project = path.resolve(options.project);

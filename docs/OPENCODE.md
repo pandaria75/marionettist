@@ -90,6 +90,23 @@ Backfill it into an already initialized project:
 harness init --with-opencode
 ```
 
+Command-surface options:
+
+```powershell
+# Default for new installs
+harness init --with-opencode --opencode-command-surface minimal
+
+# Optional advanced surface
+harness init --with-opencode --opencode-command-surface full
+```
+
+You can also set the installed command layer in project config:
+
+```yaml
+opencode:
+  commandSurface: minimal # or full
+```
+
 When these assets are installed, later `harness diff` and `harness sync` runs treat them as framework-managed files through the manifest.
 
 ## 4. What Gets Installed
@@ -97,14 +114,11 @@ When these assets are installed, later `harness diff` and `harness sync` runs tr
 Typical files:
 
 - `opencode.jsonc` (project root)
-- `.opencode/commands/harness-feature.md`
-- `.opencode/commands/harness-bugfix.md`
-- `.opencode/commands/harness-refactor.md`
+- `.opencode/commands/harness.md`
+- `.opencode/commands/harness-dev.md`
 - `.opencode/commands/harness-docs.md`
-- `.opencode/commands/harness-context.md`
+- `.opencode/commands/harness-config.md`
 - `.opencode/commands/harness-incident.md`
-- `.opencode/commands/harness-status.md`
-- `.opencode/commands/harness-continue.md`
 - `.opencode/agents/harness-builder.md`
 - `.opencode/agents/harness-coder.md`
 - `.opencode/agents/harness-indexer.md`
@@ -117,6 +131,8 @@ Typical files:
 These are editable local defaults, not locked product behavior.
 
 The framework also installs `opencode.jsonc` at the project root (not under `.opencode/`) that enables `opencode-tasks`.
+
+By default, new installs recommend a builder-first minimal surface centered on `/harness`. Full mode adds explicit advanced wrappers such as `/harness-feature`, `/harness-bugfix`, `/harness-refactor`, `/harness-context`, `/harness-status`, and `/harness-continue` for teams that want them visible.
 
 ## 5. How OpenCode Fits The Harness
 
@@ -137,34 +153,25 @@ OpenCode should make this flow easier to execute. It should not weaken the gate 
 
 ## 6. Slash Commands
 
-### `/harness-feature`
+### Default builder-first entrypoint: `/harness`
 
-Use for a new feature or requirement.
-
-Expected behavior:
-
-- route to `harness-builder`
-- start from `task-intake`
-- stay in analysis until the analysis gate is approved
-
-### `/harness-bugfix`
-
-Use for a bugfix when you have observed behavior, expected behavior, reproduction, or evidence.
+Use for most requests, especially when the user starts from natural language instead of choosing a low-level workflow.
 
 Expected behavior:
 
 - route to `harness-builder`
-- prioritize confirming reproduction or a failing test
-- use `requirement-freezer` only when expected behavior remains unclear
+- classify the request into the right harness workflow
+- explain the selected workflow briefly before acting or delegating
+- ask only minimal clarifying questions when blocking ambiguity remains
 
-### `/harness-refactor`
+### Focused wrappers: `/harness-dev`, `/harness-incident`, `/harness-docs`, `/harness-config`
 
-Use for behavior-preserving structural change.
+Use these when you want to hint at the likely workflow while still routing through `harness-builder`.
 
-Expected behavior:
-
-- make allowed and forbidden scope explicit
-- analyze boundary and workflow impact before coding
+- `/harness-dev`: development, feature, implementation, or build-oriented work without forcing an advanced command choice
+- `/harness-incident`: evidence-first incident or urgent-fix investigation
+- `/harness-docs`: documentation or writing work
+- `/harness-config`: harness or project workflow configuration work
 
 ### `/harness-docs`
 
@@ -174,16 +181,6 @@ Expected behavior:
 
 - route documentation work without pretending it is a production-code slice
 - keep the update scoped to the requested design, module, or workflow concern
-
-### `/harness-context`
-
-Use to rebuild or refresh `.task/<task-id>/context-pack.md`, where `<task-id>` is selected by `.task/active.json`.
-
-Expected behavior:
-
-- compress the current approved slice or group into minimal coding context
-- update context only
-- not authorize coding by itself
 
 ### `/harness-incident`
 
@@ -197,7 +194,20 @@ Expected behavior:
 - organize user-provided symptoms, logs, screenshots, packets, config, environment details, reproduction notes, and unknowns
 - avoid assuming local reproduction or site access
 - avoid automatic terminal log capture
-- stop before coding and prepare the artifact for future `incident-pack-builder` and `hypothesis-critic` handoff
+- stop before coding and keep the incident artifact ready for the next approved investigation or implementation step
+
+### Advanced/full escape hatches
+
+Full mode keeps explicit advanced wrappers available for teams that want them visible:
+
+- `/harness-feature`
+- `/harness-bugfix`
+- `/harness-refactor`
+- `/harness-context`
+- `/harness-status`
+- `/harness-continue`
+
+These remain useful, but they are escape hatches rather than the normal-user default. Minimal installs omit the dedicated advanced wrappers while still letting `/harness` route those intents.
 
 ### `/harness-status`
 
