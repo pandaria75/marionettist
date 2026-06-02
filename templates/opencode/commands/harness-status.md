@@ -8,9 +8,9 @@ Read `.task/active.json` first, then read `.task/<task-id>/state.json` if an act
 Output only the current task status. Do not modify files and do not code.
 
 If no active task exists, tell the user to start with one of:
-- `/harness-feature`
-- `/harness-bugfix`
-- `/harness-refactor`
+- `/harness`
+- `/harness-dev`
+- `/harness-incident`
 - `/harness-docs`
 
 Report:

@@ -10,7 +10,7 @@ Do not blindly write code. Respect the current phase, all gates, `criticPassed`,
 Treat work as critic-gated when it is Tier L, or when the requirement, implementation plan, state, or context pack marks it as high-risk, boundary-sensitive, or workflow-sensitive.
 
 Continuation rules:
-- If there is no active task, prompt the user to create one with `/harness-feature`, `/harness-bugfix`, `/harness-refactor`, or `/harness-docs`.
+- If there is no active task, prompt the user to create one with `/harness` or a focused entrypoint such as `/harness-dev`, `/harness-incident`, `/harness-docs`, or `/harness-config`.
 - If `requirementFrozen` is false and the task needs frozen requirements, route to `requirement-freezer`.
 - If `implementationPlan` is missing or plan approval is required, route to `implementation-slicer` or `harness-planner`.
 - If `contextPackReady` is false, route to `context-pack-builder` and write `.task/<task-id>/context-pack.md`.

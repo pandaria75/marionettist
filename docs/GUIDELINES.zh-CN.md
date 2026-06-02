@@ -46,6 +46,16 @@ harness init --with-opencode
 
 交互式 `harness init` 中，CLI 对每个已存在文件询问是备份、覆盖还是跳过。用 `--auto` 跳过所有已存在文件；搭配 `--force` 覆盖它们。
 
+### 安装 / 分发模式
+
+`harness init` 支持三种安装/分发模式：
+
+- `embedded` — 新安装默认值，也最接近旧版本行为
+- `hybrid` — 本地 harness 安装，同时带显式 adapter 感知分发元数据
+- `adapter` — adapter 导向安装，但仍保留同样的本地安全追踪
+
+所选模式会记录在 `.harness/manifest.json` 的 `distributionMode`，并在 `harness.config.yaml` 的 `distribution.mode` 中镜像一份便于阅读。旧安装即使没有 manifest `distributionMode` 也仍然有效；`harness diff`、`harness sync` 和 `harness doctor` 会报告或推断有效模式。只有在用户显式选择/提供模式、manifest 里已经存在 `distributionMode`，或 `harness.config.yaml` 指定了 `distribution.mode` 时，CLI 才会写入该字段。
+
 ## 3. 工作模型
 
 Harness 是受控序列，不是自由连续编码。
@@ -224,6 +234,14 @@ Forbidden modification scope：<禁止范围>
 
 OpenCode 是可选的，但推荐用于更高效的重复 harness 执行。它提供 builder-first 的 slash commands、各角色独立绑定的本地 agent 角色和 validator 脚手架。
 
+OpenCode 命令面分为：
+
+- `minimal` — 默认：`/harness`、`/harness-dev`、`/harness-incident`、`/harness-docs`、`/harness-config`
+- `standard` — 在 minimal 基础上增加 `/harness-context`、`/harness-status`、`/harness-continue`
+- `advanced` — 在 standard 基础上增加 `/harness-feature`、`/harness-bugfix`、`/harness-refactor`
+
+旧值 `full` 仍可作为 `advanced` 的兼容别名。
+
 详见 [docs/OPENCODE.zh-CN.md](./OPENCODE.zh-CN.md)。
 
 ## 11. 升级与同步
@@ -238,3 +256,5 @@ harness sync --dry-run
 ```
 
 本地任务工件、docs、rules 和 skills 默认保留。`AGENTS.md` 只更新 managed block。本地修改和冲突会被报告，不会被静默覆盖。
+
+对于 OpenCode 生成的受管资产，source of truth 是框架中的 `templates/opencode/**` 模板。manifest 会记录 ownership 元数据，包括渲染后的 hash。`harness diff` 会报告本地修改、冲突、缺失文件和 orphaned managed entries；`harness sync` 不会静默覆盖本地编辑。只有在你明确想让受管内容替换本地版本时才使用 force。

@@ -39,17 +39,28 @@ harness init --dry-run --with-opencode
 
 # Choose command surface
 harness init --with-opencode --opencode-command-surface minimal   # default
-harness init --with-opencode --opencode-command-surface full     # advanced
+harness init --with-opencode --opencode-command-surface standard
+harness init --with-opencode --opencode-command-surface advanced
 ```
 
 You can also set the surface in project config:
 
 ```yaml
 opencode:
-  commandSurface: minimal  # or full
+  commandSurface: minimal  # or standard | advanced
 ```
 
-These assets are tracked in `.harness/manifest.json` and participate in `harness diff` and `harness sync`.
+Legacy `full` remains accepted as an alias for `advanced`.
+
+OpenCode installs also follow the harness distribution modes:
+
+- `embedded` — default and closest to legacy behavior
+- `hybrid` — local install with explicit adapter-aware distribution metadata
+- `adapter` — adapter-oriented install, still tracked locally for safe sync
+
+The chosen mode is recorded in `.harness/manifest.json` as `distributionMode`. Older projects without that field remain valid, and the CLI reports or infers the effective mode. The field is written only when the user explicitly selects or provides a mode, when the manifest already contains `distributionMode`, or when `harness.config.yaml` specifies `distribution.mode`.
+
+These assets are tracked in `.harness/manifest.json` and participate in `harness diff`, `harness sync`, and `harness doctor`.
 
 ## 4. What Gets Installed
 
@@ -58,9 +69,15 @@ These assets are tracked in `.harness/manifest.json` and participate in `harness
 - `.opencode/agents/harness-builder.md`, `harness-coder.md`, `harness-indexer.md`, `harness-planner.md`, `harness-reviewer.md`, `harness-critic.md`, `harness-validator.md`
 - `.opencode/README.md`
 
-These are editable local defaults, not locked product behavior.
+These are generated managed defaults, not locked product behavior.
 
-The minimal surface centers on `/harness` as the builder-first entrypoint. Full mode adds explicit wrappers: `/harness-feature`, `/harness-bugfix`, `/harness-refactor`, `/harness-context`, `/harness-status`, `/harness-continue`.
+The command surfaces are:
+
+- `minimal`: `/harness`, `/harness-dev`, `/harness-incident`, `/harness-docs`, `/harness-config`
+- `standard`: minimal plus `/harness-context`, `/harness-status`, `/harness-continue`
+- `advanced`: standard plus `/harness-feature`, `/harness-bugfix`, `/harness-refactor`
+
+The design intent is builder-first usage: most teams should start from `/harness` and only expose more wrappers when they improve team ergonomics.
 
 ## 5. How OpenCode Fits The Harness
 
@@ -116,7 +133,7 @@ Common continuation prompts: `continue`, `proceed`, `start current slice`, `acce
 
 ## 9. Model Profiles And Customization
 
-Agent model values are rendered from `.harness/model-profiles.yml`, with legacy fallback to `harness.config.yaml` profiles when needed. The profiles map to skill requirements:
+Agent model values are rendered from the canonical `.harness/model-profiles.yml`, with legacy fallback to `harness.config.yaml` profiles only when the canonical file is absent. The profiles map to skill requirements:
 
 - `reasoning` → `think`
 - `coding` → `build`
@@ -126,13 +143,39 @@ Agent model values are rendered from `.harness/model-profiles.yml`, with legacy 
 To adjust models:
 
 1. Update `.harness/model-profiles.yml` first.
-2. Let `harness diff` and `harness sync` render values into `.opencode/agents/*.md`.
+2. Let `harness diff` and `harness sync` re-render values into `.opencode/agents/*.md`.
 3. Edit agent markdown permissions only for intentional local policy.
 4. Avoid duplicating harness agent model or permission values in `opencode.jsonc`.
 
+If a project still relies on legacy `harness.config.yaml` profiles and has not created `.harness/model-profiles.yml`, sync restores the canonical file from the effective legacy values so generated OpenCode artifacts and the canonical source stay aligned. `harness doctor` reports whether expected model values came from the canonical file or the legacy fallback, and flags drift in generated artifacts.
+
 Keep validator and reviewer `temperature` low for deterministic output. Tier 3 agents (indexer, validator) need fewer permissions than Tier 1 agents.
 
-## 10. Validator Behavior
+## 10. Managed Artifact Ownership And Safe Sync
+
+For target-project OpenCode assets, the source of truth is `templates/opencode/**` in the framework.
+
+Managed OpenCode manifest entries record adapter-aware metadata such as:
+
+- `adapter: "opencode"`
+- `commandSurface`
+- `templateHash`
+- `renderedHash`
+- legacy `hash`, retained as a compatibility fallback for older installs
+
+Comparison uses `renderedHash ?? hash` so legacy manifests still participate in safe sync.
+
+Safety behavior:
+
+- local modifications are protected and reported, not silently overwritten
+- missing generated files are reported as missing managed files
+- render-input drift is surfaced as conflicts when the generated output no longer matches the recorded rendered hash
+- orphaned managed entries remain visible as orphan-managed records until the project chooses how to clean them up
+- force semantics are explicit; managed replacement requires an intentional force path rather than silent overwrite
+
+This means `harness diff` is the preview step, `harness sync` applies only safe managed updates, and `harness doctor` helps explain drift and ownership state.
+
+## 11. Validator Behavior
 
 The validator template adapts to the project type (Gradle/Kotlin, Maven, Node.js, Python, or generic fallback).
 
@@ -141,7 +184,7 @@ Runtime behavior:
 - Otherwise choose the smallest relevant command for the current slice.
 - Keep long-running validation artifacts under `.harness/tmp/harness-validator/<run-id>/`.
 
-## 11. Privacy And Versioning
+## 12. Privacy And Versioning
 
 - Treat `.opencode/` as local/private until your team decides what to standardize.
 - Add it to `.gitignore` if you want fully local customization.

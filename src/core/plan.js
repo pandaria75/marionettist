@@ -4,8 +4,8 @@ import { opencodeTemplatesRoot, skillsRoot, templatesRoot, versionFile } from ".
 import { renderTemplate } from "./template.js";
 import { extractManagedBlock, replaceManagedBlock } from "./managed-block.js";
 import { sha256 } from "./hash.js";
-import { buildManifest, manifestFileMap, manifestRelative, readManifest } from "./manifest.js";
-import { buildModelProfileTemplateVariables, loadModelProfiles } from "./model-profiles.js";
+import { buildManifest, getManagedFileHash, manifestFileMap, manifestRelative, normalizeDistributionMode, normalizeOpencodeCommandSurface, opencodeArtifactAdapter, readManifest, validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface } from "./manifest.js";
+import { buildModelProfileTemplateVariables, loadModelProfiles, loadModelProfilesState, modelProfilesSourceRelative, renderCanonicalModelProfiles } from "./model-profiles.js";
 import { parseSimpleYaml } from "./yaml.js";
 
 const coreTemplateTargets = new Map([
@@ -23,7 +23,6 @@ const coreTemplateTargets = new Map([
 const opencodeManagedPrefix = ".opencode/";
 const opencodeValidatorTemplatePrefix = "agents/validators/";
 const opencodeProjectConfigSource = "opencode.jsonc";
-const opencodeCommandSurfaceValues = new Set(["minimal", "full"]);
 const minimalOpencodeCommandRelatives = new Set([
   "commands/harness.md",
   "commands/harness-dev.md",
@@ -31,13 +30,15 @@ const minimalOpencodeCommandRelatives = new Set([
   "commands/harness-docs.md",
   "commands/harness-config.md"
 ]);
-const fullOnlyOpencodeCommandRelatives = new Set([
-  "commands/harness-feature.md",
-  "commands/harness-bugfix.md",
-  "commands/harness-refactor.md",
+const standardOnlyOpencodeCommandRelatives = new Set([
   "commands/harness-context.md",
   "commands/harness-status.md",
   "commands/harness-continue.md"
+]);
+const advancedOnlyOpencodeCommandRelatives = new Set([
+  "commands/harness-feature.md",
+  "commands/harness-bugfix.md",
+  "commands/harness-refactor.md"
 ]);
 const knowledgeModeValues = new Set(["standard", "mudball"]);
 const knowledgeMaturityValues = new Set(["L0", "L1", "L2", "L3", "L4"]);
@@ -45,12 +46,19 @@ const knowledgeMaturityValues = new Set(["L0", "L1", "L2", "L3", "L4"]);
 async function buildFrameworkAssets(projectPath, options = {}) {
   const variables = normalizeKnowledgeVariables(options.variables ?? {});
   const assets = [];
+  const modelProfilesState = await loadModelProfilesState(projectPath);
 
   for (const [sourceRelative, targetRelative] of coreTemplateTargets.entries()) {
     const sourcePath = path.join(templatesRoot, sourceRelative);
     let content = renderTemplate(await readText(sourcePath), variables);
+    if (sourceRelative === modelProfilesSourceRelative && modelProfilesState.source === "legacy") {
+      content = renderCanonicalModelProfiles(modelProfilesState.effectiveProfiles);
+    }
     if (sourceRelative === "harness.config.yaml") {
-      content = renderHarnessConfigWithOpencodeCommandSurface(content, options.opencodeCommandSurfaceState);
+      content = renderHarnessConfigWithSelections(content, {
+        distributionModeState: options.distributionModeState,
+        opencodeCommandSurfaceState: options.opencodeCommandSurfaceState
+      });
     }
     const kind = targetRelative === "AGENTS.md" ? "managed-block" : "file";
     const managedContent = kind === "managed-block" ? extractManagedBlock(content) : content;
@@ -97,7 +105,7 @@ async function buildOpencodeAssets(projectPath, variables = {}, commandSurfaceSt
   const opencodeVariables = await resolveOpencodeVariables(projectPath, variables);
   const opencodeFiles = await listFiles(opencodeTemplatesRoot);
   const validatorProjectGuidance = await buildValidatorProjectGuidance(projectPath, opencodeVariables);
-  const commandSurface = normalizeOpencodeCommandSurface(commandSurfaceState.value ?? "full", "effective OpenCode command surface");
+  const commandSurface = normalizeOpencodeCommandSurface(commandSurfaceState.value ?? "advanced", "effective OpenCode command surface");
 
   for (const sourcePath of opencodeFiles) {
     const sourceRelative = toPosixPath(path.relative(opencodeTemplatesRoot, sourcePath));
@@ -113,6 +121,7 @@ async function buildOpencodeAssets(projectPath, variables = {}, commandSurfaceSt
       : toPosixPath(path.join(".opencode", sourceRelative));
 
     let content = await readText(sourcePath);
+    const templateHash = sha256(content);
     if (sourceRelative === "agents/harness-validator.md") {
       content = renderTemplate(content, {
         ...opencodeVariables,
@@ -127,6 +136,9 @@ async function buildOpencodeAssets(projectPath, variables = {}, commandSurfaceSt
       targetRelative,
       targetPath: path.join(projectPath, targetRelative),
       kind: "file",
+      adapter: opencodeArtifactAdapter,
+      templateHash,
+      commandSurface,
       content,
       managedContent: content,
       frameworkHash: sha256(content)
@@ -313,7 +325,11 @@ function hasManagedOpencodeAssets(previousManifest) {
 }
 
 function hasManagedAdvancedOpencodeCommands(previousManifest) {
-  return previousManifest?.managedFiles?.some((file) => fullOnlyOpencodeCommandRelatives.has(stripOpencodeManagedPrefix(file.path))) ?? false;
+  return previousManifest?.managedFiles?.some((file) => advancedOnlyOpencodeCommandRelatives.has(stripOpencodeManagedPrefix(file.path))) ?? false;
+}
+
+function hasManagedStandardOpencodeCommands(previousManifest) {
+  return previousManifest?.managedFiles?.some((file) => standardOnlyOpencodeCommandRelatives.has(stripOpencodeManagedPrefix(file.path))) ?? false;
 }
 
 function stripOpencodeManagedPrefix(targetRelative) {
@@ -327,19 +343,72 @@ function shouldIncludeOpencodeCommand(sourceRelative, commandSurface) {
     return true;
   }
 
-  if (commandSurface === "full") {
+  if (commandSurface === "advanced") {
     return true;
+  }
+
+  if (commandSurface === "standard") {
+    return minimalOpencodeCommandRelatives.has(sourceRelative) || standardOnlyOpencodeCommandRelatives.has(sourceRelative);
   }
 
   return minimalOpencodeCommandRelatives.has(sourceRelative);
 }
 
-function normalizeOpencodeCommandSurface(value, label) {
-  if (!opencodeCommandSurfaceValues.has(value)) {
-    throw new Error(`Unsupported ${label}: ${value}`);
+async function resolveDistributionModeState(projectPath, previousManifest, options = {}, mode = "sync") {
+  const explicitDistributionMode = options.distributionMode === null || options.distributionMode === undefined
+    ? null
+    : normalizeDistributionMode(options.distributionMode, "--distribution-mode value");
+  const recordedDistributionMode = validateOptionalDistributionMode(previousManifest?.distributionMode, "manifest distributionMode");
+  const configuredDistributionMode = await readConfiguredDistributionMode(projectPath);
+
+  assertValidDistributionModeSource(recordedDistributionMode, mode, "manifest");
+  assertValidDistributionModeSource(configuredDistributionMode, mode, "config");
+
+  let value = null;
+  let source = null;
+  let reportedValue = null;
+  let reportedSource = null;
+  let legacyInference = false;
+
+  if (explicitDistributionMode !== null) {
+    value = explicitDistributionMode;
+    source = "cli";
+    reportedValue = value;
+    reportedSource = source;
+  } else if (recordedDistributionMode.value !== null) {
+    value = recordedDistributionMode.value;
+    source = "manifest";
+    reportedValue = value;
+    reportedSource = source;
+  } else if (configuredDistributionMode.value !== null) {
+    value = configuredDistributionMode.value;
+    source = "config";
+    reportedValue = value;
+    reportedSource = source;
+  } else if (mode === "init") {
+    value = "embedded";
+    source = "default-new-install";
+    reportedValue = value;
+    reportedSource = source;
+  } else if (previousManifest) {
+    reportedValue = "embedded";
+    reportedSource = "legacy-inferred";
+    legacyInference = true;
   }
 
-  return value;
+  return {
+    value,
+    source,
+    reportedValue,
+    reportedSource,
+    legacyInference,
+    persistToHarnessConfig: value !== null && (
+      mode === "init"
+      || source === "cli"
+      || source === "manifest"
+      || source === "config"
+    )
+  };
 }
 
 async function resolveOpencodeCommandSurfaceState(projectPath, previousManifest, options = {}) {
@@ -347,7 +416,7 @@ async function resolveOpencodeCommandSurfaceState(projectPath, previousManifest,
   const explicitCommandSurface = options.opencodeCommandSurface === null || options.opencodeCommandSurface === undefined
     ? null
     : normalizeOpencodeCommandSurface(options.opencodeCommandSurface, "--opencode-command-surface value");
-  const legacyFull = hasManagedAdvancedOpencodeCommands(previousManifest);
+  const managedCommandSurface = inferManagedOpencodeCommandSurface(previousManifest);
   const hasOpencode = explicitCommandSurface !== null || options.withOpencode === true || hasManagedOpencodeAssets(previousManifest) || configuredCommandSurface !== null;
 
   let value = null;
@@ -359,9 +428,9 @@ async function resolveOpencodeCommandSurfaceState(projectPath, previousManifest,
   } else if (configuredCommandSurface !== null) {
     value = configuredCommandSurface;
     source = "config";
-  } else if (legacyFull) {
-    value = "full";
-    source = "legacy-manifest";
+  } else if (managedCommandSurface.value !== null) {
+    value = managedCommandSurface.value;
+    source = managedCommandSurface.source;
   } else if (hasManagedOpencodeAssets(previousManifest)) {
     value = "minimal";
     source = "existing-managed-assets";
@@ -401,13 +470,84 @@ async function readConfiguredOpencodeCommandSurface(projectPath) {
   }
 }
 
-function renderHarnessConfigWithOpencodeCommandSurface(content, commandSurfaceState) {
-  if (!commandSurfaceState?.persistToHarnessConfig || !commandSurfaceState.value) {
+function inferManagedOpencodeCommandSurface(previousManifest) {
+  if (!hasManagedOpencodeAssets(previousManifest)) {
+    return { value: null, source: null };
+  }
+
+  const recordedValues = (previousManifest?.managedFiles ?? [])
+    .filter((file) => file.adapter === opencodeArtifactAdapter && typeof file.commandSurface === "string" && file.commandSurface.length > 0)
+    .map((file) => validateOptionalOpencodeCommandSurface(file.commandSurface, `manifest managedFiles[${file.path}] commandSurface`))
+    .filter((result) => result.value !== null);
+
+  if (recordedValues.some((result) => result.value === "advanced")) {
+    return { value: "advanced", source: recordedValues.some((result) => result.isLegacyAlias) ? "legacy-manifest" : "manifest-metadata" };
+  }
+
+  if (recordedValues.some((result) => result.value === "standard")) {
+    return { value: "standard", source: "manifest-metadata" };
+  }
+
+  if (recordedValues.some((result) => result.value === "minimal")) {
+    return { value: "minimal", source: "manifest-metadata" };
+  }
+
+  if (hasManagedAdvancedOpencodeCommands(previousManifest)) {
+    return { value: "advanced", source: "legacy-manifest" };
+  }
+
+  if (hasManagedStandardOpencodeCommands(previousManifest)) {
+    return { value: "standard", source: "existing-managed-assets" };
+  }
+
+  return { value: "minimal", source: "existing-managed-assets" };
+}
+
+async function readConfiguredDistributionMode(projectPath) {
+  const harnessConfigPath = path.join(projectPath, "harness.config.yaml");
+  if (!(await pathExists(harnessConfigPath))) {
+    return { value: null, error: null, rawValue: null };
+  }
+
+  try {
+    const parsed = parseSimpleYaml(await readText(harnessConfigPath));
+    const value = parsed?.distribution?.mode;
+    return validateOptionalDistributionMode(value, "harness.config.yaml distribution.mode");
+  } catch {
+    return { value: null, error: null, rawValue: null };
+  }
+}
+
+function assertValidDistributionModeSource(result, mode, sourceKind) {
+  if (!result?.error) {
+    return;
+  }
+
+  const subject = sourceKind === "manifest"
+    ? ".harness/manifest.json distributionMode"
+    : "harness.config.yaml distribution.mode";
+  throw new Error(
+    `Cannot continue because ${subject} is invalid for harness ${mode}. ${result.error} Fix the recorded distribution mode or remove it before rerunning. Use \`harness doctor --project <path>\` for a detailed report.`
+  );
+}
+
+function renderHarnessConfigWithSelections(content, states = {}) {
+  const sections = [];
+
+  if (states.distributionModeState?.persistToHarnessConfig && states.distributionModeState.value) {
+    sections.push(`distribution:\n  mode: "${states.distributionModeState.value}"`);
+  }
+
+  if (states.opencodeCommandSurfaceState?.persistToHarnessConfig && states.opencodeCommandSurfaceState.value) {
+    sections.push(`opencode:\n  commandSurface: "${states.opencodeCommandSurfaceState.value}"`);
+  }
+
+  if (sections.length === 0) {
     return content;
   }
 
   const trimmed = content.replace(/\s*$/u, "");
-  return `${trimmed}\n\nopencode:\n  commandSurface: "${commandSurfaceState.value}"\n`;
+  return `${trimmed}\n\n${sections.join("\n\n")}\n`;
 }
 
 function normalizeKnowledgeVariables(variables = {}) {
@@ -456,8 +596,9 @@ function statusForManagedAsset({ exists, previous, currentHash, frameworkHash })
     return "missing";
   }
 
-  const localChanged = currentHash !== previous.hash;
-  const frameworkChanged = frameworkHash !== previous.hash;
+  const previousHash = getManagedFileHash(previous);
+  const localChanged = currentHash !== previousHash;
+  const frameworkChanged = frameworkHash !== previousHash;
 
   if (!localChanged && !frameworkChanged) {
     return "unchanged";
@@ -519,7 +660,7 @@ async function operationForAsset(asset, mode, previousByPath, options = {}) {
       content,
       exists,
       currentHash,
-      previousHash: previous?.hash ?? null,
+      previousHash: getManagedFileHash(previous),
       status,
       action,
       managed
@@ -552,7 +693,7 @@ async function operationForAsset(asset, mode, previousByPath, options = {}) {
     content: plannedContent(asset, currentContent),
     exists,
     currentHash,
-    previousHash: previous.hash,
+    previousHash: getManagedFileHash(previous),
     status,
     action: status,
     managed: true
@@ -573,10 +714,13 @@ async function operationForOrphan(previous, projectPath) {
     targetRelative: previous.path,
     targetPath,
     kind: previous.kind,
+    adapter: previous.adapter,
+    templateHash: previous.templateHash,
+    commandSurface: previous.commandSurface,
     exists,
     currentHash: currentManaged === null ? null : sha256(currentManaged),
-    previousHash: previous.hash,
-    frameworkHash: previous.hash,
+    previousHash: getManagedFileHash(previous),
+    frameworkHash: getManagedFileHash(previous),
     status: "orphan-managed",
     action: "orphan-managed",
     managed: true
@@ -593,10 +737,12 @@ export async function buildPlan(projectPath, mode, options = {}) {
 
   const previousByPath = manifestFileMap(previousManifest);
   const operations = [];
+  const distributionModeState = await resolveDistributionModeState(projectPath, previousManifest, options, mode);
   const opencodeCommandSurfaceState = await resolveOpencodeCommandSurfaceState(projectPath, previousManifest, options);
   const assets = await buildFrameworkAssets(projectPath, {
     ...options,
     includeOpencode: opencodeCommandSurfaceState.includeOpencode && shouldIncludeOpencodeAssets(previousManifest, options),
+    distributionModeState,
     opencodeCommandSurfaceState
   });
   const assetPaths = new Set(assets.map((asset) => asset.targetRelative));
@@ -626,7 +772,8 @@ export async function buildPlan(projectPath, mode, options = {}) {
     installedAt: new Date().toISOString(),
     previousManifest,
     operations,
-    force: options.force
+    force: options.force,
+    distributionMode: distributionModeState.value
   });
 
   operations.push({
@@ -639,5 +786,5 @@ export async function buildPlan(projectPath, mode, options = {}) {
     manifest
   });
 
-  return { version, previousManifest, manifest, operations };
+  return { version, previousManifest, manifest, operations, distributionModeState };
 }

@@ -40,6 +40,14 @@ harness init
 
 这会安装 `AGENTS.md`、`harness.config.yaml`、项目 docs、rules、skills 和 `.harness/manifest.json`，为后续安全升级做好准备。
 
+可选安装方式：
+
+- `--distribution-mode embedded`（默认）将 harness 作为目标仓库内的自包含安装。
+- `--distribution-mode hybrid` 保留标准本地安装，同时标记项目也预期使用外部 adapter 感知工具。
+- `--distribution-mode adapter` 用于 adapter 导向安装；生成资产仍在本地追踪，但 manifest 会明确记录 adapter 分发模式。
+
+所选模式会记录到 `.harness/manifest.json` 的 `distributionMode`。旧安装可能还没有这个字段；此时 CLI 会保留旧行为，在可能时推断/报告有效模式，而不会仅为了补字段就静默重写 manifest。
+
 ## 下一步
 
 | 文档 | 面向读者 |
@@ -54,6 +62,9 @@ harness init
 # 初始化目标项目
 harness init
 harness init --with-opencode
+harness init --with-opencode --opencode-command-surface minimal
+harness init --with-opencode --opencode-command-surface standard
+harness init --with-opencode --opencode-command-surface advanced
 
 # 预览框架更新，不写入文件
 harness diff
@@ -65,6 +76,8 @@ harness sync --dry-run
 # 诊断 harness 安装状态
 harness doctor
 ```
+
+对 OpenCode 安装，默认命令面是 builder-first 的最小集合：`/harness`、`/harness-dev`、`/harness-incident`、`/harness-docs`、`/harness-config`。`standard` 额外提供 `/harness-context`、`/harness-status`、`/harness-continue`。`advanced` 再增加 `/harness-feature`、`/harness-bugfix`、`/harness-refactor`。旧值 `full` 仍可作为 `advanced` 的兼容别名。
 
 ## 边界
 

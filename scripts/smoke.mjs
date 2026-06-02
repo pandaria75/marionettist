@@ -13,11 +13,13 @@ const frameworkVersion = (await fs.readFile(path.join(repoRoot, "VERSION"), "utf
 const tempBase = process.env.HARNESS_SMOKE_TMP || os.tmpdir();
 const dryRunProject = path.join(tempBase, `harness-smoke-dry-${process.pid}`);
 const project = path.join(tempBase, `harness-smoke-${process.pid}`);
+const distributionProject = path.join(tempBase, `harness-smoke-distribution-${process.pid}`);
 const mudballProject = path.join(tempBase, `harness-smoke-mudball-${process.pid}`);
 const existingLocalProject = path.join(tempBase, `harness-smoke-existing-${process.pid}`);
 const opencodeProject = path.join(tempBase, `harness-smoke-opencode-${process.pid}`);
 const backfillProject = path.join(tempBase, `harness-smoke-backfill-${process.pid}`);
 const gradleProject = path.join(tempBase, `harness-smoke-gradle-${process.pid}`);
+const legacyDistributionProject = path.join(tempBase, `harness-smoke-legacy-mode-${process.pid}`);
 const validatorSnippetPathText = ["templates", "opencode", "agents", "validators"].join("/");
 const publishableScanRoots = ["README.md", "README.zh-CN.md", "docs", "templates", "skills", "src", "scripts", "package.json"];
 const publishableScanExcludedDirectories = [path.join("docs", "blogs")];
@@ -28,14 +30,17 @@ const normalOpencodeCommands = [
   "harness-docs.md",
   "harness-config.md"
 ];
-const advancedOpencodeCommands = [
-  "harness-feature.md",
-  "harness-bugfix.md",
-  "harness-refactor.md",
+const standardOpencodeCommands = [
   "harness-context.md",
   "harness-status.md",
   "harness-continue.md"
 ];
+const advancedOnlyOpencodeCommands = [
+  "harness-feature.md",
+  "harness-bugfix.md",
+  "harness-refactor.md"
+];
+const nonMinimalOpencodeCommands = [...standardOpencodeCommands, ...advancedOnlyOpencodeCommands];
 const forbiddenSensitivePatterns = [
   { label: "username fragment", regex: new RegExp(["haoyu", "gao"].join("\\."), "g") },
   { label: "C:\\Users\\", regex: /C:\\Users\\/g },
@@ -60,17 +65,24 @@ const binaryLikeExtensions = new Set([
 ]);
 
 try {
-  await cleanupPaths(dryRunProject, project, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject);
+  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject, legacyDistributionProject);
 
   const dryRunOutput = await harness("init", "--project", dryRunProject, "--dry-run", "--auto");
+  assertIncludes(dryRunOutput, "distribution mode: embedded");
   assertIncludes(dryRunOutput, "new-managed: AGENTS.md");
   assertIncludes(dryRunOutput, "manifest-preview: .harness/manifest.json");
   assert(!(await pathExists(dryRunProject)), "init --dry-run must not create the target project directory");
 
   const initOutput = await harness("init", "--project", project, "--auto");
+  assertIncludes(initOutput, "distribution mode: embedded");
   assertIncludes(initOutput, "write-manifest: .harness/manifest.json");
 
   await assertKnowledgeInitAndManagedDocs(project, { mode: "standard", maturity: "L1" });
+  await assertDistributionModeRecorded(project, "embedded");
+
+  const distributionOutput = await harness("init", "--project", distributionProject, "--auto", "--distribution-mode", "adapter");
+  assertIncludes(distributionOutput, "distribution mode: adapter");
+  await assertDistributionModeRecorded(distributionProject, "adapter");
 
   const mudballInitOutput = await harness("init", "--project", mudballProject, "--auto", "--knowledge-mode", "mudball", "--knowledge-maturity", "L0");
   assertIncludes(mudballInitOutput, "write-manifest: .harness/manifest.json");
@@ -79,10 +91,13 @@ try {
   await assertManagedDocsMissingDetection(mudballProject);
 
   await assertInitPreservesExistingLocalKnowledge(existingLocalProject);
+  await assertSyncPreservesRecordedDistributionMode(distributionProject, "adapter");
+  await assertLegacyDistributionModeReportingAndNoInjection(legacyDistributionProject);
 
   const doctorOutput = await harness("doctor", "--project", project);
   assertIncludes(doctorOutput, "PASS  harness.config.yaml parsed");
   assertIncludes(doctorOutput, "PASS  model profiles found: think, build, review, run");
+  assertIncludes(doctorOutput, "PASS  distribution mode: embedded (manifest)");
   assertIncludes(doctorOutput, "WARN  .task/active.json not found; no active task selected");
 
   await assertTaskStateContractTemplate();
@@ -96,6 +111,7 @@ try {
   assert(!manifest.managedFiles.some((file) => file.path.startsWith(".opencode/")), "manifest must not include OpenCode assets when init runs without --with-opencode");
 
   const cleanDiffOutput = await harness("diff", "--project", project);
+  assertIncludes(cleanDiffOutput, "distribution mode: embedded");
   assertIncludes(cleanDiffOutput, "unchanged: AGENTS.md");
   assertIncludes(cleanDiffOutput, "unchanged: .aiassistant/rules/workflow-rules.md");
 
@@ -107,6 +123,7 @@ try {
   assertIncludes(modifiedDiffOutput, "modified-local: .aiassistant/rules/workflow-rules.md");
 
   const syncDryRunOutput = await harness("sync", "--project", project, "--dry-run");
+  assertIncludes(syncDryRunOutput, "distribution mode: embedded");
   assertIncludes(syncDryRunOutput, "modified-local: .aiassistant/rules/workflow-rules.md");
   const afterSyncDryRunRuleContent = await fs.readFile(managedRulePath, "utf8");
   assert(afterSyncDryRunRuleContent === modifiedRuleContent, "sync --dry-run must not overwrite local modifications");
@@ -144,7 +161,7 @@ try {
 
   console.log("smoke: PASS");
 } finally {
-  await cleanupPaths(dryRunProject, project, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject);
+  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject, legacyDistributionProject);
 }
 
 async function assertKnowledgeInitAndManagedDocs(projectPath, { mode, maturity }) {
@@ -164,6 +181,86 @@ async function assertKnowledgeInitAndManagedDocs(projectPath, { mode, maturity }
   const diffOutput = await harness("diff", "--project", projectPath);
   assertIncludes(diffOutput, `unchanged: ${toPosix(currentDocRelative)}`);
   assertIncludes(diffOutput, `unchanged: ${toPosix(targetDocRelative)}`);
+}
+
+async function assertDistributionModeRecorded(projectPath, expectedMode) {
+  const manifest = await readManifest(projectPath);
+  assert(manifest.distributionMode === expectedMode, `Expected manifest distributionMode=${expectedMode}, got ${manifest.distributionMode}`);
+
+  const config = parseSimpleYaml(await fs.readFile(path.join(projectPath, "harness.config.yaml"), "utf8"));
+  assert(config.distribution?.mode === expectedMode, `Expected harness.config.yaml distribution.mode=${expectedMode}, got ${config.distribution?.mode}`);
+}
+
+async function assertSyncPreservesRecordedDistributionMode(projectPath, expectedMode) {
+  const diffOutput = await harness("diff", "--project", projectPath);
+  assertIncludes(diffOutput, `distribution mode: ${expectedMode}`);
+
+  const syncDryRunOutput = await harness("sync", "--project", projectPath, "--dry-run");
+  assertIncludes(syncDryRunOutput, `distribution mode: ${expectedMode}`);
+
+  await harness("sync", "--project", projectPath);
+  const manifest = await readManifest(projectPath);
+  assert(manifest.distributionMode === expectedMode, `Expected sync to preserve manifest distributionMode=${expectedMode}, got ${manifest.distributionMode}`);
+}
+
+async function assertLegacyDistributionModeReportingAndNoInjection(projectPath) {
+  await cleanupPaths(projectPath);
+  await harness("init", "--project", projectPath, "--auto");
+
+  const manifestPath = path.join(projectPath, ".harness", "manifest.json");
+  const manifest = await readManifest(projectPath);
+  delete manifest.distributionMode;
+  await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+  const configPath = path.join(projectPath, "harness.config.yaml");
+  const configWithoutDistribution = removeTopLevelYamlSection(await fs.readFile(configPath, "utf8"), "distribution");
+  await fs.writeFile(configPath, configWithoutDistribution, "utf8");
+
+  const diffOutput = await harness("diff", "--project", projectPath);
+  assertIncludes(diffOutput, "distribution mode: embedded (legacy inferred; manifest unchanged)");
+
+  const syncDryRunOutput = await harness("sync", "--project", projectPath, "--dry-run");
+  assertIncludes(syncDryRunOutput, "distribution mode: embedded (legacy inferred; manifest unchanged)");
+
+  await harness("sync", "--project", projectPath);
+  const syncedManifest = await readManifest(projectPath);
+  assert(!Object.prototype.hasOwnProperty.call(syncedManifest, "distributionMode"), "legacy sync must not inject manifest distributionMode when no source exists");
+
+  const doctorOutput = await harness("doctor", "--project", projectPath);
+  assertIncludes(doctorOutput, "WARN  distribution mode: embedded (legacy inferred; manifest missing distributionMode)");
+
+  manifest.distributionMode = "surprise";
+  await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+  let invalidPlan = await harnessAllowFailure("diff", "--project", projectPath);
+  assert(invalidPlan.code !== 0, "diff must fail clearly when manifest distributionMode is invalid");
+  assertIncludes(invalidPlan.stderr, "Cannot continue because .harness/manifest.json distributionMode is invalid for harness sync.");
+  assertIncludes(invalidPlan.stderr, "Unsupported manifest distributionMode: surprise. Expected embedded, hybrid, or adapter.");
+
+  invalidPlan = await harnessAllowFailure("sync", "--project", projectPath, "--dry-run");
+  assert(invalidPlan.code !== 0, "sync --dry-run must fail clearly when manifest distributionMode is invalid");
+  assertIncludes(invalidPlan.stderr, "Cannot continue because .harness/manifest.json distributionMode is invalid for harness sync.");
+
+  let invalidDoctor = await harnessAllowFailure("doctor", "--project", projectPath);
+  assert(invalidDoctor.code !== 0, "doctor must fail when manifest distributionMode is invalid");
+  assertIncludes(invalidDoctor.stdout, "FAIL  Unsupported .harness/manifest.json distributionMode: surprise. Expected embedded, hybrid, or adapter.");
+
+  delete manifest.distributionMode;
+  await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  await fs.writeFile(configPath, `${configWithoutDistribution.replace(/\s*$/u, "")}\n\ndistribution:\n  mode: "surprise"\n`, "utf8");
+
+  invalidPlan = await harnessAllowFailure("diff", "--project", projectPath);
+  assert(invalidPlan.code !== 0, "diff must fail clearly when harness.config.yaml distribution.mode is invalid");
+  assertIncludes(invalidPlan.stderr, "Cannot continue because harness.config.yaml distribution.mode is invalid for harness sync.");
+  assertIncludes(invalidPlan.stderr, "Unsupported harness.config.yaml distribution.mode: surprise. Expected embedded, hybrid, or adapter.");
+
+  invalidPlan = await harnessAllowFailure("sync", "--project", projectPath, "--dry-run");
+  assert(invalidPlan.code !== 0, "sync --dry-run must fail clearly when harness.config.yaml distribution.mode is invalid");
+  assertIncludes(invalidPlan.stderr, "Cannot continue because harness.config.yaml distribution.mode is invalid for harness sync.");
+
+  invalidDoctor = await harnessAllowFailure("doctor", "--project", projectPath);
+  assert(invalidDoctor.code !== 0, "doctor must fail when harness.config.yaml distribution.mode is invalid");
+  assertIncludes(invalidDoctor.stdout, "FAIL  Unsupported harness.config.yaml distribution.mode: surprise. Expected embedded, hybrid, or adapter.");
 }
 
 async function assertManagedDocsLocalPreservation(projectPath) {
@@ -230,14 +327,15 @@ async function assertOpencodeInstall(projectPath) {
   const doctorOutput = await harness("doctor", "--project", projectPath);
   assertIncludes(doctorOutput, "PASS  opencode.jsonc parsed");
   assertIncludes(doctorOutput, "PASS  OpenCode command surface [minimal] required normal commands present");
-  assertIncludes(doctorOutput, "PASS  OpenCode command surface [minimal] advanced commands absent");
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [minimal] non-minimal commands absent");
   assertIncludes(doctorOutput, "PASS  .opencode/commands/harness-incident.md frontmatter parsed");
-  assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-builder.md model openai/gpt-5.5 matches profile think.default.");
-  assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-coder.md model openai/gpt-5.3-codex matches profile build.default.");
-  assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-reviewer.md model opencode-go/glm-5.1 matches profile review.default.");
-  assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-validator.md model opencode-go/deepseek-v4-flash matches profile run.default.");
+  assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-builder.md model openai/gpt-5.5 matches .harness/model-profiles.yml profile think.default.");
+  assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-coder.md model openai/gpt-5.3-codex matches .harness/model-profiles.yml profile build.default.");
+  assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-reviewer.md model opencode-go/glm-5.1 matches .harness/model-profiles.yml profile review.default.");
+  assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-validator.md model opencode-go/deepseek-v4-flash matches .harness/model-profiles.yml profile run.default.");
 
   await assertDoctorModelDriftStates(projectPath);
+  await assertLegacyProfileFallbackRender(projectPath);
 
   const manifest = await readManifest(projectPath);
   assert(manifest.managedFiles.some((file) => file.path === ".opencode/commands/harness.md"), "manifest must include minimal OpenCode commands");
@@ -245,6 +343,7 @@ async function assertOpencodeInstall(projectPath) {
   assert(manifest.managedFiles.some((file) => file.path === ".opencode/agents/harness-validator.md"), "manifest must include harness validator agent");
   assert(manifest.managedFiles.some((file) => file.path === "opencode.jsonc"), "manifest must include project OpenCode config");
   assert(!manifest.managedFiles.some((file) => file.path.startsWith(".opencode/agents/validators/")), "manifest must not install validator snippet assets");
+  await assertOpencodeManifestMetadataAndSafety(projectPath, manifest);
 
   const harnessConfig = await fs.readFile(path.join(projectPath, "harness.config.yaml"), "utf8");
   assertIncludes(harnessConfig, 'opencode:\n  commandSurface: "minimal"');
@@ -260,7 +359,58 @@ async function assertOpencodeInstall(projectPath) {
   assertExcludes(validatorContent, validatorSnippetPathText);
   assert(!(await pathExists(path.join(projectPath, ".opencode", "agents", "validators"))), "project must not contain installed validator snippet directory");
 
-  await assertFullOpencodeInstall(path.join(path.dirname(projectPath), `${path.basename(projectPath)}-full`));
+  await assertStandardOpencodeInstall(path.join(path.dirname(projectPath), `${path.basename(projectPath)}-standard`));
+  await assertAdvancedOpencodeInstall(path.join(path.dirname(projectPath), `${path.basename(projectPath)}-advanced`));
+}
+
+async function assertOpencodeManifestMetadataAndSafety(projectPath, manifest = null) {
+  const currentManifest = manifest ?? await readManifest(projectPath);
+  const commandEntry = currentManifest.managedFiles.find((file) => file.path === ".opencode/commands/harness.md");
+  const builderEntry = currentManifest.managedFiles.find((file) => file.path === ".opencode/agents/harness-builder.md");
+  const projectConfigEntry = currentManifest.managedFiles.find((file) => file.path === "opencode.jsonc");
+
+  for (const entry of [commandEntry, builderEntry, projectConfigEntry]) {
+    assert(entry, "expected OpenCode manifest entry to exist");
+    assert(entry.adapter === "opencode", `expected ${entry.path} adapter metadata`);
+    assert(typeof entry.templateHash === "string" && entry.templateHash.length > 0, `expected ${entry.path} templateHash metadata`);
+    assert(typeof entry.renderedHash === "string" && entry.renderedHash.length > 0, `expected ${entry.path} renderedHash metadata`);
+    assert(entry.hash === entry.renderedHash, `expected ${entry.path} hash to mirror renderedHash for schemaVersion 1 compatibility`);
+    assert(entry.commandSurface === "minimal", `expected ${entry.path} commandSurface metadata to record minimal install`);
+  }
+
+  const builderPath = path.join(projectPath, ".opencode", "agents", "harness-builder.md");
+  const profilesPath = path.join(projectPath, ".harness", "model-profiles.yml");
+  const commandPath = path.join(projectPath, ".opencode", "commands", "harness-dev.md");
+  const originalBuilder = await fs.readFile(builderPath, "utf8");
+  const originalProfiles = await fs.readFile(profilesPath, "utf8");
+  const originalCommand = await fs.readFile(commandPath, "utf8");
+
+  try {
+    await fs.writeFile(builderPath, `${originalBuilder}\nLocal OpenCode edit.\n`, "utf8");
+
+    let diffOutput = await harness("diff", "--project", projectPath, "--with-opencode");
+    assertIncludes(diffOutput, "modified-local: .opencode/agents/harness-builder.md");
+
+    let syncDryRunOutput = await harness("sync", "--project", projectPath, "--dry-run", "--with-opencode");
+    assertIncludes(syncDryRunOutput, "modified-local: .opencode/agents/harness-builder.md");
+    assert((await fs.readFile(builderPath, "utf8")) === `${originalBuilder}\nLocal OpenCode edit.\n`, "sync --dry-run must preserve locally modified OpenCode file bytes");
+
+    await fs.writeFile(profilesPath, originalProfiles.replace('default: "openai/gpt-5.5"', 'default: "smoke/conflict-think"'), "utf8");
+    diffOutput = await harness("diff", "--project", projectPath, "--with-opencode");
+    assertIncludes(diffOutput, "conflict: .opencode/agents/harness-builder.md");
+
+    syncDryRunOutput = await harness("sync", "--project", projectPath, "--dry-run", "--with-opencode");
+    assertIncludes(syncDryRunOutput, "conflict: .opencode/agents/harness-builder.md");
+    assert((await fs.readFile(builderPath, "utf8")) === `${originalBuilder}\nLocal OpenCode edit.\n`, "conflict dry-run must preserve locally modified OpenCode file bytes");
+
+    await fs.rm(commandPath);
+    diffOutput = await harness("diff", "--project", projectPath, "--with-opencode");
+    assertIncludes(diffOutput, "missing: .opencode/commands/harness-dev.md");
+  } finally {
+    await fs.writeFile(builderPath, originalBuilder, "utf8");
+    await fs.writeFile(profilesPath, originalProfiles, "utf8");
+    await fs.writeFile(commandPath, originalCommand, "utf8");
+  }
 }
 
 async function assertDoctorFailures(projectPath) {
@@ -339,6 +489,8 @@ async function assertGradleValidatorGuidance(projectPath) {
 
 async function assertMinimalOpencodeCommandsAndAgents(projectPath) {
   await assertCommandSurface(projectPath, { mode: "minimal" });
+  const commandFiles = await listCommandFiles(projectPath);
+  assert(commandFiles.length === normalOpencodeCommands.length, "minimal OpenCode install must expose exactly the five builder-first commands");
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-builder.md")), "OpenCode harness-builder agent must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-critic.md")), "OpenCode harness-critic agent must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-indexer.md")), "OpenCode harness-indexer agent must exist");
@@ -347,29 +499,72 @@ async function assertMinimalOpencodeCommandsAndAgents(projectPath) {
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-validator.md")), "OpenCode harness-validator agent must exist");
 }
 
-async function assertFullOpencodeInstall(projectPath) {
+async function assertStandardOpencodeInstall(projectPath) {
   await cleanupPaths(projectPath);
 
-  const initOutput = await harness("init", "--project", projectPath, "--auto", "--with-opencode", "--opencode-command-surface", "full");
-  for (const command of advancedOpencodeCommands) {
+  const initOutput = await harness("init", "--project", projectPath, "--auto", "--with-opencode", "--opencode-command-surface", "standard");
+  for (const command of standardOpencodeCommands) {
     assertIncludes(initOutput, `new-managed: .opencode/commands/${command}`);
   }
 
   const harnessConfig = await fs.readFile(path.join(projectPath, "harness.config.yaml"), "utf8");
-  assertIncludes(harnessConfig, 'opencode:\n  commandSurface: "full"');
+  assertIncludes(harnessConfig, 'opencode:\n  commandSurface: "standard"');
 
-  await assertCommandSurface(projectPath, { mode: "full" });
+  await assertCommandSurface(projectPath, { mode: "standard" });
+
+  const manifest = await readManifest(projectPath);
+  const standardCommandEntry = manifest.managedFiles.find((file) => file.path === ".opencode/commands/harness-status.md");
+  assert(standardCommandEntry?.adapter === "opencode", "standard install manifest must retain OpenCode adapter metadata");
+  assert(standardCommandEntry?.commandSurface === "standard", "standard install manifest must record standard command surface metadata");
+
+  const doctorOutput = await harness("doctor", "--project", projectPath);
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [standard] required normal commands present");
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [standard] standard helper commands present");
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [standard] advanced-only commands absent");
+
+  const diffOutput = await harness("diff", "--project", projectPath);
+  assertIncludes(diffOutput, "unchanged: .opencode/commands/harness-context.md");
+  assertIncludes(diffOutput, "unchanged: .opencode/commands/harness-status.md");
+}
+
+async function assertAdvancedOpencodeInstall(projectPath) {
+  await cleanupPaths(projectPath);
+
+  const initOutput = await harness("init", "--project", projectPath, "--auto", "--with-opencode", "--opencode-command-surface", "full");
+  for (const command of [...standardOpencodeCommands, ...advancedOnlyOpencodeCommands]) {
+    assertIncludes(initOutput, `new-managed: .opencode/commands/${command}`);
+  }
+
+  const harnessConfig = await fs.readFile(path.join(projectPath, "harness.config.yaml"), "utf8");
+  assertIncludes(harnessConfig, 'opencode:\n  commandSurface: "advanced"');
+
+  await assertCommandSurface(projectPath, { mode: "advanced" });
+
+  const manifest = await readManifest(projectPath);
+  const fullCommandEntry = manifest.managedFiles.find((file) => file.path === ".opencode/commands/harness-feature.md");
+  assert(fullCommandEntry?.adapter === "opencode", "full install manifest must retain OpenCode adapter metadata");
+  assert(fullCommandEntry?.commandSurface === "advanced", "full alias install must record normalized advanced command surface metadata");
 
   let doctorOutput = await harness("doctor", "--project", projectPath);
-  assertIncludes(doctorOutput, "PASS  OpenCode command surface [full] required normal commands present");
-  assertIncludes(doctorOutput, "PASS  OpenCode command surface [full] advanced commands present");
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [advanced] required normal commands present");
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [advanced] standard helper commands present");
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [advanced] advanced commands present");
 
   const diffOutput = await harness("diff", "--project", projectPath);
   assertIncludes(diffOutput, "unchanged: .opencode/commands/harness-feature.md");
   assertIncludes(diffOutput, "unchanged: .opencode/commands/harness-status.md");
 
-  const legacyConfig = harnessConfig.replace(/\n\nopencode:\n  commandSurface: "full"\n/u, "\n");
-  await fs.writeFile(path.join(projectPath, "harness.config.yaml"), legacyConfig, "utf8");
+  const legacyAliasConfig = harnessConfig.replace('commandSurface: "advanced"', 'commandSurface: "full"');
+  await fs.writeFile(path.join(projectPath, "harness.config.yaml"), legacyAliasConfig, "utf8");
+
+  doctorOutput = await harness("doctor", "--project", projectPath);
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [legacy-full] required normal commands present");
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [legacy-full] standard helper commands present");
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [legacy-full] advanced commands present");
+
+  await fs.writeFile(path.join(projectPath, "harness.config.yaml"), harnessConfig, "utf8");
+  const noConfig = harnessConfig.replace(/\n\nopencode:\n  commandSurface: "advanced"\n/u, "\n");
+  await fs.writeFile(path.join(projectPath, "harness.config.yaml"), noConfig, "utf8");
 
   const legacyDiffOutput = await harness("diff", "--project", projectPath);
   assertIncludes(legacyDiffOutput, "unchanged: .opencode/commands/harness-feature.md");
@@ -377,19 +572,30 @@ async function assertFullOpencodeInstall(projectPath) {
 
   doctorOutput = await harness("doctor", "--project", projectPath);
   assertIncludes(doctorOutput, "PASS  OpenCode command surface [legacy-full] required normal commands present");
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [legacy-full] standard helper commands present");
   assertIncludes(doctorOutput, "PASS  OpenCode command surface [legacy-full] advanced commands present");
 
-  const invalidConfig = `${legacyConfig.replace(/\s*$/u, "")}\n\nopencode:\n  commandSurface: "surprise"\n`;
+  const minimalSurfaceDiff = await harness("diff", "--project", projectPath, "--with-opencode", "--opencode-command-surface", "minimal");
+  assertIncludes(minimalSurfaceDiff, "orphan-managed: .opencode/commands/harness-feature.md");
+  assertIncludes(minimalSurfaceDiff, "orphan-managed: .opencode/commands/harness-status.md");
+
+  const minimalSurfaceSyncDryRun = await harness("sync", "--project", projectPath, "--dry-run", "--with-opencode", "--opencode-command-surface", "minimal");
+  assertIncludes(minimalSurfaceSyncDryRun, "orphan-managed: .opencode/commands/harness-feature.md");
+  assertIncludes(minimalSurfaceSyncDryRun, "orphan-managed: .opencode/commands/harness-status.md");
+  assert(await pathExists(path.join(projectPath, ".opencode", "commands", "harness-feature.md")), "surface reduction dry-run must preserve advanced orphan command files");
+  assert(await pathExists(path.join(projectPath, ".opencode", "commands", "harness-status.md")), "surface reduction dry-run must preserve standard orphan command files");
+
+  const invalidConfig = `${noConfig.replace(/\s*$/u, "")}\n\nopencode:\n  commandSurface: "surprise"\n`;
   await fs.writeFile(path.join(projectPath, "harness.config.yaml"), invalidConfig, "utf8");
   let invalidDoctor = await harnessAllowFailure("doctor", "--project", projectPath);
   assert(invalidDoctor.code !== 0, "doctor must fail when opencode.commandSurface is invalid");
-  assertIncludes(invalidDoctor.stdout, "FAIL  harness.config.yaml opencode.commandSurface invalid: expected minimal|full, got surprise");
+  assertIncludes(invalidDoctor.stdout, "FAIL  harness.config.yaml opencode.commandSurface invalid: expected minimal|standard|advanced|full, got surprise");
 
   await fs.writeFile(path.join(projectPath, "harness.config.yaml"), harnessConfig, "utf8");
   await fs.rm(path.join(projectPath, ".opencode", "commands", "harness.md"));
   invalidDoctor = await harnessAllowFailure("doctor", "--project", projectPath);
   assert(invalidDoctor.code !== 0, "doctor must fail when a required normal command is missing");
-  assertIncludes(invalidDoctor.stdout, "FAIL  OpenCode command surface [full] missing required normal command(s): .opencode/commands/harness.md");
+  assertIncludes(invalidDoctor.stdout, "FAIL  OpenCode command surface [advanced] missing required normal command(s): .opencode/commands/harness.md");
 }
 
 async function assertCommandSurface(projectPath, { mode }) {
@@ -398,14 +604,28 @@ async function assertCommandSurface(projectPath, { mode }) {
     assert(await pathExists(path.join(commandsRoot, command)), `${mode} OpenCode install must include ${command}`);
   }
 
-  for (const command of advancedOpencodeCommands) {
+  for (const command of standardOpencodeCommands) {
     const exists = await pathExists(path.join(commandsRoot, command));
-    if (mode === "full") {
-      assert(exists, `full OpenCode install must include ${command}`);
-    } else {
+    if (mode === "minimal") {
       assert(!exists, `minimal OpenCode install must not include ${command}`);
+    } else {
+      assert(exists, `${mode} OpenCode install must include ${command}`);
     }
   }
+
+  for (const command of advancedOnlyOpencodeCommands) {
+    const exists = await pathExists(path.join(commandsRoot, command));
+    if (mode === "advanced") {
+      assert(exists, `advanced OpenCode install must include ${command}`);
+    } else {
+      assert(!exists, `${mode} OpenCode install must not include ${command}`);
+    }
+  }
+}
+
+async function listCommandFiles(projectPath) {
+  const commandsRoot = path.join(projectPath, ".opencode", "commands");
+  return (await fs.readdir(commandsRoot)).filter((name) => name.endsWith(".md")).sort();
 }
 
 async function assertRenderedOpencodeModels(projectPath) {
@@ -421,7 +641,10 @@ async function assertRenderedOpencodeModels(projectPath) {
 
 async function assertCanonicalProfileOverridesRender(projectPath) {
   const modelProfilesPath = path.join(projectPath, ".harness", "model-profiles.yml");
+  const builderManifestPath = ".opencode/agents/harness-builder.md";
   const originalProfiles = await fs.readFile(modelProfilesPath, "utf8");
+  const originalManifest = await readManifest(projectPath);
+  const originalBuilderEntry = originalManifest.managedFiles.find((file) => file.path === builderManifestPath);
   const overriddenProfiles = originalProfiles
     .replace("default: \"openai/gpt-5.5\"", "default: \"smoke/think-override\"")
     .replace("default: \"openai/gpt-5.3-codex\"", "default: \"smoke/build-override\"")
@@ -438,6 +661,9 @@ async function assertCanonicalProfileOverridesRender(projectPath) {
     assertIncludes(diffOutput, "update: .opencode/agents/harness-validator.md");
 
     await harness("sync", "--project", projectPath, "--with-opencode");
+    const updatedManifest = await readManifest(projectPath);
+    const updatedBuilderEntry = updatedManifest.managedFiles.find((file) => file.path === builderManifestPath);
+    assert(updatedBuilderEntry?.renderedHash !== originalBuilderEntry?.renderedHash, "canonical profile sync must update builder renderedHash metadata");
     const overriddenModels = await readExpectedAgentModels(projectPath);
     for (const [agentName, expectedModel] of Object.entries(overriddenModels)) {
       const agentContent = await fs.readFile(path.join(projectPath, ".opencode", "agents", `${agentName}.md`), "utf8");
@@ -467,7 +693,7 @@ async function assertDoctorModelDriftStates(projectPath) {
     await fs.writeFile(builderPath, driftedBuilder, "utf8");
     let doctor = await harnessAllowFailure("doctor", "--project", projectPath);
     assert(doctor.code === 0, "doctor drift diagnostics should report DRIFTED without hard failure");
-    assertIncludes(doctor.stdout, `WARN  OpenCode model [DRIFTED] .opencode/agents/harness-builder.md model drifted to smoke/drifted-think; expected ${expectedModels["harness-builder"]} from profile think.default.`);
+    assertIncludes(doctor.stdout, `WARN  OpenCode model [DRIFTED] .opencode/agents/harness-builder.md model drifted to smoke/drifted-think; expected ${expectedModels["harness-builder"]} from .harness/model-profiles.yml profile think.default.`);
 
     await fs.writeFile(builderPath, originalBuilder.replace(`model: ${expectedModels["harness-builder"]}`, "model: {{MODEL_PROFILE_THINK}}"), "utf8");
     doctor = await harnessAllowFailure("doctor", "--project", projectPath);
@@ -478,17 +704,66 @@ async function assertDoctorModelDriftStates(projectPath) {
     await fs.rm(reviewerPath);
     doctor = await harnessAllowFailure("doctor", "--project", projectPath);
     assert(doctor.code === 0, "doctor drift diagnostics should report MISSING without hard failure");
-    assertIncludes(doctor.stdout, `WARN  OpenCode model [MISSING] .opencode/agents/harness-reviewer.md missing; expected model ${expectedModels["harness-reviewer"]} from profile review.default.`);
+    assertIncludes(doctor.stdout, `WARN  OpenCode model [MISSING] .opencode/agents/harness-reviewer.md missing; expected model ${expectedModels["harness-reviewer"]} from .harness/model-profiles.yml profile review.default.`);
 
     await fs.writeFile(reviewerPath, originalReviewer, "utf8");
     await fs.writeFile(configPath, originalConfig.replace("default: \"openai/gpt-5.5\"", "default: \"legacy/conflict-think\""), "utf8");
     doctor = await harnessAllowFailure("doctor", "--project", projectPath);
-    assert(doctor.code === 0, "doctor drift diagnostics should report CONFLICT without hard failure");
-    assertIncludes(doctor.stdout, `WARN  OpenCode model [CONFLICT] .opencode/agents/harness-builder.md profile think.default conflicts between .harness/model-profiles.yml (${expectedModels["harness-builder"]}) and harness.config.yaml (legacy/conflict-think).`);
+    assert(doctor.code === 0, "doctor should continue preferring canonical profiles when legacy fallback differs");
+    assertIncludes(doctor.stdout, `PASS  OpenCode model [OK] .opencode/agents/harness-builder.md model ${expectedModels["harness-builder"]} matches .harness/model-profiles.yml profile think.default.`);
   } finally {
     await fs.writeFile(builderPath, originalBuilder, "utf8");
     await fs.writeFile(reviewerPath, originalReviewer, "utf8");
     await fs.writeFile(configPath, originalConfig, "utf8");
+  }
+}
+
+async function assertLegacyProfileFallbackRender(projectPath) {
+  const canonicalPath = path.join(projectPath, ".harness", "model-profiles.yml");
+  const configPath = path.join(projectPath, "harness.config.yaml");
+  const builderPath = path.join(projectPath, ".opencode", "agents", "harness-builder.md");
+  const coderPath = path.join(projectPath, ".opencode", "agents", "harness-coder.md");
+  const originalCanonical = await fs.readFile(canonicalPath, "utf8");
+  const originalConfig = await fs.readFile(configPath, "utf8");
+
+  const legacyThink = "legacy/fallback-think";
+  const legacyBuild = "legacy/fallback-build";
+  const legacyReview = "legacy/fallback-review";
+  const legacyRun = "legacy/fallback-run";
+
+  try {
+    await fs.rm(canonicalPath);
+    const legacyConfig = originalConfig
+      .replace('default: "openai/gpt-5.5"', `default: "${legacyThink}"`)
+      .replace('default: "openai/gpt-5.3-codex"', `default: "${legacyBuild}"`)
+      .replace('default: "opencode-go/glm-5.1"', `default: "${legacyReview}"`)
+      .replace('default: "opencode-go/deepseek-v4-flash"', `default: "${legacyRun}"`);
+    await fs.writeFile(configPath, legacyConfig, "utf8");
+
+    const diffOutput = await harness("diff", "--project", projectPath, "--with-opencode");
+    assertIncludes(diffOutput, "missing: .harness/model-profiles.yml");
+    assertIncludes(diffOutput, "update: .opencode/agents/harness-builder.md");
+    assertIncludes(diffOutput, "update: .opencode/agents/harness-coder.md");
+
+    let doctor = await harnessAllowFailure("doctor", "--project", projectPath);
+    assert(doctor.code === 0, "doctor should inspect legacy model fallback without hard failure");
+    assertIncludes(doctor.stdout, `WARN  OpenCode model [DRIFTED] .opencode/agents/harness-builder.md model drifted to openai/gpt-5.5; expected ${legacyThink} from harness.config.yaml profile think.default.`);
+
+    await harness("sync", "--project", projectPath, "--with-opencode");
+
+    const canonicalAfterSync = await fs.readFile(canonicalPath, "utf8");
+    assertIncludes(canonicalAfterSync, `default: "${legacyThink}"`);
+    assertIncludes(canonicalAfterSync, `default: "${legacyBuild}"`);
+    assertIncludes(await fs.readFile(builderPath, "utf8"), `model: ${legacyThink}`);
+    assertIncludes(await fs.readFile(coderPath, "utf8"), `model: ${legacyBuild}`);
+
+    doctor = await harnessAllowFailure("doctor", "--project", projectPath);
+    assert(doctor.code === 0, "doctor should pass after legacy fallback resync regenerates canonical render output");
+    assertIncludes(doctor.stdout, `PASS  OpenCode model [OK] .opencode/agents/harness-builder.md model ${legacyThink} matches .harness/model-profiles.yml profile think.default.`);
+  } finally {
+    await fs.writeFile(configPath, originalConfig, "utf8");
+    await fs.writeFile(canonicalPath, originalCanonical, "utf8");
+    await harness("sync", "--project", projectPath, "--with-opencode");
   }
 }
 
@@ -706,6 +981,32 @@ function parseSimpleFrontmatter(content) {
     frontmatter[key] = value;
   }
   return frontmatter;
+}
+
+function removeTopLevelYamlSection(content, sectionName) {
+  const lines = content.split(/\r?\n/);
+  const filtered = [];
+  let skipping = false;
+
+  for (const line of lines) {
+    const isTopLevel = line.length > 0 && !/^\s/.test(line);
+    const isTargetSection = isTopLevel && line === `${sectionName}:`;
+
+    if (isTargetSection) {
+      skipping = true;
+      continue;
+    }
+
+    if (skipping && isTopLevel) {
+      skipping = false;
+    }
+
+    if (!skipping) {
+      filtered.push(line);
+    }
+  }
+
+  return `${filtered.join("\n").replace(/\n{3,}/g, "\n\n").replace(/\s*$/u, "")}\n`;
 }
 
 function isBinaryLikePath(relativePath) {

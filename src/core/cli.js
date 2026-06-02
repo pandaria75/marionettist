@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const help = `Universal AI Harness Framework
 
 Usage:
-  harness init [--project <path>] [--dry-run] [--force] [--auto] [--with-opencode]
+  harness init [--project <path>] [--dry-run] [--force] [--auto] [--distribution-mode <embedded|hybrid|adapter>] [--with-opencode] [--opencode-command-surface <minimal|standard|advanced|full>]
   harness sync [--project <path>] [--dry-run] [--force]
   harness diff [--project <path>]
   harness doctor [--project <path>]

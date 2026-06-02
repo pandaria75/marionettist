@@ -44,6 +44,10 @@ export function printPlan(plan, options) {
   console.log(`framework version: ${plan.version}`);
   console.log(`project: ${options.project}`);
   console.log(`mode: ${options.dryRun ? "dry-run" : "write"}`);
+  if (plan.distributionModeState?.reportedValue) {
+    const suffix = plan.distributionModeState.legacyInference ? " (legacy inferred; manifest unchanged)" : "";
+    console.log(`distribution mode: ${plan.distributionModeState.reportedValue}${suffix}`);
+  }
 
   for (const operation of plan.operations) {
     console.log(`${printableAction(operation, options)}: ${operation.targetRelative}`);

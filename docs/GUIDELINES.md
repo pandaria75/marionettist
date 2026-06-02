@@ -46,6 +46,16 @@ Default safety behavior:
 
 During interactive `harness init`, the CLI asks per existing file whether to backup, overwrite, or skip. Use `--auto` to skip all existing files; add `--force` to overwrite them.
 
+### Install Distribution Modes
+
+`harness init` supports three install/distribution modes:
+
+- `embedded` — default for new installs and the closest match to legacy behavior
+- `hybrid` — local harness install plus explicit adapter-aware distribution metadata
+- `adapter` — adapter-oriented install with the same local safety tracking
+
+The chosen mode is recorded in `.harness/manifest.json` as `distributionMode` and mirrored in `harness.config.yaml` under `distribution.mode` for readability. Legacy installs without manifest `distributionMode` remain valid; `harness diff`, `harness sync`, and `harness doctor` report or infer the effective mode. The field is written only when the user explicitly selects or provides a mode, when the manifest already contains `distributionMode`, or when `harness.config.yaml` specifies `distribution.mode`.
+
 ## 3. The Working Model
 
 The harness is a controlled sequence, not free-form continuous coding.
@@ -224,6 +234,14 @@ When docs or rules are added, moved, renamed, or deleted, update `docs/project/k
 
 OpenCode is optional but recommended for faster repeated harness execution. It adds builder-first slash commands, local agent roles with per-role model assignment, and validator scaffolding.
 
+OpenCode command surfaces are:
+
+- `minimal` — default: `/harness`, `/harness-dev`, `/harness-incident`, `/harness-docs`, `/harness-config`
+- `standard` — minimal plus `/harness-context`, `/harness-status`, `/harness-continue`
+- `advanced` — standard plus `/harness-feature`, `/harness-bugfix`, `/harness-refactor`
+
+Legacy `full` remains accepted as an alias for `advanced`.
+
 See [docs/OPENCODE.md](./OPENCODE.md) for the full guide.
 
 ## 11. Upgrade And Sync
@@ -238,3 +256,5 @@ harness sync --dry-run
 ```
 
 Local task artifacts, docs, rules, and skills are preserved by default. `AGENTS.md` updates only the managed block. Local modifications and conflicts are reported, not silently overwritten.
+
+For OpenCode-generated managed artifacts, the source of truth is the framework template under `templates/opencode/**`. The manifest tracks ownership metadata, including rendered hashes. `harness diff` reports local modifications, conflicts, missing files, and orphaned managed entries; `harness sync` does not silently overwrite local edits. Use force only when you intentionally want managed replacement.

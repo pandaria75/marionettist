@@ -40,6 +40,14 @@ harness init
 
 That installs `AGENTS.md`, `harness.config.yaml`, project docs, rules, skills, and a `.harness/manifest.json` for future safe upgrades.
 
+Optional install choices:
+
+- `--distribution-mode embedded` (default) keeps the harness self-contained in the target repo.
+- `--distribution-mode hybrid` keeps the standard local install while marking that the project also expects external adapter-aware tooling.
+- `--distribution-mode adapter` is for adapter-oriented installs where generated tooling is still tracked locally, but the manifest records adapter distribution explicitly.
+
+The selected mode is recorded in `.harness/manifest.json` as `distributionMode`. Legacy installs may not have that field yet; in that case the CLI preserves legacy behavior, infers or reports the effective mode when possible, and does not silently rewrite the manifest just to add the field.
+
 ## Where To Go Next
 
 | Document | Audience |
@@ -54,6 +62,9 @@ That installs `AGENTS.md`, `harness.config.yaml`, project docs, rules, skills, a
 # Initialize a target project
 harness init
 harness init --with-opencode
+harness init --with-opencode --opencode-command-surface minimal
+harness init --with-opencode --opencode-command-surface standard
+harness init --with-opencode --opencode-command-surface advanced
 
 # Preview framework updates without writing
 harness diff
@@ -65,6 +76,8 @@ harness sync --dry-run
 # Diagnose the harness installation
 harness doctor
 ```
+
+For OpenCode installs, the default command surface is the builder-first minimal set: `/harness`, `/harness-dev`, `/harness-incident`, `/harness-docs`, and `/harness-config`. `standard` adds `/harness-context`, `/harness-status`, and `/harness-continue`. `advanced` adds `/harness-feature`, `/harness-bugfix`, and `/harness-refactor`. Legacy `full` remains an accepted alias for `advanced`.
 
 ## Boundaries
 

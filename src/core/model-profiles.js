@@ -8,6 +8,10 @@ export const legacyHarnessConfigRelative = "harness.config.yaml";
 export const requiredModelProfiles = ["think", "build", "review", "run"];
 
 export async function loadModelProfiles(projectPath) {
+  return (await loadModelProfilesState(projectPath)).effectiveProfiles;
+}
+
+export async function loadModelProfilesState(projectPath) {
   const frameworkDefaults = await loadFrameworkDefaultProfiles();
 
   if (!frameworkDefaults) {
@@ -19,7 +23,13 @@ export async function loadModelProfiles(projectPath) {
     "canonical"
   );
   if (canonicalProfiles) {
-    return mergeModelProfiles(frameworkDefaults, canonicalProfiles);
+    return {
+      frameworkDefaults,
+      canonicalProfiles: normalizeModelProfiles(canonicalProfiles),
+      legacyProfiles: null,
+      effectiveProfiles: mergeModelProfiles(frameworkDefaults, canonicalProfiles),
+      source: "canonical"
+    };
   }
 
   const legacyProfiles = await readModelProfilesFromPath(
@@ -27,10 +37,22 @@ export async function loadModelProfiles(projectPath) {
     "legacy"
   );
   if (legacyProfiles) {
-    return mergeModelProfiles(frameworkDefaults, legacyProfiles);
+    return {
+      frameworkDefaults,
+      canonicalProfiles: null,
+      legacyProfiles: normalizeModelProfiles(legacyProfiles),
+      effectiveProfiles: mergeModelProfiles(frameworkDefaults, legacyProfiles),
+      source: "legacy"
+    };
   }
 
-  return frameworkDefaults;
+  return {
+    frameworkDefaults,
+    canonicalProfiles: null,
+    legacyProfiles: null,
+    effectiveProfiles: frameworkDefaults,
+    source: "framework"
+  };
 }
 
 export async function loadCanonicalOrFrameworkModelProfiles(projectPath) {
@@ -56,6 +78,20 @@ export function buildModelProfileTemplateVariables(profiles, variables = {}) {
     modelProfileReview: profiles.review.default,
     modelProfileRun: profiles.run.default
   };
+}
+
+export function renderCanonicalModelProfiles(profiles) {
+  const lines = ["profiles:"];
+
+  for (const profileName of requiredModelProfiles) {
+    const profile = profiles[profileName] ?? {};
+    lines.push(`  ${profileName}:`);
+    lines.push(`    description: ${JSON.stringify(profile.description ?? "unknown")}`);
+    lines.push(`    default: ${JSON.stringify(profile.default ?? "unknown")}`);
+    lines.push(`    fallback: ${JSON.stringify(profile.fallback ?? "unknown")}`);
+  }
+
+  return `${lines.join("\n")}\n`;
 }
 
 async function loadFrameworkDefaultProfiles() {

@@ -11,13 +11,15 @@ const harnessBin = path.join(repoRoot, "bin", "harness.js");
 const tempBase = process.env.HARNESS_SMOKE_TMP || os.tmpdir();
 const ordinaryOpencodeProject = path.join(tempBase, `harness-self-smoke-opencode-${process.pid}`);
 const ordinaryFullOpencodeProject = path.join(tempBase, `harness-self-smoke-opencode-full-${process.pid}`);
-const advancedOpencodeCommands = [
-  "harness-feature.md",
-  "harness-bugfix.md",
-  "harness-refactor.md",
+const standardOpencodeCommands = [
   "harness-context.md",
   "harness-status.md",
   "harness-continue.md"
+];
+const advancedOnlyOpencodeCommands = [
+  "harness-feature.md",
+  "harness-bugfix.md",
+  "harness-refactor.md"
 ];
 const templateOpencodePath = (...segments) => ["templates", "opencode", ...segments].join("/");
 const selfOpencodeFiles = [
@@ -289,14 +291,15 @@ async function assertOrdinaryFullOpencodeInitRetainsAdvancedCommands() {
   await fs.rm(ordinaryFullOpencodeProject, { recursive: true, force: true });
   const output = await harness("init", "--project", ordinaryFullOpencodeProject, "--auto", "--with-opencode", "--opencode-command-surface", "full");
   assertIncludes(output, "new-managed: .opencode/commands/harness-feature.md");
-  for (const command of advancedOpencodeCommands) {
+  for (const command of [...standardOpencodeCommands, ...advancedOnlyOpencodeCommands]) {
     assert(await pathExists(path.join(ordinaryFullOpencodeProject, ".opencode", "commands", command)), `ordinary full init must install ${command}`);
   }
   assert(!(await pathExists(path.join(ordinaryFullOpencodeProject, ".opencode", "commands", "harness-self-init.md"))), "ordinary full init must not install self command files");
 
   const doctorOutput = await harness("doctor", "--project", ordinaryFullOpencodeProject);
-  assertIncludes(doctorOutput, "PASS  OpenCode command surface [full] required normal commands present");
-  assertIncludes(doctorOutput, "PASS  OpenCode command surface [full] advanced commands present");
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [advanced] required normal commands present");
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [advanced] standard helper commands present");
+  assertIncludes(doctorOutput, "PASS  OpenCode command surface [advanced] advanced commands present");
 }
 
 async function getExpectedMirrorFiles() {

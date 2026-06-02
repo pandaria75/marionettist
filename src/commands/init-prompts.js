@@ -104,18 +104,43 @@ export async function promptWithOpencode() {
   });
 }
 
+export async function promptDistributionMode(defaultMode = "embedded") {
+  return await select({
+    message: "Choose the distribution mode:",
+    default: defaultMode,
+    choices: [
+      {
+        name: "embedded - default all-in-one harness install",
+        value: "embedded",
+      },
+      {
+        name: "hybrid - mixed source and adapter-oriented install",
+        value: "hybrid",
+      },
+      {
+        name: "adapter - adapter-focused runtime distribution",
+        value: "adapter",
+      },
+    ],
+  });
+}
+
 export async function promptOpencodeCommandSurface() {
   return await select({
     message: "Choose the OpenCode command surface:",
     default: "minimal",
     choices: [
       {
-        name: "minimal - default builder-first commands only",
+        name: "minimal - only /harness, /harness-dev, /harness-incident, /harness-docs, /harness-config",
         value: "minimal",
       },
       {
-        name: "full - include advanced legacy/power-user commands",
-        value: "full",
+        name: "standard - minimal plus /harness-context, /harness-status, /harness-continue",
+        value: "standard",
+      },
+      {
+        name: "advanced - standard plus legacy feature, bugfix, and refactor wrappers",
+        value: "advanced",
       },
     ],
   });

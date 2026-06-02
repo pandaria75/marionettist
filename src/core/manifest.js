@@ -2,6 +2,10 @@ import path from "node:path";
 import { pathExists, readText, writeText } from "./files.js";
 
 export const manifestRelative = ".harness/manifest.json";
+export const distributionModeValues = new Set(["embedded", "hybrid", "adapter"]);
+export const opencodeArtifactAdapter = "opencode";
+export const opencodeCommandSurfaceValues = new Set(["minimal", "standard", "advanced"]);
+const opencodeCommandSurfaceAliases = new Map([["full", "advanced"]]);
 
 export function manifestPath(projectPath) {
   return path.join(projectPath, manifestRelative);
@@ -32,25 +36,155 @@ export function manifestFileMap(manifest) {
   return result;
 }
 
-export function buildManifest({ version, installedAt, previousManifest, operations, force = false }) {
+export function buildManifest({ version, installedAt, previousManifest, operations, force = false, distributionMode = null }) {
   const previousInstalledAt = previousManifest?.installedAt ?? installedAt;
+  const manifestDistributionMode = resolveManifestDistributionMode(previousManifest, distributionMode);
   const managedFiles = operations
     .filter((operation) => operation.type === "file" && operation.managed)
-    .map((operation) => ({
-      path: operation.targetRelative,
-      source: operation.sourceRelative,
-      kind: operation.kind,
-      hash: manifestHashForOperation(operation, force)
-    }))
+    .map((operation) => buildManagedFileRecord(operation, force))
     .sort((left, right) => left.path.localeCompare(right.path));
 
   return {
     schemaVersion: 1,
     frameworkVersion: version,
+    ...(manifestDistributionMode ? { distributionMode: manifestDistributionMode } : {}),
     installedAt: previousInstalledAt,
     updatedAt: installedAt,
     managedFiles
   };
+}
+
+export function getManagedFileHash(file) {
+  return file?.renderedHash ?? file?.hash ?? null;
+}
+
+export function normalizeDistributionMode(value, label = "distribution mode") {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (!distributionModeValues.has(normalized)) {
+    throw new Error(`Unsupported ${label}: ${value}. Expected embedded, hybrid, or adapter.`);
+  }
+  return normalized;
+}
+
+export function validateOptionalDistributionMode(value, label = "distribution mode") {
+  if (value === undefined || value === null || value === "") {
+    return { value: null, error: null, rawValue: value };
+  }
+
+  if (typeof value !== "string") {
+    return {
+      value: null,
+      error: `${label} invalid: expected string embedded|hybrid|adapter, got ${typeof value}`,
+      rawValue: value
+    };
+  }
+
+  try {
+    return {
+      value: normalizeDistributionMode(value, label),
+      error: null,
+      rawValue: value
+    };
+  } catch (error) {
+    return {
+      value: null,
+      error: error instanceof Error ? error.message : String(error),
+      rawValue: value
+    };
+  }
+}
+
+export function normalizeOpencodeCommandSurface(value, label = "OpenCode command surface") {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  const canonical = opencodeCommandSurfaceAliases.get(normalized) ?? normalized;
+
+  if (!opencodeCommandSurfaceValues.has(canonical)) {
+    throw new Error(`Unsupported ${label}: ${value}. Expected minimal, standard, advanced, or legacy full.`);
+  }
+
+  return canonical;
+}
+
+export function validateOptionalOpencodeCommandSurface(value, label = "OpenCode command surface") {
+  if (value === undefined || value === null || value === "") {
+    return {
+      value: null,
+      error: null,
+      rawValue: value,
+      isLegacyAlias: false
+    };
+  }
+
+  if (typeof value !== "string") {
+    return {
+      value: null,
+      error: `${label} invalid: expected string minimal|standard|advanced|full, got ${typeof value}`,
+      rawValue: value,
+      isLegacyAlias: false
+    };
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (!opencodeCommandSurfaceValues.has(normalized) && !opencodeCommandSurfaceAliases.has(normalized)) {
+    return {
+      value: null,
+      error: `${label} invalid: expected minimal|standard|advanced|full, got ${value}`,
+      rawValue: value,
+      isLegacyAlias: false
+    };
+  }
+
+  try {
+    return {
+      value: normalizeOpencodeCommandSurface(value, label),
+      error: null,
+      rawValue: value,
+      isLegacyAlias: normalized === "full"
+    };
+  } catch (error) {
+    return {
+      value: null,
+      error: error instanceof Error ? error.message : String(error),
+      rawValue: value,
+      isLegacyAlias: false
+    };
+  }
+}
+
+function resolveManifestDistributionMode(previousManifest, distributionMode) {
+  if (distributionMode !== null && distributionMode !== undefined) {
+    return normalizeDistributionMode(distributionMode, "distribution mode");
+  }
+
+  if (previousManifest?.distributionMode !== undefined) {
+    return normalizeDistributionMode(previousManifest.distributionMode, "manifest distributionMode");
+  }
+
+  return null;
+}
+
+function buildManagedFileRecord(operation, force) {
+  const renderedHash = manifestHashForOperation(operation, force);
+  const record = {
+    path: operation.targetRelative,
+    source: operation.sourceRelative,
+    kind: operation.kind,
+    hash: renderedHash
+  };
+
+  if (operation.adapter === opencodeArtifactAdapter) {
+    record.adapter = operation.adapter;
+    record.renderedHash = renderedHash;
+    if (operation.templateHash) {
+      record.templateHash = operation.templateHash;
+    }
+    if (operation.commandSurface) {
+      record.commandSurface = normalizeOpencodeCommandSurface(operation.commandSurface, "OpenCode command surface metadata");
+    }
+  }
+
+  return record;
 }
 
 function manifestHashForOperation(operation, force) {

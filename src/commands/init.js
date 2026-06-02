@@ -2,7 +2,7 @@ import path from "node:path";
 import { parseCommonArgs } from "../core/args.js";
 import { applyPlan, printPlan } from "../core/apply-plan.js";
 import { buildPlan } from "../core/plan.js";
-import { promptConfig, promptConflictStrategy, promptOpencodeCommandSurface, promptWithOpencode } from "./init-prompts.js";
+import { promptConfig, promptConflictStrategy, promptDistributionMode, promptOpencodeCommandSurface, promptWithOpencode } from "./init-prompts.js";
 
 export async function initCommand(args) {
   const options = parseCommonArgs(args);
@@ -18,6 +18,7 @@ export async function initCommand(args) {
   };
   let conflictStrategies = {};
   let withOpencode = options.withOpencode;
+  let distributionMode = options.distributionMode;
   let opencodeCommandSurface = options.opencodeCommandSurface;
 
   if (!options.auto) {
@@ -40,6 +41,10 @@ export async function initCommand(args) {
       withOpencode = await promptWithOpencode();
     }
 
+    if (distributionMode === null) {
+      distributionMode = await promptDistributionMode();
+    }
+
     if (withOpencode && opencodeCommandSurface === null) {
       opencodeCommandSurface = await promptOpencodeCommandSurface();
     }
@@ -49,6 +54,7 @@ export async function initCommand(args) {
     ...options,
     variables,
     withOpencode,
+    distributionMode,
     opencodeCommandSurface
   };
 

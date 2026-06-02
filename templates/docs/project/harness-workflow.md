@@ -336,3 +336,39 @@ Example:
 ```
 
 Agents may preserve extra project-local fields, but must not change the meaning of the fields above.
+
+## Framework-Managed Install And OpenCode Notes
+
+When this project was installed or upgraded through the harness, `.harness/manifest.json` is the ownership record for framework-managed files.
+
+Install/distribution modes:
+
+- `embedded` — default for new installs and the closest match to legacy behavior
+- `hybrid` — local install with explicit adapter-aware distribution metadata
+- `adapter` — adapter-oriented install while keeping local manifest-based safety checks
+
+When recorded, the mode appears in `.harness/manifest.json` as `distributionMode`. `harness.config.yaml` may mirror it under `distribution.mode` for readability. Legacy installs without manifest `distributionMode` remain valid; `harness diff`, `harness sync`, and `harness doctor` may report or infer the effective mode. The field is written only when the user explicitly selects or provides a mode, when the manifest already contains `distributionMode`, or when `harness.config.yaml` specifies `distribution.mode`.
+
+For optional OpenCode assets:
+
+- the framework template source of truth is `templates/opencode/**` in the framework distribution
+- managed entries may record metadata such as `adapter`, `commandSurface`, `templateHash`, `renderedHash`, and legacy `hash`
+- safe comparison uses `renderedHash ?? hash` for compatibility with older manifests
+- local edits, missing files, conflicts, and orphaned managed entries are reported rather than silently overwritten
+- force-style replacement must be explicit
+
+Canonical model profile source:
+
+- `.harness/model-profiles.yml` is the canonical source when present
+- `harness.config.yaml` `models.profiles.*` is legacy fallback only when the canonical file is absent
+- `harness sync` may restore or re-render the canonical file and OpenCode agent files from effective profile values
+- `harness doctor` reports drift and whether expected model values came from the canonical file or the legacy fallback
+
+OpenCode command surfaces:
+
+- `minimal` — `/harness`, `/harness-dev`, `/harness-incident`, `/harness-docs`, `/harness-config`
+- `standard` — minimal plus `/harness-context`, `/harness-status`, `/harness-continue`
+- `advanced` — standard plus `/harness-feature`, `/harness-bugfix`, `/harness-refactor`
+- legacy `full` is a compatibility alias for `advanced`
+
+The intended default is builder-first usage through `/harness`; broader command surfaces are optional ergonomics layers.

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { normalizeDistributionMode, normalizeOpencodeCommandSurface } from "./manifest.js";
 
 export function parseCommonArgs(args) {
   const knowledgeModes = new Set(["standard", "mudball"]);
@@ -9,6 +10,7 @@ export function parseCommonArgs(args) {
     force: false,
     auto: false,
     withOpencode: null,
+    distributionMode: null,
     opencodeCommandSurface: null,
     knowledgeMode: null,
     knowledgeMaturity: null
@@ -47,15 +49,22 @@ export function parseCommonArgs(args) {
       continue;
     }
 
+    if (arg === "--distribution-mode") {
+      const value = args[index + 1];
+      if (!value) {
+        throw new Error("--distribution-mode requires embedded, hybrid, or adapter");
+      }
+      options.distributionMode = normalizeDistributionMode(value, "--distribution-mode value");
+      index += 1;
+      continue;
+    }
+
     if (arg === "--opencode-command-surface") {
       const value = args[index + 1];
       if (!value) {
-        throw new Error("--opencode-command-surface requires minimal or full");
+        throw new Error("--opencode-command-surface requires minimal, standard, advanced, or legacy full");
       }
-      if (value !== "minimal" && value !== "full") {
-        throw new Error(`Unsupported --opencode-command-surface value: ${value}`);
-      }
-      options.opencodeCommandSurface = value;
+      options.opencodeCommandSurface = normalizeOpencodeCommandSurface(value, "--opencode-command-surface value");
       index += 1;
       continue;
     }

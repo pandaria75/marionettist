@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { parseCommonArgs } from "../core/args.js";
+import { validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface } from "../core/manifest.js";
 import { parseSimpleYaml } from "../core/yaml.js";
 
 const managedBlockStart = "<!-- harness-kit:start -->";
@@ -20,7 +21,6 @@ const opencodeAdapterConfigRelatives = [
   ".harness/adapters/opencode.yml",
   ".harness/adapters/opencode.yaml"
 ];
-const validOpencodeCommandSurfaces = new Set(["minimal", "full"]);
 const requiredNormalOpencodeCommands = [
   ".opencode/commands/harness.md",
   ".opencode/commands/harness-dev.md",
@@ -28,13 +28,15 @@ const requiredNormalOpencodeCommands = [
   ".opencode/commands/harness-docs.md",
   ".opencode/commands/harness-config.md"
 ];
-const advancedOpencodeCommands = [
-  ".opencode/commands/harness-feature.md",
-  ".opencode/commands/harness-bugfix.md",
-  ".opencode/commands/harness-refactor.md",
+const standardOpencodeCommands = [
   ".opencode/commands/harness-context.md",
   ".opencode/commands/harness-status.md",
   ".opencode/commands/harness-continue.md"
+];
+const advancedOnlyOpencodeCommands = [
+  ".opencode/commands/harness-feature.md",
+  ".opencode/commands/harness-bugfix.md",
+  ".opencode/commands/harness-refactor.md"
 ];
 const modelDriftRemediation = "Reconcile the local model sources, then run `harness diff --project <path>` or `harness sync --project <path> --with-opencode` to preview or apply the safe regeneration.";
 
@@ -44,7 +46,8 @@ export async function doctorCommand(args) {
 
   const harnessConfig = await checkHarnessConfig(options.project, results);
   await checkAgents(options.project, results);
-  await checkManifest(options.project, results);
+  const manifest = await checkManifest(options.project, results);
+  checkDistributionMode(manifest, harnessConfig, results);
   await checkPath(options.project, ".aiassistant/rules", "directory", ".aiassistant/rules exists", results);
   await checkPath(options.project, "docs/project/knowledge-map.md", "file", "docs/project/knowledge-map.md exists", results);
   await checkPath(options.project, "docs/project/harness-workflow.md", "file", "docs/project/harness-workflow.md exists", results);
@@ -122,7 +125,7 @@ async function checkManifest(projectPath, results) {
 
   if (manifest.schemaVersion !== 1) {
     results.push(fail(`${relative} unsupported schemaVersion: ${manifest.schemaVersion}`));
-    return;
+    return null;
   }
   results.push(pass(`${relative} schemaVersion=${manifest.schemaVersion}`));
 
@@ -134,7 +137,7 @@ async function checkManifest(projectPath, results) {
 
   if (!Array.isArray(manifest.managedFiles)) {
     results.push(fail(`${relative} managedFiles missing or not an array`));
-    return;
+    return null;
   }
   results.push(pass(`${relative} managedFiles count=${manifest.managedFiles.length}`));
 
@@ -151,6 +154,42 @@ async function checkManifest(projectPath, results) {
   } else {
     results.push(pass("all managed files referenced in manifest exist on disk"));
   }
+
+  return manifest;
+}
+
+function checkDistributionMode(manifest, harnessConfig, results) {
+  if (!manifest) {
+    return;
+  }
+
+  const manifestMode = readConfiguredDistributionModeValue(manifest.distributionMode, ".harness/manifest.json distributionMode");
+  const configMode = readConfiguredDistributionModeValue(harnessConfig?.distribution?.mode, "harness.config.yaml distribution.mode");
+
+  if (manifestMode.error) {
+    results.push(fail(manifestMode.error));
+    return;
+  }
+
+  if (configMode.error) {
+    results.push(fail(configMode.error));
+    return;
+  }
+
+  if (manifestMode.value) {
+    results.push(pass(`distribution mode: ${manifestMode.value} (manifest)`));
+    if (configMode.value && configMode.value !== manifestMode.value) {
+      results.push(warn(`distribution mode config mismatch: manifest=${manifestMode.value}, harness.config.yaml=${configMode.value}`));
+    }
+    return;
+  }
+
+  if (configMode.value) {
+    results.push(warn(`distribution mode: ${configMode.value} (inferred from harness.config.yaml; manifest missing distributionMode)`));
+    return;
+  }
+
+  results.push(warn("distribution mode: embedded (legacy inferred; manifest missing distributionMode)"));
 }
 
 async function checkPath(projectPath, relative, expectedType, label, results) {
@@ -249,8 +288,13 @@ async function checkOpenCodeCommandSurface(projectPath, harnessConfig, opencodeC
     return;
   }
 
-  const hasAdvancedCommands = advancedOpencodeCommands.some((relative) => installedCommands.has(relative));
-  const effectiveSurface = configuredSurface.value ?? (hasAdvancedCommands ? "legacy-full" : "minimal");
+  const hasAdvancedOnlyCommands = advancedOnlyOpencodeCommands.some((relative) => installedCommands.has(relative));
+  const hasStandardCommands = standardOpencodeCommands.some((relative) => installedCommands.has(relative));
+  const effectiveSurface = configuredSurface.value
+    ? (configuredSurface.isLegacyAlias ? "legacy-full" : configuredSurface.value)
+    : (hasAdvancedOnlyCommands ? "legacy-full" : hasStandardCommands ? "standard" : "minimal");
+  const presentStandardCommands = standardOpencodeCommands.filter((relative) => installedCommands.has(relative));
+  const presentAdvancedOnlyCommands = advancedOnlyOpencodeCommands.filter((relative) => installedCommands.has(relative));
 
   const missingNormalCommands = requiredNormalOpencodeCommands.filter((relative) => !installedCommands.has(relative));
   if (missingNormalCommands.length > 0) {
@@ -259,8 +303,15 @@ async function checkOpenCodeCommandSurface(projectPath, harnessConfig, opencodeC
     results.push(pass(`OpenCode command surface [${effectiveSurface}] required normal commands present`));
   }
 
-  if (effectiveSurface === "full" || effectiveSurface === "legacy-full") {
-    const missingAdvancedCommands = advancedOpencodeCommands.filter((relative) => !installedCommands.has(relative));
+  if (effectiveSurface === "advanced" || effectiveSurface === "legacy-full") {
+    const missingStandardCommands = standardOpencodeCommands.filter((relative) => !installedCommands.has(relative));
+    if (missingStandardCommands.length > 0) {
+      results.push(fail(`OpenCode command surface [${effectiveSurface}] missing standard helper command(s): ${missingStandardCommands.join(", ")}`));
+    } else {
+      results.push(pass(`OpenCode command surface [${effectiveSurface}] standard helper commands present`));
+    }
+
+    const missingAdvancedCommands = advancedOnlyOpencodeCommands.filter((relative) => !installedCommands.has(relative));
     if (missingAdvancedCommands.length > 0) {
       results.push(fail(`OpenCode command surface [${effectiveSurface}] missing advanced command(s): ${missingAdvancedCommands.join(", ")}`));
     } else {
@@ -269,11 +320,26 @@ async function checkOpenCodeCommandSurface(projectPath, harnessConfig, opencodeC
     return;
   }
 
-  const presentAdvancedCommands = advancedOpencodeCommands.filter((relative) => installedCommands.has(relative));
-  if (presentAdvancedCommands.length > 0) {
-    results.push(warn(`OpenCode command surface [minimal] includes advanced command(s): ${presentAdvancedCommands.join(", ")}`));
+  if (effectiveSurface === "standard") {
+    const missingStandardCommands = standardOpencodeCommands.filter((relative) => !installedCommands.has(relative));
+    if (missingStandardCommands.length > 0) {
+      results.push(fail(`OpenCode command surface [standard] missing standard helper command(s): ${missingStandardCommands.join(", ")}`));
+    } else {
+      results.push(pass("OpenCode command surface [standard] standard helper commands present"));
+    }
+
+    if (presentAdvancedOnlyCommands.length > 0) {
+      results.push(warn(`OpenCode command surface [standard] includes advanced-only command(s): ${presentAdvancedOnlyCommands.join(", ")}`));
+    } else {
+      results.push(pass("OpenCode command surface [standard] advanced-only commands absent"));
+    }
+    return;
+  }
+
+  if (presentStandardCommands.length > 0 || presentAdvancedOnlyCommands.length > 0) {
+    results.push(warn(`OpenCode command surface [minimal] includes non-minimal command(s): ${[...presentStandardCommands, ...presentAdvancedOnlyCommands].join(", ")}`));
   } else {
-    results.push(pass("OpenCode command surface [minimal] advanced commands absent"));
+    results.push(pass("OpenCode command surface [minimal] non-minimal commands absent"));
   }
 }
 
@@ -322,22 +388,19 @@ function evaluateAgentModelStatus(context) {
     return buildModelStatus("MISSING", `${agentRelative} cannot determine expected model because neither .harness/model-profiles.yml nor harness.config.yaml provides profile ${role}. ${modelDriftRemediation}`);
   }
 
-  if (canonicalValue && legacyValue && canonicalValue !== legacyValue) {
-    return buildModelStatus("CONFLICT", `${agentRelative} profile ${role}.default conflicts between .harness/model-profiles.yml (${canonicalValue}) and harness.config.yaml (${legacyValue}). ${modelDriftRemediation}`);
-  }
-
   const expectedModel = canonicalValue ?? legacyValue;
+  const expectedSourceLabel = canonicalValue ? ".harness/model-profiles.yml" : "harness.config.yaml";
 
   if (adapterValue && adapterValue !== expectedModel) {
-    return buildModelStatus("CONFLICT", `${agentRelative} adapter config ${adapterSource.label} expects ${adapterValue} for ${agentName}, but profile ${role}.default expects ${expectedModel}. ${modelDriftRemediation}`);
+    return buildModelStatus("CONFLICT", `${agentRelative} adapter config ${adapterSource.label} expects ${adapterValue} for ${agentName}, but ${expectedSourceLabel} profile ${role}.default expects ${expectedModel}. ${modelDriftRemediation}`);
   }
 
   if (opencodeValue && opencodeValue !== expectedModel) {
-    return buildModelStatus("CONFLICT", `${agentRelative} opencode.jsonc model data expects ${opencodeValue} for ${agentName}, but profile ${role}.default expects ${expectedModel}. ${modelDriftRemediation}`);
+    return buildModelStatus("CONFLICT", `${agentRelative} opencode.jsonc model data expects ${opencodeValue} for ${agentName}, but ${expectedSourceLabel} profile ${role}.default expects ${expectedModel}. ${modelDriftRemediation}`);
   }
 
   if (!agentExists) {
-    return buildModelStatus("MISSING", `${agentRelative} missing; expected model ${expectedModel} from profile ${role}.default. ${modelDriftRemediation}`);
+    return buildModelStatus("MISSING", `${agentRelative} missing; expected model ${expectedModel} from ${expectedSourceLabel} profile ${role}.default. ${modelDriftRemediation}`);
   }
 
   try {
@@ -347,14 +410,14 @@ function evaluateAgentModelStatus(context) {
       : null;
 
     if (!actualModel) {
-      return buildModelStatus("MISSING", `${agentRelative} is missing frontmatter model; expected ${expectedModel} from profile ${role}.default. ${modelDriftRemediation}`);
+      return buildModelStatus("MISSING", `${agentRelative} is missing frontmatter model; expected ${expectedModel} from ${expectedSourceLabel} profile ${role}.default. ${modelDriftRemediation}`);
     }
 
     if (actualModel !== expectedModel) {
-      return buildModelStatus("DRIFTED", `${agentRelative} model drifted to ${actualModel}; expected ${expectedModel} from profile ${role}.default. ${modelDriftRemediation}`);
+      return buildModelStatus("DRIFTED", `${agentRelative} model drifted to ${actualModel}; expected ${expectedModel} from ${expectedSourceLabel} profile ${role}.default. ${modelDriftRemediation}`);
     }
 
-    return buildModelStatus("OK", `${agentRelative} model ${actualModel} matches profile ${role}.default.`);
+    return buildModelStatus("OK", `${agentRelative} model ${actualModel} matches ${expectedSourceLabel} profile ${role}.default.`);
   } catch (error) {
     return buildModelStatus("MISSING", `${agentRelative} frontmatter could not be parsed for model drift inspection: ${error.message}. ${modelDriftRemediation}`);
   }
@@ -744,19 +807,19 @@ function containsUnresolvedModelProfilePlaceholder(content) {
 
 function readConfiguredCommandSurface(harnessConfig) {
   const value = harnessConfig?.opencode?.commandSurface;
-  if (value === undefined || value === null || value === "") {
-    return { value: null, error: null };
-  }
+  const result = validateOptionalOpencodeCommandSurface(value, "harness.config.yaml opencode.commandSurface");
+  return {
+    value: result.value,
+    error: typeof result.error === "string"
+      ? result.error.replace(/^harness\.config\.yaml opencode\.commandSurface invalid: /u, "")
+      : result.error,
+    isLegacyAlias: result.isLegacyAlias
+  };
+}
 
-  if (typeof value !== "string") {
-    return { value: null, error: `expected string minimal|full, got ${typeof value}` };
-  }
-
-  if (!validOpencodeCommandSurfaces.has(value)) {
-    return { value: null, error: `expected minimal|full, got ${value}` };
-  }
-
-  return { value, error: null };
+function readConfiguredDistributionModeValue(value, label) {
+  const result = validateOptionalDistributionMode(value, label);
+  return { value: result.value, error: result.error };
 }
 
 async function exists(absolute) {
