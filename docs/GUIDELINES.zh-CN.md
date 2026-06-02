@@ -2,71 +2,53 @@
 
 [English](./GUIDELINES.md)
 
-本文档面向已经或准备在目标项目中使用 harness 的团队与开发者，重点讲如何把这套 workflow 用起来，而不是解释框架内部实现。
+面向在目标项目中日常使用 harness 的技术负责人和开发者。涵盖安装、任务工作流、gate、skills 和实用提示词。
 
-## 1. 谁应该读这份文档
+底层设计见 [docs/DESIGN.zh-CN.md](./DESIGN.zh-CN.md)。
 
-- 通过 `harness init` 接入项目的团队
-- 用 agent 处理功能、缺陷、重构和文档任务的开发者
-
-如果你维护的是 framework 本身，还应阅读 [DESIGN.zh-CN.md](./DESIGN.zh-CN.md)。
-
-## 2. 快速开始
-
-初始化目标项目：
+## 1. 快速开始
 
 ```powershell
+# 预览安装计划
 harness init --dry-run
+
+# 交互式安装
 harness init
-```
 
-推荐使用带 OpenCode 脚手架的初始化方式：
-
-```powershell
+# 推荐：安装时带上 OpenCode 脚手架
 harness init --dry-run --with-opencode
 harness init --with-opencode
 ```
 
-初始化完成后，优先做三件事：
+安装后先做这些事：
 
-1. 运行 `workspace-knowledge-manager init`，建立第一版项目知识。
-2. 在 `AGENTS.md` 的 `project-local` 区域补充团队规则和默认值。
-3. 根据项目实际情况调整 `harness.config.yaml`、rules 和 `docs/project/knowledge-map.md`。
+1. 运行 `workspace-knowledge-manager init`，创建第一版项目知识文档。
+2. 根据实际项目调整 `harness.config.yaml`、rules 和 `docs/project/knowledge-map.md`。
+3. 在 `AGENTS.md` 的 `project-local` 块中填入团队特有规则。
+4. 如果安装了 OpenCode，通过 `.harness/model-profiles.yml` 调整 agent 模型。
 
-当安装了 OpenCode 脚手架后，优先通过 `.harness/model-profiles.yml` 调整 harness agent 模型。生成的 `.opencode/agents/*.md` 文件是具体的 OpenCode 运行时文件，而 `opencode.jsonc` 应保持为项目级 OpenCode 配置，除非团队有意选择本地覆盖。
-
-## 3. 初始化后会得到什么
+## 2. 初始化后得到什么
 
 核心文件：
+- `AGENTS.md` — 仓库入口行为
+- `harness.config.yaml` — 项目配置
+- `docs/project/harness-workflow.md` — 任务状态契约
+- `docs/project/knowledge-map.md` — 知识路由
+- `.aiassistant/rules/*.md` — 可执行约束
+- `.agents/skills/*/SKILL.md` — 工作流 skills
+- `.task/` — 任务工件（本地，不受管）
+- `.harness/manifest.json` — 框架 ownership 追踪
 
-- `AGENTS.md`
-- `harness.config.yaml`
-- `docs/project/harness-workflow.md`
-- `docs/project/knowledge-map.md`
-- `.aiassistant/rules/*.md`
-- `.agents/skills/*/SKILL.md`
-- `.task/`
-- `.harness/manifest.json`
+默认安全行为：
+- 已有项目本地文件被保留。
+- `AGENTS.md` 只更新 managed block。
+- 后续框架升级由 manifest 判断哪些内容可安全更新。
 
-默认行为：
+交互式 `harness init` 中，CLI 对每个已存在文件询问是备份、覆盖还是跳过。用 `--auto` 跳过所有已存在文件；搭配 `--force` 覆盖它们。
 
-- 已有 project-local 文件会被保留
-- `AGENTS.md` 只更新 managed block
-- 如果目标 `AGENTS.md` 不含 managed-block 标记，则其现有全部内容会被保留为 project-local imported 区域
-- `.task/` 是本地任务状态，不属于 managed file
-- 后续升级由 manifest 判断哪些内容可以安全更新
+## 3. 工作模型
 
-`harness init` 冲突处理（交互模式）：
-
-- 对每个已存在文件，CLI 会询问是备份（重命名为 `.bak`）、覆盖还是跳过
-- 使用 `--auto` 可跳过提示，并默认跳过所有已存在文件
-- 搭配 `--force` 可覆盖所有已存在的受管文件
-
-## 4. 这套 Harness 应该怎么用
-
-不要把 harness 当成“让 agent 一直写到结束”的自由编码模式。
-
-正确方式是把它当成一条受控序列：
+Harness 是受控序列，不是自由连续编码。
 
 ```text
 task-intake
@@ -79,34 +61,20 @@ task-intake
   -> workspace-knowledge-manager review
 ```
 
-不是每个任务都要走全套。Harness 会按任务 tier 自动裁剪流程。
+并非每个任务都需要全部步骤。Harness 按 tier 裁剪流程。
 
-## 5. 三种任务 Tier
+## 4. 三层任务 Tier
 
-### 5.1 Tier S
+### Tier S — 平凡，低风险
 
-适用于范围明确、风险很低、只涉及一个很小改动的任务。
+范围明确的小改动。例如：拼写修复、注释更新、单文件配置调整。
 
-例如：
-
-- 拼写修复
-- 注释或文案更新
-- 单文件小配置修改
-- 明显且低风险的局部修复
-
-流程：
-
-```text
-coding -> boundary-reviewer
-```
-
-示例提示词：
+流程：`coding -> boundary-reviewer`
 
 ```text
 这是一个 Tier S 改动。
 
-任务：
-<描述>
+任务：<描述>
 
 要求：
 - 只修改相关文件。
@@ -115,30 +83,13 @@ coding -> boundary-reviewer
 - 完成后总结验证情况。
 ```
 
-### 5.2 Tier M
+### Tier M — 标准范围工作
 
-适用于范围清楚，但在安全编码前仍需要分析的标准任务。
+需要先分析再安全编码的工作。例如：涉及少量文件的功能、需要调用链检查的 bugfix、边界清晰的重构。
 
-例如：
+流程：`task-intake -> module/workflow-inspector（按需）-> context-pack-builder -> coding -> boundary-reviewer`
 
-- 影响少量文件的功能
-- 需要先看调用链的 bugfix
-- 边界清晰的重构
-- 与行为变化有关的文档更新
-
-流程：
-
-```text
-task-intake
-  -> module-inspector / workflow-inspector（按需）
-  -> context-pack-builder
-  -> coding
-  -> boundary-reviewer
-```
-
-最低要求：编码前生成 `.task/<task-id>/context-pack.md`。
-
-示例提示词：
+最低要求：编码前创建 `.task/<task-id>/context-pack.md`。
 
 ```text
 我要处理一个标准任务：
@@ -147,38 +98,17 @@ task-intake
 
 请按照当前仓库的 harness workflow 推进。
 先进行 task-intake。
-编码前生成 .task/<task-id>/context-pack.md。
+编码前创建 .task/<task-id>/context-pack.md。
 不要直接编码。
 ```
 
-### 5.3 Tier L
+### Tier L — 复杂或边界敏感工作
 
-适用于复杂任务或边界敏感任务。
+需求不清、跨模块改动、公共契约变更、高风险重构或分阶段交付。
 
-例如：
+流程：完整 `task-intake` 至 `workspace-knowledge-manager review`
 
-- 需求或兼容性约束不清楚
-- 跨模块改动
-- 公共行为或契约变化
-- 高风险重构
-- 需要分阶段交付的任务
-
-流程：
-
-```text
-task-intake
-  -> requirement-freezer（按需）
-  -> module-inspector / workflow-inspector
-  -> implementation-slicer
-  -> context-pack-builder
-  -> coding by slice
-  -> boundary-reviewer
-  -> workspace-knowledge-manager review
-```
-
-最低要求：只能基于已批准的 slice 编码。
-
-示例提示词：
+最低要求：只能基于已批准 slice 编码。
 
 ```text
 我要处理一个复杂任务：
@@ -187,25 +117,20 @@ task-intake
 
 请按照当前仓库的 harness workflow 推进。
 先进行 task-intake。
-如果需求或边界不清楚，使用 requirement-freezer。
+如需求或边界不清，使用 requirement-freezer。
 编码前生成 implementation plan 和 .task/<task-id>/context-pack.md。
 不要直接编码。
 ```
 
-## 6. Gate 机制
+## 5. Gate 机制
 
-对于非平凡任务，gate 是强制的。
-
-Agent 必须停在以下节点：
-
+对非平凡任务，gate 是强制的。Agent 必须停在：
 - analysis 结束后，进入 coding 前
 - 每个已批准 slice 或已批准并行 group 完成后
 
-只有同一已批准 slice 或 group 内，coding 才能直接流转到 review。
+Agent 只能在同一已批准 slice 内从 coding 直接流转到 review。不得自动进入下一 slice。
 
-它不能自动进入下一 slice。
-
-推荐 gate 报告格式：
+推荐 gate 报告：
 
 ```text
 Phase:
@@ -216,134 +141,32 @@ Recommended Next Step:
 User confirmation required to continue.
 ```
 
-## 7. 主要 Skills
+## 6. 核心 Skills
 
-### 7.1 `task-intake`
+| Skill | 何时使用 | 产出 |
+| --- | --- | --- |
+| `task-intake` | 非平凡任务的默认入口 | 分类、下一步 |
+| `requirement-freezer` | 需求或边界不清 | `.task/<task-id>/requirement.md` |
+| `module-inspector` | 理解模块、包或边界 | — |
+| `workflow-inspector` | 理解执行流程或编排 | — |
+| `implementation-slicer` | 拆分复杂工作为小切片 | `.task/<task-id>/implementation-plan.md` |
+| `context-pack-builder` | 编码前构建最小工作上下文 | `.task/<task-id>/context-pack.md` |
+| `boundary-reviewer` | 同一切片实现后立即审查 | `PASS`、`PASS_WITH_WARNINGS` 或 `BLOCKED` |
+| `workspace-knowledge-manager` | 创建或维护设计文档和知识 | — |
 
-作为非平凡任务的默认入口。
+## 7. 核心任务工件
 
-它应完成：
+| 工件 | 路径 | 何时 |
+| --- | --- | --- |
+| Requirement | `.task/<task-id>/requirement.md` | Tier L 或模糊工作 |
+| Implementation Plan | `.task/<task-id>/implementation-plan.md` | Tier L 切片工作 |
+| Context Pack | `.task/<task-id>/context-pack.md` | Tier M 或 L，编码前 |
 
-- 判断任务类型
-- 判断任务 tier
-- 只问阻塞性问题
-- 选择下一步 harness 动作
+实现计划中每个 slice 定义：goal、allowed scope、forbidden scope、validation 和 done criteria。
 
-### 7.2 `requirement-freezer`
+## 8. 实用提示词
 
-当预期行为、业务规则、兼容性或边界不清楚时使用。
-
-输出：
-
-```text
-.task/<task-id>/requirement.md
-```
-
-### 7.3 `module-inspector`
-
-当你需要理解模块、包、功能区或依赖边界时使用。
-
-### 7.4 `workflow-inspector`
-
-当你需要理解执行流程、异步行为、编排链路或集成流时使用。
-
-### 7.5 `implementation-slicer`
-
-把复杂且已确认的工作拆成可执行的小切片。
-
-输出：
-
-```text
-.task/<task-id>/implementation-plan.md
-```
-
-### 7.6 `context-pack-builder`
-
-编码前用于生成最小工作上下文。
-
-输出：
-
-```text
-.task/<task-id>/context-pack.md
-```
-
-它应只保留当前 slice 或已批准 group 所需的上下文，而不是复制整份 docs 或源码。
-
-### 7.7 `boundary-reviewer`
-
-在同一已批准 slice 完成实现后立即执行。
-
-最终结论只能是：
-
-- `PASS`
-- `PASS_WITH_WARNINGS`
-- `BLOCKED`
-
-### 7.8 `workspace-knowledge-manager`
-
-用于创建或维护设计文档、规则路由和知识更新。
-
-常用模式：
-
-- `init`
-- `refresh`
-- `review`
-- `topic`
-
-## 8. 三类核心任务工件
-
-### 8.1 Requirement Document
-
-当任务需要冻结需求时使用。
-
-路径：
-
-```text
-.task/<task-id>/requirement.md
-```
-
-### 8.2 Implementation Plan
-
-当任务需要明确切片时使用。
-
-路径：
-
-```text
-.task/<task-id>/implementation-plan.md
-```
-
-每个 slice 至少应定义：
-
-- goal
-- allowed scope
-- forbidden scope
-- validation
-- done criteria
-
-### 8.3 Context Pack
-
-在非平凡实现任务进入编码前使用。
-
-路径：
-
-```text
-.task/<task-id>/context-pack.md
-```
-
-它应包括：
-
-- task goal
-- requirement 和 plan 来源
-- 已读取 docs 和 rules
-- allowed / forbidden scope
-- 当前已批准 slice 或 group
-- validation commands
-- assumptions
-- stop conditions
-
-## 9. 实战示例
-
-### 9.1 新功能
+### 新功能
 
 ```text
 我想开发一个新功能：
@@ -355,114 +178,63 @@ User confirmation required to continue.
 不要直接编码。
 ```
 
-### 9.2 Bugfix
+### Bugfix
 
 ```text
 我需要修一个 bug：
 
-Observed:
-<实际行为>
-
-Expected:
-<预期行为>
-
-Reproduction:
-<复现步骤>
-
-Evidence:
-<日志、失败测试、截图或其他证据>
+Observed：<实际行为>
+Expected：<预期行为>
+Reproduction：<复现步骤>
+Evidence：<日志、失败测试、截图或其他证据>
 
 请按照当前仓库的 harness workflow 推进。
 先进行 task-intake。
 优先确认复现路径或失败测试。
-编码前生成 .task/<task-id>/context-pack.md。
+编码前创建 .task/<task-id>/context-pack.md。
 不要直接编码。
 ```
 
-### 9.3 重构
+### 重构
 
 ```text
 我需要做一次重构：
 
-Goal:
-<重构目标>
-
-Behavior that must stay unchanged:
-<不变约束>
-
-Allowed modification scope:
-<允许范围>
-
-Forbidden modification scope:
-<禁止范围>
+Goal：<重构目标>
+Behavior that must stay unchanged：<不变约束>
+Allowed modification scope：<允许范围>
+Forbidden modification scope：<禁止范围>
 
 请按照当前仓库的 harness workflow 推进。
 先分析边界和流程影响。
 不要直接编码。
 ```
 
-## 10. 文档与规则
+## 9. 文档与规则
 
-始终保持分工清晰：
+保持分工：
+- **Docs** 解释设计含义。
+- **Rules** 约束行为。
 
-- docs 解释设计含义
-- rules 约束行为边界
+文档捕捉职责、工作流、领域概念、边界和风险区域。文档不应退化成代码索引。
 
-文档应沉淀：
+当 docs 或 rules 新增、移动、重命名或删除时，更新 `docs/project/knowledge-map.md`。
 
-- 职责
-- 工作流
-- 领域概念
-- 边界
-- 风险区域
+## 10. 可选 OpenCode
 
-文档不应退化成代码索引。
+OpenCode 是可选的，但推荐用于更高效的重复 harness 执行。它提供 builder-first 的 slash commands、各角色独立绑定的本地 agent 角色和 validator 脚手架。
 
-当 docs 或 rules 被新增、移动、重命名或删除时，要同步更新 `docs/project/knowledge-map.md`。
+详见 [docs/OPENCODE.zh-CN.md](./OPENCODE.zh-CN.md)。
 
-## 11. 可选 OpenCode
-
-OpenCode 是可选的，但如果团队希望更高效地重复执行 harness flow，建议启用。
-
-典型收益：
-
-- 以 `/harness` 为中心的 builder-first 默认命令面
-- `/harness-dev`、`/harness-incident`、`/harness-docs`、`/harness-config` 这类聚焦 wrapper
-- 本地 builder、coder、reviewer、validator agent 角色
-- 项目级 validator guidance 和带调度感知的脚手架
-
-对大多数团队，建议把 `/harness` 作为普通入口，把完整高级命令集视为可选 escape hatches。新安装可通过 `opencode.commandSurface: minimal|full` 或 `--opencode-command-surface minimal|full` 选择命令面。
-
-应把 `.opencode/` 当作可编辑的本地脚手架，而不是锁死的系统。
-
-详见 [OPENCODE.zh-CN.md](./OPENCODE.zh-CN.md)。
-
-## 12. 升级与同步
-
-预览 framework-managed 变更：
+## 11. 升级与同步
 
 ```powershell
+# 应用前预览变更
 harness diff
-```
 
-应用安全更新：
-
-```powershell
+# 应用安全更新
 harness sync
 harness sync --dry-run
 ```
 
-注意：
-
-- 本地 task 工件会保持本地化
-- 本地 docs、rules 和 skills 默认保留
-- `AGENTS.md` 只更新 managed block
-- 本地修改和冲突会被报告，而不是被静默覆盖
-
-## 13. 验证
-
-维护本 framework 时运行：
-
-```powershell
-npm run smoke
-```
+本地任务工件、docs、rules 和 skills 默认保留。`AGENTS.md` 只更新 managed block。本地修改和冲突会被报告，不会被静默覆盖。
