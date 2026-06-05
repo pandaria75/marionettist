@@ -3,11 +3,7 @@ description: Builds harness implementation slices, validation strategy, and risk
 mode: subagent
 model: {{MODEL_PROFILE_THINK}}
 temperature: 0.1
-permission:
-  edit: allow
-  bash: allow
-  webfetch: ask
-  task: deny
+{{OPENCODE_PERMISSION_BLOCK_HARNESS_PLANNER}}
 ---
 You are the local harness planner.
 

@@ -4,8 +4,9 @@ import { opencodeTemplatesRoot, skillsRoot, templatesRoot, versionFile } from ".
 import { renderTemplate } from "./template.js";
 import { extractManagedBlock, replaceManagedBlock } from "./managed-block.js";
 import { sha256 } from "./hash.js";
-import { buildManifest, getManagedFileHash, manifestFileMap, manifestRelative, normalizeDistributionMode, normalizeOpencodeCommandSurface, opencodeArtifactAdapter, readManifest, validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface } from "./manifest.js";
+import { buildManifest, getManagedFileHash, manifestFileMap, manifestRelative, normalizeDistributionMode, normalizeOpencodeCommandSurface, normalizeOpencodePermissionMode, opencodeArtifactAdapter, readManifest, validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface, validateOptionalOpencodePermissionMode } from "./manifest.js";
 import { buildModelProfileTemplateVariables, loadModelProfiles, loadModelProfilesState, modelProfilesSourceRelative, renderCanonicalModelProfiles } from "./model-profiles.js";
+import { getOpencodePermissionPolicy } from "./opencode-permissions.js";
 import { parseSimpleYaml } from "./yaml.js";
 
 const coreTemplateTargets = new Map([
@@ -57,7 +58,8 @@ async function buildFrameworkAssets(projectPath, options = {}) {
     if (sourceRelative === "harness.config.yaml") {
       content = renderHarnessConfigWithSelections(content, {
         distributionModeState: options.distributionModeState,
-        opencodeCommandSurfaceState: options.opencodeCommandSurfaceState
+        opencodeCommandSurfaceState: options.opencodeCommandSurfaceState,
+        opencodePermissionModeState: options.opencodePermissionModeState
       });
     }
     const kind = targetRelative === "AGENTS.md" ? "managed-block" : "file";
@@ -94,18 +96,22 @@ async function buildFrameworkAssets(projectPath, options = {}) {
   }
 
   if (options.includeOpencode) {
-    assets.push(...await buildOpencodeAssets(projectPath, variables, options.opencodeCommandSurfaceState));
+    assets.push(...await buildOpencodeAssets(projectPath, variables, {
+      commandSurfaceState: options.opencodeCommandSurfaceState,
+      permissionModeState: options.opencodePermissionModeState
+    }));
   }
 
   return assets;
 }
 
-async function buildOpencodeAssets(projectPath, variables = {}, commandSurfaceState = {}) {
+async function buildOpencodeAssets(projectPath, variables = {}, states = {}) {
   const assets = [];
-  const opencodeVariables = await resolveOpencodeVariables(projectPath, variables);
+  const opencodeVariables = await resolveOpencodeVariables(projectPath, variables, states.permissionModeState);
   const opencodeFiles = await listFiles(opencodeTemplatesRoot);
   const validatorProjectGuidance = await buildValidatorProjectGuidance(projectPath, opencodeVariables);
-  const commandSurface = normalizeOpencodeCommandSurface(commandSurfaceState.value ?? "advanced", "effective OpenCode command surface");
+  const commandSurface = normalizeOpencodeCommandSurface(states.commandSurfaceState?.value ?? "advanced", "effective OpenCode command surface");
+  const permissionMode = normalizeOpencodePermissionMode(states.permissionModeState?.permissionMode ?? "default", "effective OpenCode permission mode");
 
   for (const sourcePath of opencodeFiles) {
     const sourceRelative = toPosixPath(path.relative(opencodeTemplatesRoot, sourcePath));
@@ -139,6 +145,7 @@ async function buildOpencodeAssets(projectPath, variables = {}, commandSurfaceSt
       adapter: opencodeArtifactAdapter,
       templateHash,
       commandSurface,
+      permissionMode,
       content,
       managedContent: content,
       frameworkHash: sha256(content)
@@ -148,10 +155,14 @@ async function buildOpencodeAssets(projectPath, variables = {}, commandSurfaceSt
   return assets;
 }
 
-async function resolveOpencodeVariables(projectPath, variables = {}) {
+async function resolveOpencodeVariables(projectPath, variables = {}, permissionModeState = {}) {
   const profiles = await loadModelProfiles(projectPath);
+  const permissionPolicy = getOpencodePermissionPolicy(permissionModeState.permissionMode ?? "default");
 
-  return buildModelProfileTemplateVariables(profiles, variables);
+  return {
+    ...buildModelProfileTemplateVariables(profiles, variables),
+    ...permissionPolicy.renderVariables
+  };
 }
 
 async function buildValidatorProjectGuidance(projectPath, variables = {}) {
@@ -304,22 +315,6 @@ async function detectPythonProject(projectPath, variables = {}) {
   return false;
 }
 
-function shouldIncludeOpencodeAssets(previousManifest, options = {}) {
-  if (options.opencodeCommandSurface) {
-    return true;
-  }
-
-  if (options.withOpencode === true) {
-    return true;
-  }
-
-  if (options.withOpencode === false) {
-    return false;
-  }
-
-  return hasManagedOpencodeAssets(previousManifest);
-}
-
 function hasManagedOpencodeAssets(previousManifest) {
   return previousManifest?.managedFiles?.some((file) => file.path === opencodeProjectConfigSource || file.path.startsWith(opencodeManagedPrefix)) ?? false;
 }
@@ -411,22 +406,38 @@ async function resolveDistributionModeState(projectPath, previousManifest, optio
   };
 }
 
-async function resolveOpencodeCommandSurfaceState(projectPath, previousManifest, options = {}) {
+async function resolveOpencodeSurfaceAndPermissionState(projectPath, previousManifest, options = {}) {
   const configuredCommandSurface = await readConfiguredOpencodeCommandSurface(projectPath);
+  const configuredPermissionMode = await readConfiguredOpencodePermissionMode(projectPath);
   const explicitCommandSurface = options.opencodeCommandSurface === null || options.opencodeCommandSurface === undefined
     ? null
     : normalizeOpencodeCommandSurface(options.opencodeCommandSurface, "--opencode-command-surface value");
+  const explicitPermissionMode = options.opencodePermissionMode === null || options.opencodePermissionMode === undefined
+    ? null
+    : normalizeOpencodePermissionMode(options.opencodePermissionMode, "--opencode-permission-mode value");
   const managedCommandSurface = inferManagedOpencodeCommandSurface(previousManifest);
-  const hasOpencode = explicitCommandSurface !== null || options.withOpencode === true || hasManagedOpencodeAssets(previousManifest) || configuredCommandSurface !== null;
+  const managedPermissionMode = inferManagedOpencodePermissionMode(previousManifest);
+  const hasOpencode = explicitCommandSurface !== null
+    || explicitPermissionMode !== null
+    || options.withOpencode === true
+    || hasManagedOpencodeAssets(previousManifest)
+    || configuredCommandSurface.value !== null
+    || configuredPermissionMode.value !== null;
 
   let value = null;
   let source = null;
+  let permissionMode = null;
+  let permissionModeSource = null;
+
+  assertValidOpencodeCommandSurfaceSource(configuredCommandSurface, "config");
+  assertValidOpencodePermissionModeSource(configuredPermissionMode, "config");
+  assertValidOpencodePermissionModeSource(validateOptionalOpencodePermissionMode(previousManifest?.opencodePermissionMode, "manifest opencodePermissionMode"), "manifest");
 
   if (explicitCommandSurface !== null) {
     value = explicitCommandSurface;
     source = "cli";
-  } else if (configuredCommandSurface !== null) {
-    value = configuredCommandSurface;
+  } else if (configuredCommandSurface.value !== null) {
+    value = configuredCommandSurface.value;
     source = "config";
   } else if (managedCommandSurface.value !== null) {
     value = managedCommandSurface.value;
@@ -439,13 +450,34 @@ async function resolveOpencodeCommandSurfaceState(projectPath, previousManifest,
     source = "default-new-install";
   }
 
+  if (explicitPermissionMode !== null) {
+    permissionMode = explicitPermissionMode;
+    permissionModeSource = "cli";
+  } else if (configuredPermissionMode.value !== null) {
+    permissionMode = configuredPermissionMode.value;
+    permissionModeSource = "config";
+  } else if (managedPermissionMode.value !== null) {
+    permissionMode = managedPermissionMode.value;
+    permissionModeSource = managedPermissionMode.source;
+  } else if (hasManagedOpencodeAssets(previousManifest) || options.withOpencode === true) {
+    permissionMode = "default";
+    permissionModeSource = hasManagedOpencodeAssets(previousManifest) ? "legacy-default" : "default-new-install";
+  }
+
   return {
     includeOpencode: options.withOpencode === false ? false : hasOpencode,
     value,
     source,
+    permissionMode,
+    permissionModeSource,
     persistToHarnessConfig: value !== null && (
       source === "cli"
       || source === "config"
+      || options.withOpencode === true
+    ),
+    persistPermissionModeToHarnessConfig: permissionMode !== null && (
+      permissionModeSource === "cli"
+      || permissionModeSource === "config"
       || options.withOpencode === true
     )
   };
@@ -454,19 +486,30 @@ async function resolveOpencodeCommandSurfaceState(projectPath, previousManifest,
 async function readConfiguredOpencodeCommandSurface(projectPath) {
   const harnessConfigPath = path.join(projectPath, "harness.config.yaml");
   if (!(await pathExists(harnessConfigPath))) {
-    return null;
+    return { value: null, error: null, rawValue: null, isLegacyAlias: false };
   }
 
   try {
     const parsed = parseSimpleYaml(await readText(harnessConfigPath));
     const value = parsed?.opencode?.commandSurface;
-    if (value === undefined || value === null || value === "") {
-      return null;
-    }
-
-    return normalizeOpencodeCommandSurface(String(value), "harness.config.yaml opencode.commandSurface");
+    return validateOptionalOpencodeCommandSurface(value, "harness.config.yaml opencode.commandSurface");
   } catch {
-    return null;
+    return { value: null, error: null, rawValue: null, isLegacyAlias: false };
+  }
+}
+
+async function readConfiguredOpencodePermissionMode(projectPath) {
+  const harnessConfigPath = path.join(projectPath, "harness.config.yaml");
+  if (!(await pathExists(harnessConfigPath))) {
+    return { value: null, error: null, rawValue: null };
+  }
+
+  try {
+    const parsed = parseSimpleYaml(await readText(harnessConfigPath));
+    const value = parsed?.opencode?.permissionMode;
+    return validateOptionalOpencodePermissionMode(value, "harness.config.yaml opencode.permissionMode");
+  } catch {
+    return { value: null, error: null, rawValue: null };
   }
 }
 
@@ -503,6 +546,36 @@ function inferManagedOpencodeCommandSurface(previousManifest) {
   return { value: "minimal", source: "existing-managed-assets" };
 }
 
+function inferManagedOpencodePermissionMode(previousManifest) {
+  const topLevel = validateOptionalOpencodePermissionMode(previousManifest?.opencodePermissionMode, "manifest opencodePermissionMode");
+  if (topLevel.value !== null) {
+    return { value: topLevel.value, source: "manifest" };
+  }
+
+  if (!hasManagedOpencodeAssets(previousManifest)) {
+    return { value: null, source: null };
+  }
+
+  const recordedValues = (previousManifest?.managedFiles ?? [])
+    .filter((file) => file.adapter === opencodeArtifactAdapter && typeof file.permissionMode === "string" && file.permissionMode.length > 0)
+    .map((file) => validateOptionalOpencodePermissionMode(file.permissionMode, `manifest managedFiles[${file.path}] permissionMode`))
+    .filter((result) => result.value !== null);
+
+  if (recordedValues.some((result) => result.value === "loose")) {
+    return { value: "loose", source: "manifest-metadata" };
+  }
+
+  if (recordedValues.some((result) => result.value === "moderate")) {
+    return { value: "moderate", source: "manifest-metadata" };
+  }
+
+  if (recordedValues.some((result) => result.value === "default")) {
+    return { value: "default", source: "manifest-metadata" };
+  }
+
+  return { value: "default", source: "legacy-default" };
+}
+
 async function readConfiguredDistributionMode(projectPath) {
   const harnessConfigPath = path.join(projectPath, "harness.config.yaml");
   if (!(await pathExists(harnessConfigPath))) {
@@ -531,6 +604,32 @@ function assertValidDistributionModeSource(result, mode, sourceKind) {
   );
 }
 
+function assertValidOpencodeCommandSurfaceSource(result, sourceKind) {
+  if (!result?.error) {
+    return;
+  }
+
+  const subject = sourceKind === "manifest"
+    ? ".harness/manifest.json managedFiles[*].commandSurface"
+    : "harness.config.yaml opencode.commandSurface";
+  throw new Error(
+    `Cannot continue because ${subject} is invalid. ${result.error} Fix the recorded OpenCode command surface or remove it before rerunning. Use \`harness doctor --project <path>\` for a detailed report.`
+  );
+}
+
+function assertValidOpencodePermissionModeSource(result, sourceKind) {
+  if (!result?.error) {
+    return;
+  }
+
+  const subject = sourceKind === "manifest"
+    ? ".harness/manifest.json opencodePermissionMode"
+    : "harness.config.yaml opencode.permissionMode";
+  throw new Error(
+    `Cannot continue because ${subject} is invalid. ${result.error} Fix the recorded OpenCode permission mode or remove it before rerunning. Use \`harness doctor --project <path>\` for a detailed report.`
+  );
+}
+
 function renderHarnessConfigWithSelections(content, states = {}) {
   const sections = [];
 
@@ -538,8 +637,15 @@ function renderHarnessConfigWithSelections(content, states = {}) {
     sections.push(`distribution:\n  mode: "${states.distributionModeState.value}"`);
   }
 
+  const opencodeLines = [];
   if (states.opencodeCommandSurfaceState?.persistToHarnessConfig && states.opencodeCommandSurfaceState.value) {
-    sections.push(`opencode:\n  commandSurface: "${states.opencodeCommandSurfaceState.value}"`);
+    opencodeLines.push(`  commandSurface: "${states.opencodeCommandSurfaceState.value}"`);
+  }
+  if (states.opencodePermissionModeState?.persistPermissionModeToHarnessConfig && states.opencodePermissionModeState.permissionMode) {
+    opencodeLines.push(`  permissionMode: "${states.opencodePermissionModeState.permissionMode}"`);
+  }
+  if (opencodeLines.length > 0) {
+    sections.push(`opencode:\n${opencodeLines.join("\n")}`);
   }
 
   if (sections.length === 0) {
@@ -717,6 +823,7 @@ async function operationForOrphan(previous, projectPath) {
     adapter: previous.adapter,
     templateHash: previous.templateHash,
     commandSurface: previous.commandSurface,
+    permissionMode: previous.permissionMode,
     exists,
     currentHash: currentManaged === null ? null : sha256(currentManaged),
     previousHash: getManagedFileHash(previous),
@@ -738,12 +845,18 @@ export async function buildPlan(projectPath, mode, options = {}) {
   const previousByPath = manifestFileMap(previousManifest);
   const operations = [];
   const distributionModeState = await resolveDistributionModeState(projectPath, previousManifest, options, mode);
-  const opencodeCommandSurfaceState = await resolveOpencodeCommandSurfaceState(projectPath, previousManifest, options);
+  const opencodeCommandSurfaceState = await resolveOpencodeSurfaceAndPermissionState(projectPath, previousManifest, options);
+  const opencodePermissionModeState = {
+    permissionMode: opencodeCommandSurfaceState.permissionMode,
+    permissionModeSource: opencodeCommandSurfaceState.permissionModeSource,
+    persistPermissionModeToHarnessConfig: opencodeCommandSurfaceState.persistPermissionModeToHarnessConfig
+  };
   const assets = await buildFrameworkAssets(projectPath, {
     ...options,
-    includeOpencode: opencodeCommandSurfaceState.includeOpencode && shouldIncludeOpencodeAssets(previousManifest, options),
+    includeOpencode: opencodeCommandSurfaceState.includeOpencode,
     distributionModeState,
-    opencodeCommandSurfaceState
+    opencodeCommandSurfaceState,
+    opencodePermissionModeState
   });
   const assetPaths = new Set(assets.map((asset) => asset.targetRelative));
 
@@ -773,7 +886,8 @@ export async function buildPlan(projectPath, mode, options = {}) {
     previousManifest,
     operations,
     force: options.force,
-    distributionMode: distributionModeState.value
+    distributionMode: distributionModeState.value,
+    opencodePermissionMode: opencodePermissionModeState.permissionMode
   });
 
   operations.push({
@@ -786,5 +900,5 @@ export async function buildPlan(projectPath, mode, options = {}) {
     manifest
   });
 
-  return { version, previousManifest, manifest, operations, distributionModeState };
+  return { version, previousManifest, manifest, operations, distributionModeState, opencodeCommandSurfaceState, opencodePermissionModeState };
 }

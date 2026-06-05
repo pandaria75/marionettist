@@ -2,7 +2,7 @@ import path from "node:path";
 import { parseCommonArgs } from "../core/args.js";
 import { applyPlan, printPlan } from "../core/apply-plan.js";
 import { buildPlan } from "../core/plan.js";
-import { promptConfig, promptConflictStrategy, promptDistributionMode, promptOpencodeCommandSurface, promptWithOpencode } from "./init-prompts.js";
+import { promptConfig, promptConflictStrategy, promptDistributionMode, promptOpencodeCommandSurface, promptOpencodePermissionMode, promptWithOpencode } from "./init-prompts.js";
 
 export async function initCommand(args) {
   const options = parseCommonArgs(args);
@@ -20,6 +20,7 @@ export async function initCommand(args) {
   let withOpencode = options.withOpencode;
   let distributionMode = options.distributionMode;
   let opencodeCommandSurface = options.opencodeCommandSurface;
+  let opencodePermissionMode = options.opencodePermissionMode;
 
   if (!options.auto) {
     const promptedVariables = await promptConfig(variables.projectName, {
@@ -48,6 +49,10 @@ export async function initCommand(args) {
     if (withOpencode && opencodeCommandSurface === null) {
       opencodeCommandSurface = await promptOpencodeCommandSurface();
     }
+
+    if (withOpencode && opencodePermissionMode === null) {
+      opencodePermissionMode = await promptOpencodePermissionMode();
+    }
   }
 
   const planningOptions = {
@@ -55,7 +60,8 @@ export async function initCommand(args) {
     variables,
     withOpencode,
     distributionMode,
-    opencodeCommandSurface
+    opencodeCommandSurface,
+    opencodePermissionMode
   };
 
   // 2. Initial plan to detect existing files for the selected asset set

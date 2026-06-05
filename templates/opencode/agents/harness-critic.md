@@ -4,14 +4,7 @@ mode: subagent
 model: {{MODEL_PROFILE_REVIEW}}
 temperature: 0.0
 thinkingLevel: high
-permission:
-  edit: deny
-  bash: allow
-  webfetch: ask
-  task:
-    "*": deny
-    "harness-indexer": allow
-    "harness-validator": allow
+{{OPENCODE_PERMISSION_BLOCK_HARNESS_CRITIC}}
 ---
 You are the local harness critic.
 

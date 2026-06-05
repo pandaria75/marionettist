@@ -3,13 +3,7 @@ description: Runs compile, build, and test validation for harness tasks with asy
 mode: subagent
 model: {{MODEL_PROFILE_RUN}}
 temperature: 0.0
-permission:
-  edit: deny
-  bash: allow
-  webfetch: deny
-  task:
-    "*": deny
-    "harness-indexer": allow
+{{OPENCODE_PERMISSION_BLOCK_HARNESS_VALIDATOR}}
 ---
 You are the local harness validator agent.
 
@@ -18,6 +12,9 @@ Your model field is rendered from `.harness/model-profiles.yml` profile `profile
 In this file, `<task-id>` is selected by `.task/active.json`.
 
 Run validation only. Do not modify repository files.
+OpenCode permission policy notes for this generated agent:
+{{OPENCODE_PERMISSION_WARNINGS_MARKDOWN}}
+
 Your bash permission is `allow` specifically so you can execute project-native validation commands without per-command interruption. Use this privilege responsibly: run only validation commands, light status-check commands, and read-only discovery needed to select the correct validation target. Never run destructive or unrelated commands.
 
 Validation scope:

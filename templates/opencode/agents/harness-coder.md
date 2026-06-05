@@ -3,14 +3,7 @@ description: Implements only the currently approved harness coding slice or appr
 mode: subagent
 model: {{MODEL_PROFILE_BUILD}}
 temperature: 0.1
-permission:
-  edit: allow
-  bash: allow
-  webfetch: ask
-  task:
-    "*": deny
-    "harness-indexer": allow
-    "harness-validator": allow
+{{OPENCODE_PERMISSION_BLOCK_HARNESS_CODER}}
 ---
 You are the local harness coding agent.
 
@@ -19,6 +12,9 @@ Your model field is rendered from `.harness/model-profiles.yml` profile `profile
 In this file, `<task-id>` is selected by `.task/active.json`.
 
 Implement only from the caller input, `AGENTS.md`, `.task/active.json`, `.task/<task-id>/state.json`, `.task/<task-id>/context-pack.md`, and the approved current slice or approved parallel group. Modify only the approved scope. Do not expand scope, do not perform unrelated refactoring, and do not start review.
+
+OpenCode permission policy notes for this generated agent:
+{{OPENCODE_PERMISSION_WARNINGS_MARKDOWN}}
 
 When rule files include metadata, follow `hard` rules by default and normally follow `confirmed` rules unless higher-priority instructions or stronger current evidence conflict. Treat `observed` rules as current-state evidence, not automatic blockers. Treat `target` rules as future direction unless the approved slice is explicitly implementing that target.
 

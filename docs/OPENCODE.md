@@ -151,7 +151,40 @@ If a project still relies on legacy `harness.config.yaml` profiles and has not c
 
 Keep validator and reviewer `temperature` low for deterministic output. Tier 3 agents (indexer, validator) need fewer permissions than Tier 1 agents.
 
-## 10. Managed Artifact Ownership And Safe Sync
+## 10. Permission Modes And Dangerous-Command Baseline
+
+OpenCode permission policy is configurable through `harness.config.yaml`:
+
+```yaml
+opencode:
+  permissionMode: default  # or moderate | loose
+```
+
+The config key is `opencode.permissionMode`.
+
+Mode meanings:
+
+- `default` — preserves current harness-compatible behavior. Use this when you want the existing generated permission posture unless your team has a clear reason to change it.
+- `moderate` — reduces routine permission friction while keeping the same dangerous-command baseline and risk warnings.
+- `loose` — reduces friction further for experienced local users, while still keeping the harness dangerous-command baseline where OpenCode schema can express it.
+
+Dangerous-command baseline:
+
+- destructive deletes
+- dangerous git rewrites
+- force pushes
+- publish or release operations
+- global config mutation
+- project-external writes
+- risky shell pipe or chain patterns
+
+This baseline is enforced as strongly as OpenCode schema allows. Some patterns can be represented directly in generated permission rules; others cannot be expressed precisely enough in schema alone. For those cases, the harness uses warnings, prompts, and agent guidance prose instead of pretending the schema provides stronger protection than it actually does.
+
+Loose mode is not a blanket approval mode. It should be treated as a higher-trust local workflow option, not as a recommendation for shared defaults. The framework does **not** recommend global `permission: allow`, because that removes important friction around destructive or repository-wide operations.
+
+For target projects, keep permission choices project-neutral and team-reviewed. Start with `default` unless you have a concrete reason to accept the extra risk of `moderate` or `loose`.
+
+## 11. Managed Artifact Ownership And Safe Sync
 
 For target-project OpenCode assets, the source of truth is `templates/opencode/**` in the framework.
 
@@ -175,7 +208,7 @@ Safety behavior:
 
 This means `harness diff` is the preview step, `harness sync` applies only safe managed updates, and `harness doctor` helps explain drift and ownership state.
 
-## 11. Validator Behavior
+## 12. Validator Behavior
 
 The validator template adapts to the project type (Gradle/Kotlin, Maven, Node.js, Python, or generic fallback).
 
@@ -184,7 +217,7 @@ Runtime behavior:
 - Otherwise choose the smallest relevant command for the current slice.
 - Keep long-running validation artifacts under `.harness/tmp/harness-validator/<run-id>/`.
 
-## 12. Privacy And Versioning
+## 13. Privacy And Versioning
 
 - Treat `.opencode/` as local/private until your team decides what to standardize.
 - Add it to `.gitignore` if you want fully local customization.

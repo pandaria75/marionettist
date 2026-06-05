@@ -56,4 +56,13 @@ knowledge:
 validation:
   defaultCommands: []
 
+# Optional OpenCode adapter settings.
+# Omit opencode.permissionMode to keep compatibility fallback behavior.
+# permissionMode: default preserves current behavior.
+# permissionMode: moderate|loose increases local flexibility but still keeps
+# the dangerous-command baseline where OpenCode schema can express it.
+# opencode:
+#   commandSurface: "minimal"
+#   permissionMode: "default"
+
 riskZones: []

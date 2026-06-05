@@ -1,5 +1,5 @@
 import path from "node:path";
-import { normalizeDistributionMode, normalizeOpencodeCommandSurface } from "./manifest.js";
+import { normalizeDistributionMode, normalizeOpencodeCommandSurface, normalizeOpencodePermissionMode } from "./manifest.js";
 
 export function parseCommonArgs(args) {
   const knowledgeModes = new Set(["standard", "mudball"]);
@@ -12,6 +12,7 @@ export function parseCommonArgs(args) {
     withOpencode: null,
     distributionMode: null,
     opencodeCommandSurface: null,
+    opencodePermissionMode: null,
     knowledgeMode: null,
     knowledgeMaturity: null
   };
@@ -69,6 +70,16 @@ export function parseCommonArgs(args) {
       continue;
     }
 
+    if (arg === "--opencode-permission-mode") {
+      const value = args[index + 1];
+      if (!value) {
+        throw new Error("--opencode-permission-mode requires default, moderate, or loose");
+      }
+      options.opencodePermissionMode = normalizeOpencodePermissionMode(value, "--opencode-permission-mode value");
+      index += 1;
+      continue;
+    }
+
     if (arg === "--knowledge-mode") {
       const value = args[index + 1];
       if (!value) {
@@ -99,6 +110,10 @@ export function parseCommonArgs(args) {
   }
 
   if (options.opencodeCommandSurface && options.withOpencode !== false) {
+    options.withOpencode = true;
+  }
+
+  if (options.opencodePermissionMode && options.withOpencode !== false) {
     options.withOpencode = true;
   }
 

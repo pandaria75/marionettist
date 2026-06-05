@@ -5,6 +5,7 @@ export const manifestRelative = ".harness/manifest.json";
 export const distributionModeValues = new Set(["embedded", "hybrid", "adapter"]);
 export const opencodeArtifactAdapter = "opencode";
 export const opencodeCommandSurfaceValues = new Set(["minimal", "standard", "advanced"]);
+export const opencodePermissionModeValues = new Set(["default", "moderate", "loose"]);
 const opencodeCommandSurfaceAliases = new Map([["full", "advanced"]]);
 
 export function manifestPath(projectPath) {
@@ -36,9 +37,10 @@ export function manifestFileMap(manifest) {
   return result;
 }
 
-export function buildManifest({ version, installedAt, previousManifest, operations, force = false, distributionMode = null }) {
+export function buildManifest({ version, installedAt, previousManifest, operations, force = false, distributionMode = null, opencodePermissionMode = null }) {
   const previousInstalledAt = previousManifest?.installedAt ?? installedAt;
   const manifestDistributionMode = resolveManifestDistributionMode(previousManifest, distributionMode);
+  const manifestOpencodePermissionMode = resolveManifestOpencodePermissionMode(previousManifest, opencodePermissionMode);
   const managedFiles = operations
     .filter((operation) => operation.type === "file" && operation.managed)
     .map((operation) => buildManagedFileRecord(operation, force))
@@ -48,6 +50,7 @@ export function buildManifest({ version, installedAt, previousManifest, operatio
     schemaVersion: 1,
     frameworkVersion: version,
     ...(manifestDistributionMode ? { distributionMode: manifestDistributionMode } : {}),
+    ...(manifestOpencodePermissionMode ? { opencodePermissionMode: manifestOpencodePermissionMode } : {}),
     installedAt: previousInstalledAt,
     updatedAt: installedAt,
     managedFiles
@@ -152,6 +155,48 @@ export function validateOptionalOpencodeCommandSurface(value, label = "OpenCode 
   }
 }
 
+export function normalizeOpencodePermissionMode(value, label = "OpenCode permission mode") {
+  const normalized = String(value ?? "").trim().toLowerCase();
+
+  if (!opencodePermissionModeValues.has(normalized)) {
+    throw new Error(`Unsupported ${label}: ${value}. Expected default, moderate, or loose.`);
+  }
+
+  return normalized;
+}
+
+export function validateOptionalOpencodePermissionMode(value, label = "OpenCode permission mode") {
+  if (value === undefined || value === null || value === "") {
+    return {
+      value: null,
+      error: null,
+      rawValue: value
+    };
+  }
+
+  if (typeof value !== "string") {
+    return {
+      value: null,
+      error: `${label} invalid: expected string default|moderate|loose, got ${typeof value}`,
+      rawValue: value
+    };
+  }
+
+  try {
+    return {
+      value: normalizeOpencodePermissionMode(value, label),
+      error: null,
+      rawValue: value
+    };
+  } catch (error) {
+    return {
+      value: null,
+      error: error instanceof Error ? error.message : String(error),
+      rawValue: value
+    };
+  }
+}
+
 function resolveManifestDistributionMode(previousManifest, distributionMode) {
   if (distributionMode !== null && distributionMode !== undefined) {
     return normalizeDistributionMode(distributionMode, "distribution mode");
@@ -159,6 +204,18 @@ function resolveManifestDistributionMode(previousManifest, distributionMode) {
 
   if (previousManifest?.distributionMode !== undefined) {
     return normalizeDistributionMode(previousManifest.distributionMode, "manifest distributionMode");
+  }
+
+  return null;
+}
+
+function resolveManifestOpencodePermissionMode(previousManifest, opencodePermissionMode) {
+  if (opencodePermissionMode !== null && opencodePermissionMode !== undefined) {
+    return normalizeOpencodePermissionMode(opencodePermissionMode, "OpenCode permission mode");
+  }
+
+  if (previousManifest?.opencodePermissionMode !== undefined) {
+    return normalizeOpencodePermissionMode(previousManifest.opencodePermissionMode, "manifest opencodePermissionMode");
   }
 
   return null;
@@ -181,6 +238,9 @@ function buildManagedFileRecord(operation, force) {
     }
     if (operation.commandSurface) {
       record.commandSurface = normalizeOpencodeCommandSurface(operation.commandSurface, "OpenCode command surface metadata");
+    }
+    if (operation.permissionMode) {
+      record.permissionMode = normalizeOpencodePermissionMode(operation.permissionMode, "OpenCode permission mode metadata");
     }
   }
 

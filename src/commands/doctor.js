@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { parseCommonArgs } from "../core/args.js";
-import { validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface } from "../core/manifest.js";
+import { validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface, validateOptionalOpencodePermissionMode } from "../core/manifest.js";
 import { parseSimpleYaml } from "../core/yaml.js";
 
 const managedBlockStart = "<!-- harness-kit:start -->";
@@ -53,6 +53,7 @@ export async function doctorCommand(args) {
   await checkPath(options.project, "docs/project/harness-workflow.md", "file", "docs/project/harness-workflow.md exists", results);
   await checkPath(options.project, ".task", "directory", ".task directory exists", results);
   const opencodeConfig = await checkOpencode(options.project, results);
+  checkOpenCodePermissionMode(manifest, harnessConfig, opencodeConfig, results);
   await checkOpenCodeCommandSurface(options.project, harnessConfig, opencodeConfig, results);
   await checkOpenCodeModelDrift(options.project, harnessConfig, opencodeConfig, results);
   await checkSkills(options.project, results);
@@ -263,6 +264,44 @@ async function checkOpenCodeModelDrift(projectPath, harnessConfig, opencodeConfi
       agentRelative
     });
     results.push(statusResult(evaluation.status, evaluation.message));
+  }
+}
+
+function checkOpenCodePermissionMode(manifest, harnessConfig, opencodeConfig, results) {
+  const hasPermissionModeConfig = Object.prototype.hasOwnProperty.call(harnessConfig?.opencode ?? {}, "permissionMode");
+  const configMode = readConfiguredPermissionMode(harnessConfig);
+  const manifestMode = readRecordedPermissionMode(manifest);
+  const hasOpenCodeScaffold = Boolean(opencodeConfig) || hasManagedOpencodeFiles(manifest);
+
+  if (hasPermissionModeConfig && configMode.error) {
+    results.push(fail(`harness.config.yaml opencode.permissionMode invalid: ${configMode.error}`));
+    return;
+  }
+
+  if (manifestMode.error) {
+    results.push(fail(manifestMode.error));
+    return;
+  }
+
+  if (!hasOpenCodeScaffold && !configMode.value && !hasPermissionModeConfig) {
+    return;
+  }
+
+  if (manifestMode.value) {
+    results.push(pass(`OpenCode permission mode: ${manifestMode.value} (${manifestMode.source})`));
+    if (configMode.value && configMode.value !== manifestMode.value) {
+      results.push(warn(`OpenCode permission mode config mismatch: manifest=${manifestMode.value}, harness.config.yaml=${configMode.value}`));
+    }
+    return;
+  }
+
+  if (configMode.value) {
+    results.push(warn(`OpenCode permission mode: ${configMode.value} (inferred from harness.config.yaml; manifest missing opencodePermissionMode)`));
+    return;
+  }
+
+  if (hasOpenCodeScaffold) {
+    results.push(warn("OpenCode permission mode: default (legacy inferred; manifest/config missing explicit permission mode)"));
   }
 }
 
@@ -817,9 +856,58 @@ function readConfiguredCommandSurface(harnessConfig) {
   };
 }
 
+function readConfiguredPermissionMode(harnessConfig) {
+  const value = harnessConfig?.opencode?.permissionMode;
+  const result = validateOptionalOpencodePermissionMode(value, "harness.config.yaml opencode.permissionMode");
+  return {
+    value: result.value,
+    error: typeof result.error === "string"
+      ? result.error.replace(/^harness\.config\.yaml opencode\.permissionMode invalid: /u, "")
+      : result.error
+  };
+}
+
+function readRecordedPermissionMode(manifest) {
+  const topLevel = validateOptionalOpencodePermissionMode(manifest?.opencodePermissionMode, ".harness/manifest.json opencodePermissionMode");
+  if (topLevel.error) {
+    return { value: null, error: topLevel.error, source: null };
+  }
+  if (topLevel.value) {
+    return { value: topLevel.value, error: null, source: "manifest" };
+  }
+
+  if (!hasManagedOpencodeFiles(manifest)) {
+    return { value: null, error: null, source: null };
+  }
+
+  const recordedValues = (manifest?.managedFiles ?? [])
+    .filter((file) => file.adapter === "opencode" && file.permissionMode !== undefined)
+    .map((file) => validateOptionalOpencodePermissionMode(file.permissionMode, `.harness/manifest.json managedFiles[${file.path}] permissionMode`));
+  const invalid = recordedValues.find((result) => result.error);
+  if (invalid) {
+    return { value: null, error: invalid.error, source: null };
+  }
+
+  if (recordedValues.some((result) => result.value === "loose")) {
+    return { value: "loose", error: null, source: "manifest metadata" };
+  }
+  if (recordedValues.some((result) => result.value === "moderate")) {
+    return { value: "moderate", error: null, source: "manifest metadata" };
+  }
+  if (recordedValues.some((result) => result.value === "default")) {
+    return { value: "default", error: null, source: "manifest metadata" };
+  }
+
+  return { value: null, error: null, source: null };
+}
+
 function readConfiguredDistributionModeValue(value, label) {
   const result = validateOptionalDistributionMode(value, label);
   return { value: result.value, error: result.error };
+}
+
+function hasManagedOpencodeFiles(manifest) {
+  return manifest?.managedFiles?.some((file) => file.path === "opencode.jsonc" || file.path.startsWith(".opencode/")) ?? false;
 }
 
 async function exists(absolute) {

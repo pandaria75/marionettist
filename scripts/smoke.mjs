@@ -330,7 +330,7 @@ async function assertOpencodeInstall(projectPath) {
   assertIncludes(doctorOutput, "PASS  OpenCode command surface [minimal] non-minimal commands absent");
   assertIncludes(doctorOutput, "PASS  .opencode/commands/harness-incident.md frontmatter parsed");
   assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-builder.md model openai/gpt-5.5 matches .harness/model-profiles.yml profile think.default.");
-  assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-coder.md model openai/gpt-5.3-codex matches .harness/model-profiles.yml profile build.default.");
+  assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-coder.md model openai/gpt-5.4 matches .harness/model-profiles.yml profile build.default.");
   assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-reviewer.md model opencode-go/glm-5.1 matches .harness/model-profiles.yml profile review.default.");
   assertIncludes(doctorOutput, "PASS  OpenCode model [OK] .opencode/agents/harness-validator.md model opencode-go/deepseek-v4-flash matches .harness/model-profiles.yml profile run.default.");
 
@@ -647,7 +647,7 @@ async function assertCanonicalProfileOverridesRender(projectPath) {
   const originalBuilderEntry = originalManifest.managedFiles.find((file) => file.path === builderManifestPath);
   const overriddenProfiles = originalProfiles
     .replace("default: \"openai/gpt-5.5\"", "default: \"smoke/think-override\"")
-    .replace("default: \"openai/gpt-5.3-codex\"", "default: \"smoke/build-override\"")
+    .replace(/default: "(?:openai\/gpt-5\.4|openai\/gpt-5\.3-codex)"/, "default: \"smoke/build-override\"")
     .replace("default: \"opencode-go/glm-5.1\"", "default: \"smoke/review-override\"")
     .replace("default: \"opencode-go/deepseek-v4-flash\"", "default: \"smoke/run-override\"");
   assert(overriddenProfiles !== originalProfiles, "Expected canonical profile override fixture to change model defaults");
@@ -735,7 +735,7 @@ async function assertLegacyProfileFallbackRender(projectPath) {
     await fs.rm(canonicalPath);
     const legacyConfig = originalConfig
       .replace('default: "openai/gpt-5.5"', `default: "${legacyThink}"`)
-      .replace('default: "openai/gpt-5.3-codex"', `default: "${legacyBuild}"`)
+      .replace(/default: "(?:openai\/gpt-5\.4|openai\/gpt-5\.3-codex)"/, `default: "${legacyBuild}"`)
       .replace('default: "opencode-go/glm-5.1"', `default: "${legacyReview}"`)
       .replace('default: "opencode-go/deepseek-v4-flash"', `default: "${legacyRun}"`);
     await fs.writeFile(configPath, legacyConfig, "utf8");

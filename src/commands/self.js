@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { frameworkRoot } from "../core/framework-paths.js";
 import { buildModelProfileTemplateVariables, loadCanonicalOrFrameworkModelProfiles, modelProfilesSourceRelative } from "../core/model-profiles.js";
+import { getOpencodePermissionPolicy } from "../core/opencode-permissions.js";
 import { renderTemplate } from "../core/template.js";
 import { initCommand } from "./init.js";
 import { diffCommand } from "./diff.js";
@@ -549,6 +550,10 @@ async function checkSelfOpencodeMirrors(results) {
       results.push(fail(`${mirror.path} still contains unresolved MODEL_PROFILE placeholders. Rerun harness self init --apply --with-opencode after reconciling .harness/model-profiles.yml.`));
       continue;
     }
+    if (containsUnresolvedPermissionPlaceholder(current)) {
+      results.push(fail(`${mirror.path} still contains unresolved OPENCODE_PERMISSION placeholders. Rerun harness self init --apply --with-opencode.`));
+      continue;
+    }
     if (!textEquals(current, mirror.content)) {
       results.push(fail(`${mirror.path} drifted from ${mirror.source}. Edit templates/opencode/** instead, then rerun harness self init --apply --with-opencode.`));
       continue;
@@ -690,6 +695,11 @@ async function buildSelfOpencodeMirrorEntries() {
   const entries = [];
   const seenTargets = new Set();
   const modelProfileVariables = buildModelProfileTemplateVariables(await loadCanonicalOrFrameworkModelProfiles(frameworkRoot));
+  const permissionPolicy = getOpencodePermissionPolicy("default");
+  const renderVariables = {
+    ...modelProfileVariables,
+    ...permissionPolicy.renderVariables
+  };
 
   for (const root of selfOpencodeMirrorRoots) {
     const sourceRoot = path.join(frameworkRoot, templatesOpencodeRelative, root);
@@ -713,7 +723,7 @@ async function buildSelfOpencodeMirrorEntries() {
       entries.push({
         path: targetRelative,
         source: toPosix(path.join(templatesOpencodeRelative, sourceRelative)),
-        content: renderTemplate(sourceContent, modelProfileVariables)
+        content: renderTemplate(sourceContent, renderVariables)
       });
     }
   }
@@ -744,6 +754,10 @@ function textEquals(left, right) {
 
 function containsUnresolvedModelProfilePlaceholder(content) {
   return /\{\{MODEL_PROFILE_[A-Z_]+\}\}/.test(content);
+}
+
+function containsUnresolvedPermissionPlaceholder(content) {
+  return /\{\{OPENCODE_PERMISSION_[A-Z_]+\}\}/.test(content);
 }
 
 async function readOptional(filePath) {

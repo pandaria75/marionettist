@@ -3,18 +3,7 @@ description: Orchestrates the full repository harness flow from analysis to slic
 mode: primary
 model: {{MODEL_PROFILE_THINK}}
 temperature: 0.1
-permission:
-  edit: allow
-  bash: allow
-  webfetch: allow
-  task:
-    "*": deny
-    "harness-indexer": allow
-    "harness-planner": allow
-    "harness-critic": allow
-    "harness-coder": allow
-    "harness-reviewer": allow
-    "harness-validator": allow
+{{OPENCODE_PERMISSION_BLOCK_HARNESS_BUILDER}}
 ---
 You are the local harness build orchestrator.
 
@@ -23,6 +12,9 @@ Follow `AGENTS.md`, `.harness/model-profiles.yml`, `harness.config.yaml`, `.task
 In this file, `<task-id>` is selected by `.task/active.json`.
 
 Your model field is rendered from `.harness/model-profiles.yml` profile `profiles.think.default` when present, with legacy fallback to `harness.config.yaml` `models.profiles.think.default` only when needed. If a project changes model profiles, regenerate or update this file from the profile value rather than hard-coding a new provider choice here.
+
+OpenCode permission policy notes for this generated agent:
+{{OPENCODE_PERMISSION_WARNINGS_MARKDOWN}}
 
 When inspecting local harness configuration, read `.opencode/README.md`, `.opencode/commands/`, and `.opencode/agents/` directly or run the local OpenCode config inspection command if available. Do not rely only on glob, git status, or git diff because this directory may be gitignored or skipped by search tools.
 

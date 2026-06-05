@@ -95,6 +95,9 @@ try {
   const mirroredBuilder = await readRelative(".opencode/agents/harness-builder.md");
   assertIncludes(mirroredBuilder, `model: ${selfProfiles.profiles?.think?.default}`);
   assertExcludes(mirroredBuilder, "{{MODEL_PROFILE_");
+  assertExcludes(mirroredBuilder, "{{OPENCODE_PERMISSION_");
+  assertIncludes(mirroredBuilder, "permission:");
+  assertIncludes(mirroredBuilder, "edit: allow");
 
   assert((await fs.readFile(path.join(repoRoot, "templates", "AGENTS.md"), "utf8")) === beforeTemplateAgents, "self OpenCode init must not modify templates/AGENTS.md");
   assertSameFileSnapshot(beforeTemplateOpencode, await snapshotDirectory(path.join(repoRoot, "templates", "opencode")), "self OpenCode init must not modify templates/opencode sources");
@@ -113,6 +116,7 @@ try {
 
   await assertDoctorFailsForMissingSelfOpencodeFile();
   await assertDoctorFailsForUnresolvedPlaceholder();
+  await assertDoctorFailsForUnresolvedPermissionPlaceholder();
   await assertMirrorDriftDetected();
   await assertMissingMirrorDetected();
   await assertLocalSelfModelProfilesPreservedAndRendered();
@@ -263,6 +267,21 @@ async function assertDoctorFailsForUnresolvedPlaceholder() {
     const result = await harnessAllowFailure("self", "doctor");
     assert(result.code !== 0, "self doctor must fail when a mirror keeps unresolved placeholders");
     assertIncludes(result.stdout, `${relative} still contains unresolved MODEL_PROFILE placeholders`);
+  } finally {
+    await fs.writeFile(absolute, original, "utf8");
+  }
+}
+
+async function assertDoctorFailsForUnresolvedPermissionPlaceholder() {
+  const relative = ".opencode/agents/harness-builder.md";
+  const absolute = path.join(repoRoot, relative);
+  const original = await fs.readFile(absolute, "utf8");
+  try {
+    await fs.writeFile(absolute, original.replace(/^permission:\n(?:  .*\n)+?/m, "{{OPENCODE_PERMISSION_BLOCK_HARNESS_BUILDER}}\n"), "utf8");
+    const result = await harnessAllowFailure("self", "doctor");
+    assert(result.code !== 0, "self doctor must fail when a mirror keeps unresolved permission placeholders");
+    assertIncludes(result.stdout, `${relative} still contains unresolved OPENCODE_PERMISSION placeholders`);
+    assertIncludes(result.stdout, "Rerun harness self init --apply --with-opencode.");
   } finally {
     await fs.writeFile(absolute, original, "utf8");
   }

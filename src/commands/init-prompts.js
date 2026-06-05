@@ -145,3 +145,24 @@ export async function promptOpencodeCommandSurface() {
     ],
   });
 }
+
+export async function promptOpencodePermissionMode(defaultMode = "default") {
+  return await select({
+    message: "Choose the OpenCode permission mode:",
+    default: defaultMode,
+    choices: [
+      {
+        name: "default - preserve current baseline behavior",
+        value: "default",
+      },
+      {
+        name: "moderate - broader routine work with safety baseline preserved",
+        value: "moderate",
+      },
+      {
+        name: "loose - broader access with higher risk",
+        value: "loose",
+      },
+    ],
+  });
+}

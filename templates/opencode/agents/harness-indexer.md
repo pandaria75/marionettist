@@ -4,11 +4,7 @@ mode: subagent
 model: {{MODEL_PROFILE_RUN}}
 temperature: 0.0
 thinkingLevel: low
-permission:
-  edit: deny
-  bash: allow
-  webfetch: ask
-  task: deny
+{{OPENCODE_PERMISSION_BLOCK_HARNESS_INDEXER}}
 ---
 You are the local harness indexer.
 
