@@ -5,7 +5,7 @@ profiles:
     fallback: "openai/gpt-5.4"
   build:
     description: "Focused coding and implementation from approved task context"
-    default: "openai/gpt-5.3-codex"
+    default: "openai/gpt-5.4"
     fallback: "opencode-go/glm-5.1"
   review:
     description: "Reflective, cautious, nuanced review"

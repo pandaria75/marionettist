@@ -4,8 +4,8 @@ mode: subagent
 model: {{MODEL_PROFILE_BUILD}}
 temperature: 0.1
 permission:
-  edit: ask
-  bash: ask
+  edit: allow
+  bash: allow
   webfetch: ask
   task:
     "*": deny

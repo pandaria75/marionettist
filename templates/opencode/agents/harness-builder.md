@@ -4,9 +4,9 @@ mode: primary
 model: {{MODEL_PROFILE_THINK}}
 temperature: 0.1
 permission:
-  edit: ask
-  bash: ask
-  webfetch: ask
+  edit: allow
+  bash: allow
+  webfetch: allow
   task:
     "*": deny
     "harness-indexer": allow

@@ -6,7 +6,7 @@ temperature: 0.0
 thinkingLevel: high
 permission:
   edit: deny
-  bash: ask
+  bash: allow
   webfetch: ask
   task:
     "*": deny
