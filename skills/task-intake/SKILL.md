@@ -42,11 +42,16 @@ For fast-path tasks:
    - review
    - investigation
    - build/deployment
-4. Ask only the minimum blocking questions required to choose the next workflow.
-5. Do not implement code.
-6. Do not create large documents unless the task requires them.
-7. For non-trivial new tasks, create a dated task directory and point `.task/active.json` to it.
-8. Route to the correct next skill or workflow.
+4. Recommend an initial gate policy for the task:
+   - `strict` for existing harness Tier L, high-risk, workflow-sensitive, or boundary-sensitive work
+   - `balanced` for most existing harness Tier M work with clear approved slices
+   - `autonomous` only when the task is already well-bounded, validation is clear, and fewer mid-task pauses are acceptable
+5. Explain that a task-local policy override changes the task's default gate posture only. It does not bypass required analysis gates, final approval by default, or any other explicit stop condition.
+6. Ask only the minimum blocking questions required to choose the next workflow.
+7. Do not implement code.
+8. Do not create large documents unless the task requires them.
+9. For non-trivial new tasks, create a dated task directory and point `.task/active.json` to it.
+10. Route to the correct next skill or workflow.
 
 ## Questions To Ask
 
@@ -137,6 +142,8 @@ Use:
 
 ## Current Understanding
 
+## Recommended Gate Policy
+
 ## Blocking Questions
 
 ## Non-blocking Assumptions
@@ -153,3 +160,7 @@ Use:
 - Do not generate full implementation plans directly.
 - Keep the intake lightweight.
 - Prefer repository evidence over asking the user when possible.
+- Recommend a gate policy at task start for non-trivial work.
+- Treat Tier L / Tier M references here as existing harness task classification guidance only, not as a configurable tier-policy mapping.
+- Preserve final approval by default unless higher-priority instructions explicitly change it.
+- Treat task override as policy selection, not as permission to bypass required gates.

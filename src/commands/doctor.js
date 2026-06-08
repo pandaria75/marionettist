@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { parseCommonArgs } from "../core/args.js";
+import { validateOptionalGatePolicyDefaultMode } from "../core/gate-policy.js";
 import { validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface, validateOptionalOpencodePermissionMode } from "../core/manifest.js";
 import { parseSimpleYaml } from "../core/yaml.js";
 
@@ -48,6 +49,7 @@ export async function doctorCommand(args) {
   await checkAgents(options.project, results);
   const manifest = await checkManifest(options.project, results);
   checkDistributionMode(manifest, harnessConfig, results);
+  checkGatePolicyDefaultMode(harnessConfig, results);
   await checkPath(options.project, ".aiassistant/rules", "directory", ".aiassistant/rules exists", results);
   await checkPath(options.project, "docs/project/knowledge-map.md", "file", "docs/project/knowledge-map.md exists", results);
   await checkPath(options.project, "docs/project/harness-workflow.md", "file", "docs/project/harness-workflow.md exists", results);
@@ -191,6 +193,21 @@ function checkDistributionMode(manifest, harnessConfig, results) {
   }
 
   results.push(warn("distribution mode: embedded (legacy inferred; manifest missing distributionMode)"));
+}
+
+function checkGatePolicyDefaultMode(harnessConfig, results) {
+  const hasGatePolicyDefaultMode = Object.prototype.hasOwnProperty.call(harnessConfig?.gatePolicy ?? {}, "defaultMode");
+  if (!hasGatePolicyDefaultMode) {
+    return;
+  }
+
+  const configuredMode = readConfiguredGatePolicyDefaultMode(harnessConfig);
+  if (configuredMode.error) {
+    results.push(fail(configuredMode.error));
+    return;
+  }
+
+  results.push(pass(`gate policy default mode: ${configuredMode.value} (harness.config.yaml)`));
 }
 
 async function checkPath(projectPath, relative, expectedType, label, results) {
@@ -904,6 +921,15 @@ function readRecordedPermissionMode(manifest) {
 function readConfiguredDistributionModeValue(value, label) {
   const result = validateOptionalDistributionMode(value, label);
   return { value: result.value, error: result.error };
+}
+
+function readConfiguredGatePolicyDefaultMode(harnessConfig) {
+  const value = harnessConfig?.gatePolicy?.defaultMode;
+  const result = validateOptionalGatePolicyDefaultMode(value, "harness.config.yaml gatePolicy.defaultMode");
+  return {
+    value: result.value,
+    error: result.error
+  };
 }
 
 function hasManagedOpencodeFiles(manifest) {

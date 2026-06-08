@@ -151,6 +151,25 @@ Recommended Next Step:
 User confirmation required to continue.
 ```
 
+### Gate Policy 模式
+
+项目可以在 `harness.config.yaml` 中选择 gate policy 模式，用来控制工作流在多大频率上需要显式批准：
+
+- `strict` — 在正常 harness gate 上都停下。适合 Tier L、 高风险、边界敏感工作，也适合作为更保守的团队默认值。
+- `balanced` — 面向大多数项目的推荐通用默认值。它保留主要 harness gate，并默认保留 final approval，同时减少常规范围内工作的不必要摩擦。
+- `autonomous` — 允许在已批准工作流内进行更多连续推进，但仍然不是“无限自主执行”。scope、slice 批准和其他 harness 边界仍然有效。
+
+Builder 的常规建议应为：
+
+- 日常普通工作优先 `balanced`
+- Tier L 或其他高风险工作优先 `strict`
+
+项目也可以允许 task 级 override。也就是说，项目可以保留一个默认模式，同时在某个特定任务里记录不同的已选模式，用于用户有意选择更严格或更宽松的 gate 行为。
+
+Final gate / final approval 默认开启。即使项目使用 `balanced` 或 `autonomous`，工作流通常仍应要求最终批准；只有当项目或当前任务显式关闭该要求时才例外。
+
+旧项目如果没有定义 `gatePolicy`，仍然保持 legacy-compatible。它们可以先保持现有行为，之后再逐步补充显式 gate policy 配置。
+
 ## 6. 核心 Skills
 
 | Skill | 何时使用 | 产出 |
@@ -233,6 +252,13 @@ Forbidden modification scope：<禁止范围>
 ## 10. 可选 OpenCode
 
 OpenCode 是可选的，但推荐用于更高效的重复 harness 执行。它提供 builder-first 的 slash commands、各角色独立绑定的本地 agent 角色和 validator 脚手架。
+
+Gate policy 和 OpenCode permission mode 是两套独立控制：
+
+- **Gate policy** 决定工作流何时必须停下等待批准。
+- **Permission mode** 决定 OpenCode 在执行时对工具或命令施加多大的权限摩擦。
+
+调整其中一个，不会自动改变另一个。
 
 OpenCode 命令面分为：
 

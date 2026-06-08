@@ -56,6 +56,13 @@ knowledge:
 validation:
   defaultCommands: []
 
+gatePolicy:
+  defaultMode: "balanced"
+  finalApprovalRequired: true
+  # When true, a task-local plan or task state may request a different mode
+  # than defaultMode, but explicit user instructions still take precedence.
+  allowTaskOverride: true
+
 # Optional OpenCode adapter settings.
 # Omit opencode.permissionMode to keep compatibility fallback behavior.
 # permissionMode: default preserves current behavior.

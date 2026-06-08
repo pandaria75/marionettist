@@ -4,7 +4,7 @@ Use rule metadata from `00-repository-rules.md` when workflow constraints are pr
 
 ## Harness Gates
 
-- Rule: For non-trivial tasks, do not move from analysis to coding, between coding slices, or from coding to review without explicit user confirmation.
+- Rule: For non-trivial tasks, do not move from analysis to coding or between approved coding slices or approved parallel groups without explicit user confirmation, unless the selected gate policy explicitly allows continuation for the next already-approved `gateClass: simple` slice. Review for the current approved slice or group may still start automatically after coding.
   - type: hard
   - confidence: high
   - source: repository workflow policy

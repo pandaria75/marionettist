@@ -21,6 +21,8 @@ Use this skill to convert a requirement document into executable implementation 
    - allowed files, packages, or directories
    - forbidden files, packages, or directories
    - execution mode
+   - gate class
+   - gate reasons
    - dependencies and parallel eligibility when the task is complex
    - validation level
    - merge owner and conflict rule when shared files are involved
@@ -32,6 +34,13 @@ Use this skill to convert a requirement document into executable implementation 
 6. Update `.task/<task-id>/state.json` if the caller asks you to record slices or gates.
 7. Use the active task directory selected by `.task/active.json`.
 8. Do not implement code.
+
+## Gate Class Rules
+
+- Use only this frozen `gateClass` vocabulary: `simple`, `standard`, `boundary-sensitive`, `high-risk`.
+- Emit `gateReasons` as short non-scored reason labels that explain why the slice should pause or may continue under the selected policy.
+- Do not add numeric scoring, score ranges, or implied `risk_score` fields.
+- `gateClass` and `gateReasons` are policy hints for task artifacts, not a replacement for required human gates or explicit stop conditions.
 
 ## Output Document Template
 
@@ -84,6 +93,8 @@ Use this skill to convert a requirement document into executable implementation 
 - Shared Files:
 - Merge Owner:
 - Conflict Risk: low | medium | high
+- Gate Class: simple | standard | boundary-sensitive | high-risk
+- Gate Reasons:
 - Validation Level: slice | group | final
 - Recommended Agent Strategy:
 
@@ -131,3 +142,4 @@ Use this section only for complex tasks that have independent work worth paralle
 - Do not mark shared-file work as `parallel-capable` unless the plan names a merge owner and conflict resolution rule.
 - Do not expand the requirement scope.
 - Include validation commands whenever possible.
+- When recording slices in task state, emit `gateClass` and `gateReasons` without any numeric score field.

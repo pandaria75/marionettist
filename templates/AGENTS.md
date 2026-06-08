@@ -139,6 +139,17 @@ For non-trivial work, the default harness flow is:
 2. slice execution: implement only the current approved slice or approved parallel group, then automatically review that same slice or group
 3. finalization: report validation status, remaining risks, and any required knowledge or rules sync
 
+When `harness.config.yaml` defines `gatePolicy`, use it as the local default gate posture:
+- `strict`: stop at the analysis-to-coding gate and after every approved coding slice or approved parallel group
+- `balanced`: preserve the analysis gate and final approval by default; allow continuation through already-approved `gateClass: simple` slices only when the approved plan and current policy explicitly permit that continuation
+- `autonomous`: preserve the analysis gate and final approval by default; stop mid-task for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, or explicitly requested gates
+
+Template default is `gatePolicy.defaultMode: balanced` for general usability, but Tier L or otherwise high-risk work should recommend `strict` unless the user explicitly chooses a different policy.
+
+If `gatePolicy.allowTaskOverride` is true, task-local artifacts may select a different mode than `gatePolicy.defaultMode` for that task; this changes the default posture for the task, not the higher-priority requirement for explicit user confirmation where this workflow already requires it.
+
+For this workflow, the `gateClass` vocabulary is intentionally frozen to `simple`, `standard`, `boundary-sensitive`, and `high-risk`. Numeric risk scoring is deferred and must not be inferred from these labels.
+
 The agent may continue through small steps inside the analysis phase without pausing after each one.
 For bug fixes, the analysis phase is complete once a failing test case or clear reproduction steps are confirmed.
 After the analysis phase is complete, the agent must stop and wait for explicit user confirmation before entering coding, except for Tier S.
@@ -153,7 +164,9 @@ For all non-trivial tasks, repository harness gates are mandatory.
 
 The agent MUST NOT cross these gates without explicit user confirmation:
 - after analysis is complete, before coding starts
-- after each coding slice or approved parallel group has completed coding and review, before the next slice or group starts
+- after each coding slice or approved parallel group has completed coding and review, before the next slice or group starts, unless the selected gate policy explicitly allows continuation for the next already-approved `gateClass: simple` slice
+
+By default, final approval remains required even when the selected gate policy is `balanced` or `autonomous`.
 
 At every harness gate, the agent must stop and report:
 - current phase
@@ -168,6 +181,8 @@ When the completed work is a parallel group, the gate report must also include t
 Creating task documents or `.task/<task-id>/context-pack.md` does not authorize coding.
 
 Treat a task as trivial only when it is a single low-risk change with clear scope, no boundary ambiguity, no workflow impact, and no need for task documents. If any of those conditions is not clearly true, treat the task as non-trivial.
+
+Do not treat `gatePolicy` as permission to skip required human decisions for protected-area changes, compatibility breaks, unclear requirements, or other explicit stop conditions.
 
 ## Parallel Slice Compatibility
 

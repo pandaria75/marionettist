@@ -151,6 +151,25 @@ Recommended Next Step:
 User confirmation required to continue.
 ```
 
+### Gate Policy Modes
+
+Projects can choose a gate policy mode in `harness.config.yaml` to control how often the workflow stops for explicit approval:
+
+- `strict` — stop at every normal harness gate. Recommended for Tier L work, high-risk changes, boundary-sensitive work, and shared-team defaults when caution matters more than speed.
+- `balanced` — the recommended general default for most projects. It keeps the main harness gates, preserves final approval by default, and reduces unnecessary friction for routine scoped work.
+- `autonomous` — allows more continuation inside the approved workflow, but it is still not unbounded execution. Scope, slice approval, and other harness boundaries still apply.
+
+Builder guidance should normally recommend:
+
+- `balanced` for ordinary day-to-day work
+- `strict` for Tier L or otherwise high-risk work
+
+Projects may also allow a task-level override. That means the project can keep one default mode while a specific task records a different selected mode when the user intentionally wants tighter or looser gate behavior.
+
+Final gate / final approval stays on by default. Even when a project uses `balanced` or `autonomous`, the workflow should still require final approval unless the project or the current task explicitly disables that final approval requirement.
+
+Older projects that do not define `gatePolicy` remain legacy-compatible. They can keep their current behavior and add explicit gate policy settings later.
+
 ## 6. Core Skills
 
 | Skill | When to Use | Output |
@@ -233,6 +252,13 @@ When docs or rules are added, moved, renamed, or deleted, update `docs/project/k
 ## 10. Optional OpenCode
 
 OpenCode is optional but recommended for faster repeated harness execution. It adds builder-first slash commands, local agent roles with per-role model assignment, and validator scaffolding.
+
+Gate policy and OpenCode permission mode are separate controls:
+
+- **Gate policy** decides when the workflow must pause for approval.
+- **Permission mode** decides how much tool or command friction OpenCode applies during execution.
+
+Changing one does not automatically change the other.
 
 OpenCode command surfaces are:
 

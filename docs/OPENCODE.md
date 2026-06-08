@@ -131,6 +131,25 @@ If review returns `BLOCKED`, the coder may attempt the smallest repair and retry
 
 Common continuation prompts: `continue`, `proceed`, `start current slice`, `accept this slice and continue`, `start the next approved slice`.
 
+### Gate Policy Modes
+
+Projects can configure gate behavior separately from model or permission settings.
+
+- `strict` — stop at every normal harness gate. This is the recommended mode for Tier L work, high-risk work, and boundary-sensitive changes.
+- `balanced` — recommended as the general project default. It keeps the main harness approvals while reducing avoidable friction for routine scoped work.
+- `autonomous` — allows more approved continuation, but it does not remove slice boundaries, forbidden-scope rules, or other harness controls.
+
+The builder may recommend a stricter mode than the project default for a specific task. A common pattern is:
+
+- project default: `balanced`
+- task recommendation: `strict` for Tier L or high-risk work
+
+If task overrides are enabled, the active task can record a selected mode that differs from the project default. This is for intentional per-task handling, not silent policy drift.
+
+Final gate / final approval remains required by default. `balanced` is not “skip the last check,” and `autonomous` is not “declare done without approval.” Disable final approval only when the project or the active task explicitly says so.
+
+Existing projects with no `gatePolicy` setting remain legacy-compatible and can adopt the new modes later.
+
 ## 9. Model Profiles And Customization
 
 Agent model values are rendered from the canonical `.harness/model-profiles.yml`, with legacy fallback to `harness.config.yaml` profiles only when the canonical file is absent. The profiles map to skill requirements:
@@ -152,6 +171,13 @@ If a project still relies on legacy `harness.config.yaml` profiles and has not c
 Keep validator and reviewer `temperature` low for deterministic output. Tier 3 agents (indexer, validator) need fewer permissions than Tier 1 agents.
 
 ## 10. Permission Modes And Dangerous-Command Baseline
+
+Permission mode is not the same thing as gate policy:
+
+- **Gate policy** controls approval pauses in the harness workflow.
+- **Permission mode** controls how much OpenCode command/tool access friction is applied.
+
+For example, a project may use `balanced` gates with `default` permissions, or `strict` gates with `moderate` permissions. Choose them independently.
 
 OpenCode permission policy is configurable through `harness.config.yaml`:
 

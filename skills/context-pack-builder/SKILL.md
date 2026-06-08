@@ -27,6 +27,7 @@ Use this skill to build `.task/<task-id>/context-pack.md` before implementation.
 12. Create or update `.task/<task-id>/context-pack.md`.
 13. Do not implement code.
 14. If legacy `.task/context-pack.md` exists, read it only as a migration fallback and recommend moving context into the active task directory.
+15. Record the task's recommended and selected gate policy when available from task artifacts and, when present, `harness.config.yaml`, along with the stop conditions that still require a pause.
 
 ## Knowledge Mode And Maturity
 
@@ -58,6 +59,13 @@ Do not push mudball projects toward L3/L4 by default. L0-L1 are acceptable stead
 - Maturity:
 
 ## Current Slice Or Group
+
+## Gate Policy
+
+- Recommended:
+- Selected:
+- finalApprovalRequired: true | false
+- Policy Notes:
 
 ## Bugfix Context
 
@@ -143,6 +151,9 @@ Use `Loaded Context` to explain routing decisions and why each source was includ
 - When the current approved work is `parallel-capable`, include both the parallel mode and the sequential fallback order.
 - When the current approved work is a parallel group, include members, shared files, merge owner, conflict rule, and group validation.
 - Include stop conditions explicitly.
+- Record recommended and selected gate policy from task artifacts when available, and also note relevant `harness.config.yaml` gate policy defaults or overrides when present.
+- In markdown, prefer the canonical field name `finalApprovalRequired` or explicitly note that it maps to the JSON key of the same name so agents do not copy a humanized label into `state.json`.
+- If a task-local policy override is selected, note that it changes the task posture but does not bypass required analysis gates, required final approval by default, or any other explicit stop condition.
 - For bugfix tasks, include observed behavior, expected behavior, reproduction steps, evidence, suspected scope, and regression risk when available.
 - Read `incident.md` only when the task type and available evidence justify it.
 - Do not load the whole `docs` directory by default.

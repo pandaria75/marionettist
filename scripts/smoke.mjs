@@ -20,6 +20,7 @@ const opencodeProject = path.join(tempBase, `harness-smoke-opencode-${process.pi
 const backfillProject = path.join(tempBase, `harness-smoke-backfill-${process.pid}`);
 const gradleProject = path.join(tempBase, `harness-smoke-gradle-${process.pid}`);
 const legacyDistributionProject = path.join(tempBase, `harness-smoke-legacy-mode-${process.pid}`);
+const gatePolicyProject = path.join(tempBase, `harness-smoke-gate-policy-${process.pid}`);
 const validatorSnippetPathText = ["templates", "opencode", "agents", "validators"].join("/");
 const publishableScanRoots = ["README.md", "README.zh-CN.md", "docs", "templates", "skills", "src", "scripts", "package.json"];
 const publishableScanExcludedDirectories = [path.join("docs", "blogs")];
@@ -65,7 +66,7 @@ const binaryLikeExtensions = new Set([
 ]);
 
 try {
-  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject, legacyDistributionProject);
+  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject, legacyDistributionProject, gatePolicyProject);
 
   const dryRunOutput = await harness("init", "--project", dryRunProject, "--dry-run", "--auto");
   assertIncludes(dryRunOutput, "distribution mode: embedded");
@@ -93,11 +94,13 @@ try {
   await assertInitPreservesExistingLocalKnowledge(existingLocalProject);
   await assertSyncPreservesRecordedDistributionMode(distributionProject, "adapter");
   await assertLegacyDistributionModeReportingAndNoInjection(legacyDistributionProject);
+  await assertGatePolicyDoctorValidation(gatePolicyProject);
 
   const doctorOutput = await harness("doctor", "--project", project);
   assertIncludes(doctorOutput, "PASS  harness.config.yaml parsed");
   assertIncludes(doctorOutput, "PASS  model profiles found: think, build, review, run");
   assertIncludes(doctorOutput, "PASS  distribution mode: embedded (manifest)");
+  assertIncludes(doctorOutput, "PASS  gate policy default mode: balanced (harness.config.yaml)");
   assertIncludes(doctorOutput, "WARN  .task/active.json not found; no active task selected");
 
   await assertTaskStateContractTemplate();
@@ -161,7 +164,7 @@ try {
 
   console.log("smoke: PASS");
 } finally {
-  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject, legacyDistributionProject);
+  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject, legacyDistributionProject, gatePolicyProject);
 }
 
 async function assertKnowledgeInitAndManagedDocs(projectPath, { mode, maturity }) {
@@ -261,6 +264,27 @@ async function assertLegacyDistributionModeReportingAndNoInjection(projectPath) 
   invalidDoctor = await harnessAllowFailure("doctor", "--project", projectPath);
   assert(invalidDoctor.code !== 0, "doctor must fail when harness.config.yaml distribution.mode is invalid");
   assertIncludes(invalidDoctor.stdout, "FAIL  Unsupported harness.config.yaml distribution.mode: surprise. Expected embedded, hybrid, or adapter.");
+}
+
+async function assertGatePolicyDoctorValidation(projectPath) {
+  await cleanupPaths(projectPath);
+  await harness("init", "--project", projectPath, "--auto");
+
+  const configPath = path.join(projectPath, "harness.config.yaml");
+  const originalConfig = await fs.readFile(configPath, "utf8");
+  const withoutGatePolicy = removeTopLevelYamlSection(originalConfig, "gatePolicy");
+  await fs.writeFile(configPath, withoutGatePolicy, "utf8");
+
+  let doctor = await harnessAllowFailure("doctor", "--project", projectPath);
+  assert(doctor.code === 0, "doctor must remain non-fatal when gatePolicy is missing");
+  assertExcludes(doctor.stdout, "gate policy default mode:");
+
+  const invalidConfig = `${withoutGatePolicy.replace(/\s*$/u, "")}\n\ngatePolicy:\n  defaultMode: "surprise"\n`;
+  await fs.writeFile(configPath, invalidConfig, "utf8");
+
+  doctor = await harnessAllowFailure("doctor", "--project", projectPath);
+  assert(doctor.code !== 0, "doctor must fail when gatePolicy.defaultMode is invalid");
+  assertIncludes(doctor.stdout, "FAIL  Unsupported harness.config.yaml gatePolicy.defaultMode: surprise. Expected strict, balanced, or autonomous.");
 }
 
 async function assertManagedDocsLocalPreservation(projectPath) {

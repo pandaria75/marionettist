@@ -1,0 +1,4 @@
+gatePolicy:
+  defaultMode: "strict"
+  finalApprovalRequired: true
+  allowTaskOverride: true

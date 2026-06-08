@@ -23,6 +23,44 @@ Treat a task as high-risk when it includes sensitive refactors, workflow-sensiti
 
 In this file, `<task-id>` means the active `taskId` value from `.task/active.json`.
 
+## Gate Policy Defaults
+
+When `harness.config.yaml` defines `gatePolicy`, it sets the repository default gate posture for non-trivial work:
+
+```yaml
+gatePolicy:
+  defaultMode: "balanced" # strict | balanced | autonomous
+  finalApprovalRequired: true
+  allowTaskOverride: true
+```
+
+Mode semantics:
+
+- `strict`: stop at the analysis-to-coding gate and after every approved coding slice or approved parallel group.
+- `balanced`: preserve the analysis gate and final approval by default; allow continuation only for already-approved `gateClass: simple` slices when the approved plan and selected policy explicitly permit that continuation.
+- `autonomous`: preserve the analysis gate and final approval by default; stop mid-task for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, or explicitly requested gates.
+
+`allowTaskOverride: true` means task-local artifacts may choose a different gate mode than `defaultMode` for that task. It does not let task-local artifacts bypass higher-priority user instructions, required analysis gates, required final approval, or any other explicit stop condition in this workflow.
+
+Selecting a task-local override is a policy choice for that task, not a bypass of required gates. A task may become more or less interruption-tolerant within the allowed workflow, but it must still stop wherever this workflow or the user explicitly requires a stop.
+
+Template default is `balanced` for general target-project usability. Tier L or otherwise high-risk tasks should recommend `strict` unless the user explicitly chooses a different policy.
+
+`gatePolicy` does not replace normal stop conditions. Human confirmation is still required for protected-area changes, requirement ambiguity, compatibility tradeoffs, or any other explicitly blocked decision.
+
+## Gate Class Vocabulary
+
+For this workflow, `gateClass` is a non-scored hint vocabulary frozen to:
+
+- `simple`
+- `standard`
+- `boundary-sensitive`
+- `high-risk`
+
+In `balanced` mode, only `gateClass: simple` approved slices may continue without an extra mid-slice stop, and only when no explicit gate reason or task instruction requires a pause.
+
+Numeric risk scoring is deferred. Do not invent or depend on a numeric `risk_score` in this workflow.
+
 ### Analysis Phase
 
 The agent may perform any of the following as needed:
@@ -301,6 +339,7 @@ Example:
 | `status` | string | no | Task status: `in_progress`, `completed`, or `blocked`. |
 | `allowedToCode` | boolean | no | Whether the analysis-to-coding gate has been confirmed. |
 | `currentSlice` | string \| null | no | Currently approved slice identifier. |
+| `gatePolicy` | object | no | Task-local gate policy record with fields such as `recommended`, `selected`, `reason`, and `finalApprovalRequired`. A task-local override changes the task's default gate posture only; it does not bypass required gates or explicit stop conditions. |
 | `slices` | object[] | no | Planned slices or approved groups for this task. |
 | `gates` | object | no | Gate booleans such as `requirementFrozen`, `planApproved`, `contextPackReady`, `criticPassed`, `implementationDone`, `reviewPassed`, and `validationPassed`. `criticPassed` records the plan-review critic gate, not permission to code by itself. |
 | `files` | object | no | Task artifact paths such as `requirement`, `implementationPlan`, and `contextPack`. |
@@ -316,6 +355,12 @@ Example:
   "status": "in_progress",
   "allowedToCode": false,
   "currentSlice": null,
+  "gatePolicy": {
+    "recommended": "balanced",
+    "selected": null,
+    "reason": "Default non-trivial task posture until a task-specific override is chosen.",
+    "finalApprovalRequired": true
+  },
   "slices": [],
   "gates": {
     "requirementFrozen": false,
@@ -332,6 +377,28 @@ Example:
     "contextPack": ".task/2026-05-27/example-task/context-pack.md"
   },
   "updatedAt": "2026-05-27T00:00:00Z"
+}
+```
+
+### `state.json` slice entry shape
+
+When `state.json.slices` is used, each slice entry may record gate-policy hints for that slice or approved group.
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | string | yes | Slice or approved group identifier. |
+| `status` | string | no | Slice status such as `pending`, `in_progress`, `completed`, or `blocked`. |
+| `gateClass` | string | no | Non-scored gate hint. Use only `simple`, `standard`, `boundary-sensitive`, or `high-risk`. |
+| `gateReasons` | string[] | no | Short non-scored reason labels that explain the gate posture for the slice or group. |
+
+Example:
+
+```json
+{
+  "id": "slice-2-policy-aware-task-artifacts-skills",
+  "status": "in_progress",
+  "gateClass": "boundary-sensitive",
+  "gateReasons": ["agent-instructions", "task-state-contract"]
 }
 ```
 

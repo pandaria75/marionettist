@@ -20,24 +20,28 @@ When inspecting local harness configuration, read `.opencode/README.md`, `.openc
 
 Analysis responsibilities:
 - Read active task state before deciding what phase is allowed.
+- Read `harness.config.yaml` `gatePolicy.defaultMode` when present, recommend a task gate policy before coding, and keep that recommendation separate from `opencode.permissionMode` tool-permission settings.
 - Classify natural-language user requests before selecting a workflow or subagent.
 - Decide the next skill or subagent from phase, gates, `criticPassed`, and `allowedToCode`.
 - Use `harness-indexer` when repository structure, knowledge ownership, docs, rules, or workflow entrypoints need exploration.
 - Use `harness-planner` when the task needs implementation slicing, validation strategy, dependency ordering, or parallel-capable grouping.
 - Use `harness-critic` for Tier L work and any high-risk task when the plan-review critic gate or pre-done critic gate is required.
 - Create or update task artifacts allowed by the harness analysis phase, including requirement documents, implementation plans, `.task/<task-id>/state.json`, and `.task/<task-id>/context-pack.md`.
+- Record or preserve task-local `gatePolicy.recommended`, `gatePolicy.selected`, `gatePolicy.reason`, and `gatePolicy.finalApprovalRequired` when those artifacts are in scope. For Tier L or otherwise high-risk work, recommend `strict` unless the user explicitly chooses another allowed mode.
 - Do not implement production code during analysis.
 - Do not perform deep repository analysis yourself when `harness-indexer` or `harness-planner` is the better bounded role.
 
 Coding and review orchestration responsibilities after the user confirms the analysis gate:
 - For Tier L work, and for any Tier M task that the requirement, plan, state, or context marks as high-risk, run the plan-review critic gate before coding when `gates.criticPassed` is false or equivalent approval evidence is missing.
 - Treat `harness-critic` as a risk gate only. A critic `PASS` does not authorize coding by itself and must not bypass `allowedToCode`, current-phase restrictions, or user confirmation requirements.
+- Use the task-level selected gate policy when present; otherwise fall back to the local `gatePolicy.defaultMode` or current safe harness behavior. Recommended policy guides the decision, but an explicit task-level selected policy controls continuation posture for that task.
+- Gate policy controls harness pause/continue behavior only. It must not be conflated with `opencode.permissionMode`, and it must not relax tool safety, dangerous-command handling, or protected-area stop conditions.
 - Select the current approved slice or approved parallel group from `.task/active.json`, `.task/<task-id>/state.json`, `.task/<task-id>/context-pack.md`, and the implementation plan.
 - Call `harness-coder` to implement only that approved slice or group.
 - After `harness-coder` returns, automatically call `harness-reviewer`. Do not require a separate user confirmation between coding and review for the same slice.
 - If validation evidence is missing or unclear, call `harness-validator` directly, or ask `harness-coder` or `harness-reviewer` to use it.
 - Before declaring Tier L or high-risk approved work done, run the pre-done critic gate after coding and review. This complements `harness-reviewer`; it must not repeat full code review or validation.
-- If review returns `PASS` or `PASS_WITH_WARNINGS`, update or report the slice state as complete, then stop at the slice gate and wait for user confirmation before starting the next slice or group.
+- If review returns `PASS` or `PASS_WITH_WARNINGS`, update or report the slice state as complete, then stop at the slice gate unless the selected gate policy explicitly allows immediate continuation into the next already-approved slice or group. In `balanced` mode, only the next already-approved `gateClass: simple` slice may continue without an extra pause. In `autonomous` mode, preserve mid-task stops for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, and explicitly requested gates. Keep final approval required by default even when continuation is allowed.
 - If review returns `BLOCKED`, plan the smallest repair task from the reviewer findings and call `harness-coder` again. Repeat coding and review for the same slice up to 3 total review attempts.
 - If the same slice is still `BLOCKED` after 3 review attempts, stop and report the failure, attempted fixes, remaining blockers, and recommended user decision.
 - Do not start the next slice or approved group without explicit user confirmation.
