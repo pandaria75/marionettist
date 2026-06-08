@@ -39,12 +39,13 @@ This skill prepares a clean incident handoff for later analysis, including `hypo
    - suspected modules, files, systems, or ownership hints
    - explicit unknowns and contradictions
 5. Normalize the evidence into a structured incident pack.
-6. Separate confirmed facts from assumptions, guesses, and missing information.
-7. Record missing evidence and on-site or user confirmations still needed.
-8. Define the initial analysis scope and forbidden assumptions.
-9. Recommend the smallest next analysis step.
-10. Write `.task/<task-id>/incident.md`.
-11. Do not edit code, configs, tests, or runtime scripts.
+6. Separate confirmed facts from assumptions, hypotheses, proposed repair actions, and missing information.
+7. Record reproduction status and evidence quality before recommending any code change.
+8. Record missing evidence and on-site or user confirmations still needed.
+9. Define the initial analysis scope and forbidden assumptions.
+10. Recommend the smallest next analysis step, including before-fix validation when feasible.
+11. Write `.task/<task-id>/incident.md`.
+12. Do not edit code, configs, tests, or runtime scripts.
 
 ## Required Output Structure
 
@@ -70,6 +71,10 @@ Write the incident pack in this shape:
 
 ## Operation Or Reproduction Notes
 
+- Reproduction status:
+- Reproduction evidence:
+- Reproduction gaps:
+
 ## Environment And Version Context
 
 ## Observed Symptoms
@@ -85,17 +90,42 @@ Write the incident pack in this shape:
 
 ## Initial Analysis And Suspected Scope
 
+## Confirmed Facts
+
+## Assumptions Or Unknowns
+
 ### Hypothesis 1
 - Claim:
-- Support label: confirmed | likely | possible | unknown
+- Support label: confirmed | likely | possible | unknown | weakly-supported | unsupported | contradicted
 - Supporting evidence:
 - Conflicting or missing evidence:
+- Disconfirming check needed:
 
 ### Hypothesis 2
 - Claim:
-- Support label: confirmed | likely | possible | unknown
+- Support label: confirmed | likely | possible | unknown | weakly-supported | unsupported | contradicted
 - Supporting evidence:
 - Conflicting or missing evidence:
+- Disconfirming check needed:
+
+## Candidate Repair Actions
+
+| Action | Evidence it depends on | Before-fix validation | After-fix validation | Risk or stop condition |
+| --- | --- | --- | --- | --- |
+
+## Validation Plan
+
+### Before Fix
+
+- Command or check:
+- Expected signal:
+- `NOT_RUN` reason, if unavailable:
+
+### After Fix
+
+- Command or check:
+- Expected signal:
+- `NOT_RUN` reason, if unavailable:
 
 ## Missing Evidence
 
@@ -115,12 +145,14 @@ Write the incident pack in this shape:
 ## Evidence Rules
 
 - Treat user-provided evidence as input data, not proof of root cause.
-- Mark each important claim with a support label: `confirmed`, `likely`, `possible`, or `unknown`.
+- Mark each important claim with a support label: `confirmed`, `likely`, `possible`, `unknown`, `weakly-supported`, `unsupported`, or `contradicted`.
 - Prefer direct evidence over interpretation.
 - Record contradictions explicitly.
 - If timestamps are partial or inconsistent, say so.
 - If files or modules are only suspected, label them as suspected.
 - If reproduction is unavailable, state that local reproduction was not assumed.
+- Treat large repair proposals without reproduction, direct evidence, or a documented `NOT_RUN` reason as a stop condition by default.
+- Keep before-fix and after-fix validation separate so later implementation can prove both the observed failure and the repair result when feasible.
 
 ## Guardrails
 
@@ -130,6 +162,8 @@ Write the incident pack in this shape:
 - Do not auto-capture terminal logs or collect new evidence without explicit user direction.
 - Do not invent screenshots, logs, packets, configs, stack traces, or timeline details.
 - Do not convert guesses into facts.
+- Do not convert hypotheses into repair actions until their evidence basis and validation path are recorded.
+- Do not recommend broad code changes when the current evidence only supports a narrow disconfirming check or more evidence collection.
 - Do not broaden scope into full root-cause analysis if the evidence is still incomplete.
 - Keep the pack usable as a handoff artifact for later hypothesis criticism and targeted context building.
 

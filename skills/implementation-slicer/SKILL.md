@@ -11,7 +11,18 @@ risk_level: medium
 
 Use this skill to convert a requirement document into executable implementation slices.
 
-## Workflow
+## When To Use
+
+- Use after requirements are frozen or refactor scope is approved.
+- Use before coding non-trivial features or refactors that need bounded slices.
+
+## Inputs Required
+
+- Frozen requirement document or approved refactor scope
+- Relevant boundary or workflow analysis when available
+- Active task selection from `.task/active.json` when writing artifacts
+
+## Steps
 
 1. Read the requirement document or approved refactor scope.
 2. Use module-inspector or workflow-inspector when module or workflow scope is unclear.
@@ -34,6 +45,11 @@ Use this skill to convert a requirement document into executable implementation 
 6. Update `.task/<task-id>/state.json` if the caller asks you to record slices or gates.
 7. Use the active task directory selected by `.task/active.json`.
 8. Do not implement code.
+
+## Output Artifact
+
+- An implementation plan with bounded slices, validation guidance, and rollback notes in `.task/<task-id>/implementation-plan.md`
+- Optional task state update only when the caller asks to record slices or gates
 
 ## Gate Class Rules
 
@@ -143,3 +159,26 @@ Use this section only for complex tasks that have independent work worth paralle
 - Do not expand the requirement scope.
 - Include validation commands whenever possible.
 - When recording slices in task state, emit `gateClass` and `gateReasons` without any numeric score field.
+
+## Gate / Stop Condition
+
+- Stop when requirement scope is still unstable or slice boundaries cannot be defined safely.
+- Stop before coding or when planning would require expanding scope, gate vocabulary, or policy semantics.
+
+## Red Flags
+
+- Large or mixed-purpose slices
+- Shared-file parallel work without a merge owner or conflict rule
+- Missing validation guidance for risky changes
+- Slice definitions that blur allowed versus forbidden scope
+
+## Exit Criteria
+
+- Each slice has a clear goal and bounded modification scope
+- Execution order, dependencies, and validation level are explicit
+- Gate metadata uses existing `gateClass` vocabulary only
+- The plan is ready for context packing and coding handoff
+
+## Handoff
+
+- Hand the approved slice or parallel group, validation guidance, and forbidden scope to context-pack-builder or the coding workflow

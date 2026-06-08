@@ -49,13 +49,17 @@ Read `<task-id>` from `.task/active.json`. Prefer `.task/<task-id>/incident.md` 
    - whether the claimed cause actually explains the observed effect
    - whether the hypothesis is broader than the current incident scope
 7. Assign exactly one support label to each hypothesis:
-   - `confirmed`
-   - `likely`
-   - `possible`
-   - `unknown`
-8. Recommend the smallest safe next step needed to reduce uncertainty.
-9. Output the assessment only.
-10. Do not implement fixes.
+    - `confirmed`
+    - `likely`
+    - `possible`
+    - `unknown`
+    - `weakly-supported`
+    - `unsupported`
+    - `contradicted`
+8. Identify whether the current evidence is sufficient to justify implementation, or whether the safest next step is reproduction, disconfirming checks, or more evidence.
+9. Recommend the smallest safe next step needed to reduce uncertainty.
+10. Output the assessment only.
+11. Do not implement fixes.
 
 ## Required Checks
 
@@ -64,6 +68,8 @@ For every hypothesis, explicitly check for:
 - over-interpretation from partial evidence
 - weak causal links between symptom and suspected cause
 - missing disconfirming evidence
+- missing reproduction evidence or documented `NOT_RUN` reason
+- repair actions that depend on unsupported assumptions
 - scope creep beyond the reported incident
 - reliance on a single log fragment as if it were conclusive
 
@@ -73,8 +79,11 @@ For every hypothesis, explicitly check for:
 - `likely`: supported by meaningful evidence, but at least one uncertainty or missing disconfirmation step remains.
 - `possible`: plausible, but support is limited, indirect, or mostly inferential.
 - `unknown`: not adequately supported by current evidence, or the evidence is too incomplete or conflicting to judge.
+- `weakly-supported`: some evidence points in this direction, but the causal link is too thin for implementation without a narrower check.
+- `unsupported`: asserted without concrete evidence in the current packet.
+- `contradicted`: conflicts with observed evidence or a stronger confirmed fact.
 
-Do not use any label other than `confirmed`, `likely`, `possible`, or `unknown`.
+Do not use any label other than `confirmed`, `likely`, `possible`, `unknown`, `weakly-supported`, `unsupported`, or `contradicted`.
 
 ## Output Format
 
@@ -91,7 +100,8 @@ Do not use any label other than `confirmed`, `likely`, `possible`, or `unknown`.
 
 ### Hypothesis 1
 - Statement:
-- Support label: confirmed | likely | possible | unknown
+- Support label: confirmed | likely | possible | unknown | weakly-supported | unsupported | contradicted
+- Implementation readiness: ready | needs narrower check | needs more evidence | blocked
 - Supporting evidence:
 - Weak or indirect evidence:
 - Disconfirming evidence checked:
@@ -102,7 +112,8 @@ Do not use any label other than `confirmed`, `likely`, `possible`, or `unknown`.
 
 ### Hypothesis 2
 - Statement:
-- Support label: confirmed | likely | possible | unknown
+- Support label: confirmed | likely | possible | unknown | weakly-supported | unsupported | contradicted
+- Implementation readiness: ready | needs narrower check | needs more evidence | blocked
 - Supporting evidence:
 - Weak or indirect evidence:
 - Disconfirming evidence checked:
@@ -114,6 +125,9 @@ Do not use any label other than `confirmed`, `likely`, `possible`, or `unknown`.
 ## Recommended Handoff
 - Best current working hypothesis:
 - Hypotheses that should not drive implementation yet:
+- Unsupported, weakly-supported, or contradicted assumptions:
+- Before-fix validation needed:
+- After-fix validation expectation:
 - Next recipient: planner | context-pack-builder | user for more evidence
 - Notes for handoff:
 ```
@@ -126,5 +140,7 @@ Do not use any label other than `confirmed`, `likely`, `possible`, or `unknown`.
 - Do not auto-capture logs or generate synthetic evidence.
 - Do not treat a single stack trace line or log fragment as conclusive on its own.
 - State uncertainty explicitly.
+- Treat large code changes based on `possible`, `unknown`, `weakly-supported`, `unsupported`, or `contradicted` hypotheses as blocked unless the user explicitly accepts the risk and the task records the rationale.
+- Prefer before-fix and after-fix validation evidence; when validation cannot be run, require a documented `NOT_RUN` reason and follow-up.
 - Prefer disconfirming checks over confident speculation.
 - Keep the output tied to the reported incident scope.

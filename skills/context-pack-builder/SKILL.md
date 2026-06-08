@@ -11,7 +11,18 @@ risk_level: medium
 
 Use this skill to build `.task/<task-id>/context-pack.md` before implementation. Read `<task-id>` from `.task/active.json`.
 
-## Workflow
+## When To Use
+
+- Use after a requirement document or implementation plan exists.
+- Use before coding when a task needs compact, bounded execution context.
+
+## Inputs Required
+
+- `.task/active.json` and `.task/<task-id>/state.json`
+- Requirement, implementation, and incident artifacts when applicable
+- Relevant rules and docs routed through the knowledge map or nearby rule files
+
+## Steps
 
 1. Read `.task/active.json` and `.task/<task-id>/state.json`.
 2. Read `harness.config.yaml` when it exists and note `knowledge.mode` and `knowledge.maturity`.
@@ -28,6 +39,10 @@ Use this skill to build `.task/<task-id>/context-pack.md` before implementation.
 13. Do not implement code.
 14. If legacy `.task/context-pack.md` exists, read it only as a migration fallback and recommend moving context into the active task directory.
 15. Record the task's recommended and selected gate policy when available from task artifacts and, when present, `harness.config.yaml`, along with the stop conditions that still require a pause.
+
+## Output Artifact
+
+- A compact `.task/<task-id>/context-pack.md` with the current slice or group, loaded context, allowed scope, validation commands, and stop conditions
 
 ## Knowledge Mode And Maturity
 
@@ -164,3 +179,26 @@ Use `Loaded Context` to explain routing decisions and why each source was includ
 - For `knowledge.mode: mudball`, prefer current-state docs over target-state docs unless future design is directly relevant.
 - Do not require broad documentation context for L0-L1 tasks when a smaller safe context is sufficient.
 - Do not implement code.
+
+## Gate / Stop Condition
+
+- Stop when the approved slice or current task posture cannot be identified.
+- Stop when required rules, boundaries, or validation expectations remain too unclear for safe coding handoff.
+
+## Red Flags
+
+- Context packs that duplicate large docs instead of routing to them
+- Missing forbidden scope or stop conditions
+- Unclear slice versus parallel-group execution posture
+- Loaded local rules that conflict with stronger global safety boundaries
+
+## Exit Criteria
+
+- The current slice or group is explicit
+- Only the minimum relevant docs and rules are included
+- Allowed and forbidden scope are clear
+- Validation commands, assumptions, risks, and stop conditions are documented
+
+## Handoff
+
+- Hand the context pack to the coding workflow together with the approved slice or group and any unresolved stop conditions that still require a pause

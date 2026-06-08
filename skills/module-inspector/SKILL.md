@@ -9,7 +9,16 @@ Use this skill to inspect module ownership, modifiability, dependency direction,
 
 `docs/project/knowledge-map.md` is the routing source for relevant docs and rules. Do not duplicate routing tables inside this skill.
 
-## Workflow
+## When To Use
+
+- Use when a task modifies a module, spans multiple areas, or needs ownership or boundary analysis before implementation.
+
+## Inputs Required
+
+- Target area, file path, module name, or feature area from the request
+- Relevant knowledge-map entries, rules, and nearby boundary docs when needed
+
+## Steps
 
 1. Read `docs/project/knowledge-map.md`.
 2. Identify the target module, package, feature area, subsystem, or directory from the request, file paths, names, or knowledge-map entries.
@@ -22,6 +31,10 @@ Use this skill to inspect module ownership, modifiability, dependency direction,
 6. Inspect source files only when the knowledge-map and loaded docs are insufficient to determine ownership, modifiability, dependency direction, or boundary risks.
 7. If ownership or boundaries remain unclear, state the uncertainty explicitly and inspect only the smallest relevant source area before recommending changes.
 8. Output the boundary summary using the required format below.
+
+## Output Artifact
+
+- A module boundary summary covering scope, modifiability, dependency direction, risks, and recommended modification path
 
 ## Required Output Format
 
@@ -62,3 +75,25 @@ Use this skill to inspect module ownership, modifiability, dependency direction,
 - When the task spans multiple areas, load every applicable rule file for the involved areas, but load only the minimum doc files required for the current task.
 - When adding, moving, renaming, or deleting docs or rules, update `docs/project/knowledge-map.md`.
 - Do not implement code.
+
+## Gate / Stop Condition
+
+- Stop when module ownership, allowed scope, or dependency direction remains too unclear to recommend a safe modification path.
+
+## Red Flags
+
+- Cross-area impact without clear boundary rules
+- Restricted or forbidden areas that the task seems to require changing
+- Dependency direction that would be reversed by the proposed change
+- Uncertainty that would force broad source inspection
+
+## Exit Criteria
+
+- Target and related areas are identified
+- Modifiable, restricted, and forbidden areas are explicit
+- Boundary risks and dependency direction are summarized
+- Uncertainty is stated when boundaries are still unresolved
+
+## Handoff
+
+- Hand the summary to implementation-slicer, context-pack-builder, or the caller with the recommended modification path and any unresolved boundary questions

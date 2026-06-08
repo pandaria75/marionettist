@@ -15,6 +15,8 @@ Requirements:
 - Create or update `.task/<task-id>/incident.md` as an analysis artifact only.
 - Do not treat this command as authorization to code, bugfix, refactor, or change production files.
 - Do not skip evidence organization and jump to code changes.
+- Keep facts, hypotheses, candidate repair actions, and missing evidence in separate sections.
+- Require reproduction evidence or an explicit unavailable/manual/environmental `NOT_RUN` reason before recommending implementation by default.
 
 Incident-first rules:
 - If no active task exists, create a dated task directory for the investigation and point `.task/active.json` to it.
@@ -22,6 +24,7 @@ Incident-first rules:
 - Do not assume site, production, browser, device, packet-capture, or environment access.
 - Do not automatically capture terminal logs or any other evidence.
 - Use `harness-indexer` only for read-only repository, docs, rules, ownership, boundary, or suspected-file exploration when that helps organize the incident.
+- Treat broad repairs without direct evidence, reproduction, or documented validation constraints as a stop condition unless the user explicitly approves the risk.
 
 Collect and organize only user-provided or explicitly supplied evidence:
 - symptoms, impact, and severity clues
@@ -42,7 +45,10 @@ Write `.task/<task-id>/incident.md` with at least:
 - timeline or event sequence if known
 - reproduction or operation notes
 - initial hypotheses
-- hypothesis support classification: `confirmed`, `likely`, `possible`, or `unknown`
+- confirmed facts separated from assumptions and unknowns
+- hypothesis support classification: `confirmed`, `likely`, `possible`, `unknown`, `weakly-supported`, `unsupported`, or `contradicted`
+- candidate repair actions with the evidence each action depends on
+- before-fix validation and after-fix validation, or `NOT_RUN` reasons when validation is unavailable, manual, or environmental
 - needed on-site or user confirmations for each non-confirmed hypothesis
 - missing evidence
 - forbidden assumptions and non-goals

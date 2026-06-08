@@ -11,7 +11,18 @@ risk_level: medium
 
 Use this skill to convert raw requirements into a stable requirement document.
 
-## Workflow
+## When To Use
+
+- Use before implementation planning when requirements, business rules, or expected behavior are unclear.
+- Use when a task needs a stable requirement artifact for later slicing or coding.
+
+## Inputs Required
+
+- Raw task request, notes, or requirement source
+- Relevant evidence, docs, or examples when available
+- Active task selection from `.task/active.json` when writing artifacts
+
+## Steps
 
 1. Read the user-provided requirement.
 2. Identify:
@@ -30,6 +41,11 @@ Use this skill to convert raw requirements into a stable requirement document.
 7. Use the active task directory selected by `.task/active.json`.
 8. Do not implement code.
 9. Do not write an implementation plan.
+
+## Output Artifact
+
+- A frozen requirement document in `.task/<task-id>/requirement.md`
+- Optional task state update only when the caller asks to record the gate
 
 ## Output Document Template
 
@@ -82,3 +98,26 @@ Use this skill to convert raw requirements into a stable requirement document.
 - Record assumptions explicitly.
 - Keep requirements separate from implementation details.
 - Ask only blocking questions.
+
+## Gate / Stop Condition
+
+- Stop and ask blocking questions when required behavior, scope, or acceptance criteria cannot be stabilized from available evidence.
+- Stop before planning or coding.
+
+## Red Flags
+
+- Conflicting sources for expected behavior
+- Unclear in-scope versus out-of-scope boundaries
+- Missing acceptance criteria for a non-trivial change
+- Hidden implementation decisions presented as requirements
+
+## Exit Criteria
+
+- Scope and non-goals are explicit
+- Assumptions and deferred questions are recorded
+- Acceptance criteria are stable enough for implementation slicing
+- No code or implementation plan was produced
+
+## Handoff
+
+- Hand the frozen requirement to implementation-slicer or context-pack-builder together with any remaining deferred questions and relevant source notes

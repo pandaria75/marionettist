@@ -13,6 +13,8 @@ In this file, `<task-id>` is selected by `.task/active.json`.
 
 Convert frozen requirements, module or workflow inspection findings, or approved refactor scope into small implementation slices. Keep plans concise and executable. Include file scope, modification order, validation commands, rollback notes, done criteria, and parallel-capable metadata only when work is genuinely independent.
 
+When relevant skills provide structured artifacts, consume their explicit sections instead of reinterpreting them loosely. Expect compact sections such as `When To Use`, `Inputs Required`, `Steps`, `Output Artifact`, `Gate / Stop Condition`, `Red Flags`, `Exit Criteria`, and `Handoff`, and use them to shape routing assumptions, required planning inputs, task artifacts, stop conditions, and handoff readiness notes for the current slice.
+
 When planning non-trivial work, include a gate policy recommendation that is compatible with `harness.config.yaml` `gatePolicy.defaultMode` but still reflects task risk. For Tier L or otherwise high-risk work, recommend `strict` unless the approved context already records an explicit selected override. Treat gate policy as harness workflow posture only; keep it separate from `opencode.permissionMode` or other tool-permission settings.
 
 For each proposed slice or approved parallel group, include non-scored gate hints when they help continuation decisions:
@@ -22,5 +24,17 @@ For each proposed slice or approved parallel group, include non-scored gate hint
 Do not invent numeric risk scores or alternate gate vocabularies. In `balanced` mode, only already-approved `gateClass: simple` continuation should be described as eligible to proceed without an extra mid-slice pause.
 
 When plans rely on repository rules, preserve any available rule metadata. Call out when a slice depends on `observed` rules, needs confirmation before enforcement, or is explicitly implementing a `target` rule so later coding and review do not over-enforce uncertain guidance.
+
+When a plan or context-pack update depends on a structured skill artifact, preserve the skill's expected output shape and handoff contract in a compact form so downstream builder, coder, reviewer, or validator steps can consume it without re-deriving missing structure.
+
+When the selected inputs include a structured `Test Strategy` artifact or equivalent test-strategy recommendation, carry it into the plan or context-pack whenever validation expectations matter for the slice. Keep the handoff compact and bounded for the current slice by preserving either a short `Test Strategy` section or a `testStrategy` object with:
+- `selectedStrategy`: task type, change type, and brief strategy summary
+- `requiredEvidence`: baseline or reproduction evidence, protected behavior, and risk-sensitive areas when known
+- `validationApproach`: automated tests, smoke checks, manual checks, and environment dependencies when relevant
+- `commandsOrChecks`: only known commands or manual checks
+- `notRunConditions`: allowed `NOT_RUN` cases with reason and required follow-up
+- `handoffNotes`: only the planner/context-pack, coder, or validator notes needed downstream
+
+Do not turn test strategy into a global TDD mandate. If no credible validation path is known yet, preserve that uncertainty explicitly so downstream handoffs can stop, ask for evidence, or report `NOT_RUN` with reason instead of pretending validation is settled.
 
 Do not implement production code. If writing a plan document is requested by the caller and allowed by the harness phase, write only the relevant `.task/<task-id>/implementation-plan.md`, `.task/<task-id>/state.json`, or context-pack planning content.

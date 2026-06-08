@@ -11,6 +11,17 @@ risk_level: low
 
 Use this skill to collect task information and route the task into the lightweight file-based harness.
 
+## When To Use
+
+- Use when a new non-trivial repository task starts and the harness flow has not started yet.
+- Use the fast path when structured task artifacts or a clearly scoped ongoing slice already exist.
+
+## Inputs Required
+
+- User task goal and requested outcome
+- Relevant repository constraints, paths, or evidence when available
+- Existing task artifacts if the task is already in progress
+
 ## Fast Path
 
 If the user already provides structured task artifacts or a clearly scoped ongoing slice, do not ask the full intake questions.
@@ -30,7 +41,7 @@ For fast-path tasks:
 3. Route directly to that step.
 4. Ask only blocking questions needed for routing.
 
-## Workflow
+## Steps
 
 1. Read `AGENTS.md`.
 2. Read `harness.config.yaml` if present.
@@ -133,6 +144,11 @@ Use:
 1. workspace-knowledge-manager
 2. update `docs/project/knowledge-map.md` when docs or rules are added, moved, renamed, or deleted
 
+## Output Artifact
+
+- A compact intake result that captures task type, current understanding, gate policy recommendation, blocking questions, assumptions, and the recommended next step
+- Task artifacts only when the task requires initialization or the caller asks for them
+
 ## Output Format
 
 ```md
@@ -164,3 +180,26 @@ Use:
 - Treat Tier L / Tier M references here as existing harness task classification guidance only, not as a configurable tier-policy mapping.
 - Preserve final approval by default unless higher-priority instructions explicitly change it.
 - Treat task override as policy selection, not as permission to bypass required gates.
+
+## Gate / Stop Condition
+
+- Stop and ask blocking questions when the goal, task type, or safe next workflow cannot be determined from available evidence.
+- Stop before coding, implementation planning, or broad document creation.
+
+## Red Flags
+
+- Missing task goal, scope, or validation expectation
+- Conflicting instructions about allowed or forbidden areas
+- Fast-path artifacts that disagree about current slice or gate status
+- Requests that implicitly skip required harness steps
+
+## Exit Criteria
+
+- The next harness step is identified
+- Blocking questions are minimized and explicit
+- Recommended gate policy is stated for non-trivial work
+- The task is routed without implementing code
+
+## Handoff
+
+- Send the task to the next skill with the intake result, task type, known scope, open blocking questions, and any task-local gate policy selection
