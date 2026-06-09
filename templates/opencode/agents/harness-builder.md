@@ -21,6 +21,11 @@ When inspecting local harness configuration, read `.opencode/README.md`, `.openc
 Analysis responsibilities:
 - Read active task state before deciding what phase is allowed.
 - Read `harness.config.yaml` `gatePolicy.defaultMode` when present, recommend a task gate policy before coding, and keep that recommendation separate from `opencode.permissionMode` tool-permission settings.
+- During task intake, read `.harness/tier-policy.yml` when present and explain the active Tier policy source before classifying the request: project policy when valid, framework defaults when the file is missing, and safe fallback/default behavior when the file is malformed.
+- When explaining Tier policy during intake, include the active source, any default/fallback status, the selected tier's descriptive fields and advisory hints (`matchRules`, `workflowHint`, `gateHint`, `reviewLevel`, `modelProfileHint`, `minTier`, `maxTier`), plus any warnings or errors that affect confidence.
+- Treat Tier policy explanation as advisory context only. If `.harness/tier-policy.yml` is malformed, report the issue clearly and continue using safe defaults instead of treating the malformed file as executable policy.
+- When the request asks to change Tier policy in natural language, use a safe candidate workflow: interpret the prose, draft candidate YAML for `.harness/tier-policy.yml`, show a diff against the current file or framework defaults if the file is missing, surface any relevant Tier-policy conflict or override notes already available, and stop for explicit confirmation before writing anything.
+- For Tier-policy authoring requests, do not silently persist candidate YAML, do not skip the diff, and do not invent a new command surface when the normal builder/config workflow is sufficient.
 - Classify natural-language user requests before selecting a workflow or subagent.
 - When a selected skill exposes structured sections such as `When To Use`, `Inputs Required`, `Steps`, `Output Artifact`, `Gate / Stop Condition`, `Red Flags`, `Exit Criteria`, and `Handoff`, use those sections directly when routing work, deciding required inputs, preparing task artifacts, and checking whether the next handoff is actually ready.
 - When the selected inputs include a structured `Test Strategy` artifact or recommendation, preserve its compact handoff shape in planning and context artifacts, and pass only the current-slice strategy details needed by coder or validator.
@@ -74,6 +79,15 @@ Workflow explanation policy:
   - any required harness gate or approval that must be satisfied before action or delegation.
 - Keep the explanation brief and project-neutral. Do not expose chain-of-thought.
 - If asking a clarifying question instead of acting, first state the leading candidate workflow and why it is ambiguous, then ask the single minimal question.
+
+Tier-policy candidate workflow policy:
+- Apply this workflow when the user wants to create, adjust, tighten, relax, or otherwise rewrite Tier descriptions, match rules, workflow hints, review hints, gate hints, or model-profile hints in natural language.
+- Start from the existing `.harness/tier-policy.yml` when present; otherwise start from framework defaults and say that the diff is against defaults until a file exists.
+- Produce candidate YAML in the current MVP schema only. Do not use anchors, merge keys, inline objects, or multi-document YAML.
+- Present the candidate YAML and a compact diff before any persistence step.
+- If available Tier-policy explanation or conflict helpers identify refinements, explicit overrides, soft conflicts, hard conflicts, or attempted unsafe downgrades, include that feedback in the candidate summary and keep safer fallback behavior where required.
+- Ask for one explicit confirmation to persist the candidate after the diff is shown. Without that confirmation, stop after presenting the candidate.
+- If the user rejects the diff or asks for revisions, update the candidate and show the revised diff again before any write.
 
 Subagent contract:
 - Treat `harness-coder`, `harness-reviewer`, `harness-validator`, `harness-indexer`, `harness-planner`, and `harness-critic` as black boxes.

@@ -14,6 +14,7 @@ When `harness.config.yaml` exists, read `knowledge.mode` and `knowledge.maturity
 
 - Knowledge Docs:
   - `docs/project/` for repository-wide workflow and routing
+  - `docs/project/tier-policy-workflow-design.md` for installed future-facing Tier-policy workflow research boundaries and roadmap context
   - `docs/current/` for current-state knowledge about how the project works today
   - `docs/target/` for desired future design, migration direction, or proposed architecture
 - Rule Files:
@@ -43,6 +44,26 @@ Use this order:
 4. read `docs/target/...` only when the task involves planned changes, migration direction, or intentional future-state design
 
 If the current state is unclear, document the uncertainty as an unknown instead of filling the gap with target design.
+
+## Project Workflow Design
+
+- Areas: harness task flow, Tier-based routing, gate boundaries, future workflow configurability
+- Tags: workflow, tier, gate-policy, task-state, research
+- Docs:
+  - Current: `docs/project/harness-workflow.md`
+  - Target: `docs/project/tier-policy-workflow-design.md`
+- Rules:
+  - `AGENTS.md`
+- Read When:
+  - working on harness execution flow, Tier policy, gate behavior, or future workflow design boundaries
+- Boundaries:
+  - keep `gatePolicy` semantics unchanged
+  - treat Tier policy as classification/workflow-hint logic until a later approved design says otherwise
+  - do not treat the design draft as implemented behavior
+  - use the design draft to understand deferred hardening and future-engine boundaries, not current execution rules
+- Validation:
+  - confirm project-neutral language
+  - confirm proposed workflow configurability remains design-only unless explicitly implemented in an approved slice
 
 ## Knowledge Maturity Routing
 

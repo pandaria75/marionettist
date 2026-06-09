@@ -21,6 +21,7 @@ const backfillProject = path.join(tempBase, `harness-smoke-backfill-${process.pi
 const gradleProject = path.join(tempBase, `harness-smoke-gradle-${process.pid}`);
 const legacyDistributionProject = path.join(tempBase, `harness-smoke-legacy-mode-${process.pid}`);
 const gatePolicyProject = path.join(tempBase, `harness-smoke-gate-policy-${process.pid}`);
+const tierPolicyProject = path.join(tempBase, `harness-smoke-tier-policy-${process.pid}`);
 const validatorSnippetPathText = ["templates", "opencode", "agents", "validators"].join("/");
 const publishableScanRoots = ["README.md", "README.zh-CN.md", "docs", "templates", "skills", "src", "scripts", "package.json"];
 const publishableScanExcludedDirectories = [path.join("docs", "blogs")];
@@ -66,7 +67,7 @@ const binaryLikeExtensions = new Set([
 ]);
 
 try {
-  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject, legacyDistributionProject, gatePolicyProject);
+  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject, legacyDistributionProject, gatePolicyProject, tierPolicyProject);
 
   const dryRunOutput = await harness("init", "--project", dryRunProject, "--dry-run", "--auto");
   assertIncludes(dryRunOutput, "distribution mode: embedded");
@@ -77,9 +78,11 @@ try {
   const initOutput = await harness("init", "--project", project, "--auto");
   assertIncludes(initOutput, "distribution mode: embedded");
   assertIncludes(initOutput, "write-manifest: .harness/manifest.json");
+  assertIncludes(initOutput, "new-managed: .harness/tier-policy.yml");
 
   await assertKnowledgeInitAndManagedDocs(project, { mode: "standard", maturity: "L1" });
   await assertDistributionModeRecorded(project, "embedded");
+  await assertTierPolicyManagedInstallAndPreservation(project);
 
   const distributionOutput = await harness("init", "--project", distributionProject, "--auto", "--distribution-mode", "adapter");
   assertIncludes(distributionOutput, "distribution mode: adapter");
@@ -95,6 +98,7 @@ try {
   await assertSyncPreservesRecordedDistributionMode(distributionProject, "adapter");
   await assertLegacyDistributionModeReportingAndNoInjection(legacyDistributionProject);
   await assertGatePolicyDoctorValidation(gatePolicyProject);
+  await assertTierPolicyConflictDoctorValidation(tierPolicyProject);
 
   const doctorOutput = await harness("doctor", "--project", project);
   assertIncludes(doctorOutput, "PASS  harness.config.yaml parsed");
@@ -164,7 +168,7 @@ try {
 
   console.log("smoke: PASS");
 } finally {
-  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject, legacyDistributionProject, gatePolicyProject);
+  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject, legacyDistributionProject, gatePolicyProject, tierPolicyProject);
 }
 
 async function assertKnowledgeInitAndManagedDocs(projectPath, { mode, maturity }) {
@@ -192,6 +196,28 @@ async function assertDistributionModeRecorded(projectPath, expectedMode) {
 
   const config = parseSimpleYaml(await fs.readFile(path.join(projectPath, "harness.config.yaml"), "utf8"));
   assert(config.distribution?.mode === expectedMode, `Expected harness.config.yaml distribution.mode=${expectedMode}, got ${config.distribution?.mode}`);
+}
+
+async function assertTierPolicyManagedInstallAndPreservation(projectPath) {
+  const tierPolicyRelative = path.join(".harness", "tier-policy.yml");
+  const tierPolicyPath = path.join(projectPath, tierPolicyRelative);
+  assert(await pathExists(tierPolicyPath), `${tierPolicyRelative} must exist after init`);
+
+  const manifest = await readManifest(projectPath);
+  assert(manifest.managedFiles.some((file) => file.path === toPosix(tierPolicyRelative)), `manifest must include ${tierPolicyRelative}`);
+
+  const cleanDiffOutput = await harness("diff", "--project", projectPath);
+  assertIncludes(cleanDiffOutput, `unchanged: ${toPosix(tierPolicyRelative)}`);
+
+  await fs.appendFile(tierPolicyPath, "\n# Local tier policy note.\n", "utf8");
+  const localTierPolicyContent = await fs.readFile(tierPolicyPath, "utf8");
+
+  const modifiedDiffOutput = await harness("diff", "--project", projectPath);
+  assertIncludes(modifiedDiffOutput, `modified-local: ${toPosix(tierPolicyRelative)}`);
+
+  const syncDryRunOutput = await harness("sync", "--project", projectPath, "--dry-run");
+  assertIncludes(syncDryRunOutput, `modified-local: ${toPosix(tierPolicyRelative)}`);
+  assert((await fs.readFile(tierPolicyPath, "utf8")) === localTierPolicyContent, "sync --dry-run must preserve local tier-policy bytes");
 }
 
 async function assertSyncPreservesRecordedDistributionMode(projectPath, expectedMode) {
@@ -285,6 +311,171 @@ async function assertGatePolicyDoctorValidation(projectPath) {
   doctor = await harnessAllowFailure("doctor", "--project", projectPath);
   assert(doctor.code !== 0, "doctor must fail when gatePolicy.defaultMode is invalid");
   assertIncludes(doctor.stdout, "FAIL  Unsupported harness.config.yaml gatePolicy.defaultMode: surprise. Expected strict, balanced, or autonomous.");
+}
+
+async function assertTierPolicyConflictDoctorValidation(projectPath) {
+  await cleanupPaths(projectPath);
+  await harness("init", "--project", projectPath, "--auto");
+
+  const tierPolicyPath = path.join(projectPath, ".harness", "tier-policy.yml");
+  await fs.rm(tierPolicyPath, { force: true });
+
+  // Keep Tier-policy smoke coverage grouped here because the MVP intentionally
+  // exercises multiple policy outcomes in one place: missing-file fallback,
+  // accepted refinements/overrides, soft conflicts, hard conflicts, and parse
+  // failure. If this area grows further, consider splitting fixture helpers
+  // rather than broadening unrelated smoke sections.
+
+  let doctor = await harnessAllowFailure("doctor", "--project", projectPath);
+  assert(doctor.code === 0, "doctor must remain non-fatal when tier policy is missing");
+  assertIncludes(doctor.stdout, "WARN  .harness/tier-policy.yml missing; task intake will use framework defaults");
+
+  await writeProjectTierPolicy(projectPath, `schemaVersion: "1"
+tiers:
+  S:
+    description: "Minor, low-risk work with clear scope and no boundary ambiguity"
+    matchRules:
+      - "single low-risk change"
+      - "clear scope with no workflow impact"
+      - "project-local micro-change with extra guardrails"
+    minTier: null
+    maxTier: "S"
+    workflowHint: "direct"
+    gateHint: "default"
+    reviewLevel: "standard"
+    modelProfileHint: "build"
+  M:
+    description: "Standard work that needs analysis context before coding"
+    matchRules:
+      - "small feature, bugfix, refactor, or docs task with non-trivial risk"
+      - "clear scope but more than trivial complexity"
+    minTier: "M"
+    maxTier: "M"
+    workflowHint: "analysis-context"
+    gateHint: "default"
+    reviewLevel: "critic-required"
+    modelProfileHint: "build"
+  L:
+    description: "Local L description override"
+    matchRules:
+      - "multi-area or workflow-sensitive change"
+      - "architecture-sensitive or approval-sensitive work"
+      - "project-specific escalation wording"
+    minTier: "L"
+    maxTier: null
+    workflowHint: "full-harness"
+    gateHint: "prefer-strict"
+    reviewLevel: "critic-required"
+    modelProfileHint: "review"
+`);
+
+  doctor = await harnessAllowFailure("doctor", "--project", projectPath);
+  assert(doctor.code === 0, "doctor must accept refinements and explicit overrides");
+  assertIncludes(doctor.stdout, "PASS  .harness/tier-policy.yml parsed");
+  assertIncludes(doctor.stdout, "PASS  .harness/tier-policy.yml tiers.S.matchRules refinement accepted");
+  assertIncludes(doctor.stdout, "PASS  .harness/tier-policy.yml tiers.M.reviewLevel refinement accepted");
+  assertIncludes(doctor.stdout, "WARN  .harness/tier-policy.yml tiers.L.description explicit override accepted");
+  assertIncludes(doctor.stdout, "WARN  .harness/tier-policy.yml tiers.L.modelProfileHint explicit override accepted");
+
+  await writeProjectTierPolicy(projectPath, `schemaVersion: "1"
+tiers:
+  S:
+    description: "Minor, low-risk work with clear scope and no boundary ambiguity"
+    matchRules:
+      - "single low-risk change"
+    minTier: null
+    maxTier: "S"
+    workflowHint: "direct"
+    gateHint: "default"
+    reviewLevel: "standard"
+    modelProfileHint: "build"
+  M:
+    description: "Standard work that needs analysis context before coding"
+    matchRules:
+      - "clear scope but more than trivial complexity"
+    minTier: "M"
+    maxTier: "M"
+    workflowHint: "analysis-context"
+    gateHint: "default"
+    reviewLevel: "standard"
+    modelProfileHint: "build"
+  L:
+    description: "Complex, cross-cutting, boundary-sensitive, or high-risk work"
+    matchRules:
+      - "multi-area or workflow-sensitive change"
+      - "architecture-sensitive or approval-sensitive work"
+    minTier: "L"
+    maxTier: null
+    workflowHint: "full-harness"
+    gateHint: "default"
+    reviewLevel: "critic-required"
+    modelProfileHint: "think"
+`);
+
+  doctor = await harnessAllowFailure("doctor", "--project", projectPath);
+  assert(doctor.code === 0, "doctor must warn but not fail for soft conflicts");
+  assertIncludes(doctor.stdout, "WARN  .harness/tier-policy.yml tiers.M.matchRules soft conflict accepted with explanation");
+  assertIncludes(doctor.stdout, "WARN  .harness/tier-policy.yml tiers.L.gateHint soft conflict accepted with explanation");
+
+  await writeProjectTierPolicy(projectPath, `schemaVersion: "1"
+tiers:
+  S:
+    description: "Minor, low-risk work with clear scope and no boundary ambiguity"
+    matchRules:
+      - "single low-risk change"
+      - "clear scope with no workflow impact"
+    minTier: null
+    maxTier: "M"
+    workflowHint: "direct"
+    gateHint: "default"
+    reviewLevel: "standard"
+    modelProfileHint: "build"
+  M:
+    description: "Standard work that needs analysis context before coding"
+    matchRules:
+      - "small feature, bugfix, refactor, or docs task with non-trivial risk"
+      - "clear scope but more than trivial complexity"
+    minTier: "M"
+    maxTier: "M"
+    workflowHint: "analysis-context"
+    gateHint: "default"
+    reviewLevel: "standard"
+    modelProfileHint: "build"
+  L:
+    description: "Complex, cross-cutting, boundary-sensitive, or high-risk work"
+    matchRules:
+      - "multi-area or workflow-sensitive change"
+      - "architecture-sensitive or approval-sensitive work"
+    minTier: "L"
+    maxTier: null
+    workflowHint: "analysis-context"
+    gateHint: "prefer-strict"
+    reviewLevel: "critic-required"
+    modelProfileHint: "think"
+`);
+
+  doctor = await harnessAllowFailure("doctor", "--project", projectPath);
+  assert(doctor.code !== 0, "doctor must fail for hard conflicts and attempted risk downgrades");
+  assertIncludes(doctor.stdout, "FAIL  .harness/tier-policy.yml tiers.S.maxTier hard conflict");
+  assertIncludes(doctor.stdout, "FAIL  .harness/tier-policy.yml tiers.L.workflowHint hard conflict");
+  assertIncludes(doctor.stdout, "WARN  .harness/tier-policy.yml invalid; task intake will fall back to safe defaults where needed");
+
+  await fs.writeFile(tierPolicyPath, `schemaVersion: "1"
+  S:
+    description: "broken"
+   matchRules:
+      - "oops"
+`, "utf8");
+
+  doctor = await harnessAllowFailure("doctor", "--project", projectPath);
+  assert(doctor.code !== 0, "doctor must fail for malformed tier policy");
+  assertIncludes(doctor.stdout, "FAIL  .harness/tier-policy.yml parse failed:");
+}
+
+async function writeProjectTierPolicy(projectPath, content) {
+  const tierPolicyPath = path.join(projectPath, ".harness", "tier-policy.yml");
+  await fs.mkdir(path.dirname(tierPolicyPath), { recursive: true });
+  await fs.writeFile(tierPolicyPath, content, "utf8");
 }
 
 async function assertManagedDocsLocalPreservation(projectPath) {

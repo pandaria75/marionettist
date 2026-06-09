@@ -61,6 +61,78 @@ In `balanced` mode, only `gateClass: simple` approved slices may continue withou
 
 Numeric risk scoring is deferred. Do not invent or depend on a numeric `risk_score` in this workflow.
 
+## Tier Policy And Future Workflow Configuration
+
+Tier policy is intended to guide task classification and workflow hints. It must not replace this workflow definition, change mandatory gate behavior, or redefine `gatePolicy` semantics.
+
+If the project later adopts configurable Tier policy, treat the executable flow in this document as the MVP source of truth unless a future approved design explicitly introduces a broader workflow engine. For the deferred-design boundary of that future work, see `docs/project/tier-policy-workflow-design.md`.
+
+When `.harness/tier-policy.yml` exists, use it as the project-local source for Tier descriptions, match-rule text, workflow hints, review hints, and model-profile hints during task intake.
+
+The installed `.harness/tier-policy.yml` file is a safe managed starting point:
+
+- `harness init` may install it as framework-managed project scaffolding
+- `harness diff` and `harness sync` must preserve project-local edits instead of silently overwriting them
+- task intake should explain whether it is using the project-local file, framework defaults, or a safe fallback after parse/validation problems
+
+Precedence for the MVP is:
+
+1. this workflow document and `gatePolicy` remain the source of executable gate behavior
+2. built-in framework Tier defaults apply when `.harness/tier-policy.yml` is missing
+3. project-local `.harness/tier-policy.yml` may refine Tier classification and hint text within the fixed Tier `S` / `M` / `L` vocabulary
+4. refinements may be auto-accepted with explanation, explicit overrides should be marked clearly, and unsafe downgrades must fall back to safer framework defaults instead of silently relaxing them
+
+In `.harness/tier-policy.yml`, `tiers.<tier>.gateHint` is advisory only. It may suggest labels such as `default` or `prefer-strict`, but it does not replace `gatePolicy.defaultMode`, does not change the selected task-local gate mode, and does not bypass any required stop in this workflow.
+
+In `.harness/tier-policy.yml`, `tiers.<tier>.modelProfileHint` must reference an existing profile role or name from `.harness/model-profiles.yml`. It must not embed provider IDs or model IDs directly.
+
+For the current MVP, this is a documented authoring constraint and advisory hint. Automatic cross-validation of `modelProfileHint` against `.harness/model-profiles.yml` is deferred future hardening, so agents should explain uncertainty instead of inventing or silently accepting raw provider/model IDs.
+
+Current schema boundary for `.harness/tier-policy.yml`:
+
+- root keys: `schemaVersion`, `tiers`
+- required tier entries: `S`, `M`, `L`
+- required fields inside each tier: `description`, `matchRules`, `workflowHint`, `gateHint`, `reviewLevel`, `modelProfileHint`
+- optional fields inside each tier: `minTier`, `maxTier`
+- allowed scalar values for `minTier` and `maxTier`: `S`, `M`, `L`, or `null`
+- `matchRules` is a list of plain strings only
+
+Do not use anchors, merge keys, inline objects, or multi-document YAML in this file for the current MVP.
+
+Unknown or unsupported ordered-field values should be treated conservatively and explained clearly. Stricter automatic rejection behavior for those cases is deferred future hardening rather than part of the current MVP contract.
+
+### Implemented MVP Vs Deferred Hardening
+
+Implemented now:
+
+- managed install path at `.harness/tier-policy.yml`
+- framework defaults when the project-local file is missing
+- parse/validation feedback with safe fallback where needed
+- advisory hints for `workflowHint`, `gateHint`, `reviewLevel`, and `modelProfileHint`
+- conflict handling that distinguishes refinement, explicit override, soft conflict, and unsafe downgrade
+- natural-language candidate authoring with diff-before-write and explicit confirmation before persistence
+
+Deferred future hardening:
+
+- automatic cross-validation that every `modelProfileHint` resolves in `.harness/model-profiles.yml`
+- stricter handling for unknown ordered-field values beyond the current conservative explanation/fallback posture
+- any configurable workflow-DAG or broader workflow-engine behavior
+
+### Natural-Language Tier Policy Editing
+
+Projects may ask the builder/config workflow to update `.harness/tier-policy.yml` from natural-language instructions.
+
+For this MVP, the safe authoring flow is:
+
+1. interpret the user's prose as a candidate Tier-policy change
+2. draft candidate YAML in the current schema only
+3. compare the candidate against the current `.harness/tier-policy.yml`, or against framework defaults when the file does not exist yet
+4. show the candidate YAML and a diff before any write
+5. surface any already-available Tier-policy explanation, refinement, override, or conflict notes
+6. require explicit user confirmation before persisting the candidate
+
+The agent must not silently write Tier-policy changes from prose alone. If the user requests revisions, update the candidate and show the revised diff again before persistence.
+
 ### Analysis Phase
 
 The agent may perform any of the following as needed:

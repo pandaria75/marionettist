@@ -12,6 +12,7 @@ import { parseSimpleYaml } from "./yaml.js";
 const coreTemplateTargets = new Map([
   ["AGENTS.md", "AGENTS.md"],
   [".harness/model-profiles.yml", ".harness/model-profiles.yml"],
+  [".harness/tier-policy.yml", ".harness/tier-policy.yml"],
   ["harness.config.yaml", "harness.config.yaml"],
   ["docs/project/harness-workflow.md", "docs/project/harness-workflow.md"],
   ["docs/project/knowledge-map.md", "docs/project/knowledge-map.md"],

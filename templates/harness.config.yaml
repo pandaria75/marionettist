@@ -63,6 +63,13 @@ gatePolicy:
   # than defaultMode, but explicit user instructions still take precedence.
   allowTaskOverride: true
 
+# Tier-classification hints belong in .harness/tier-policy.yml.
+# That file is advisory for Tier classification, workflow hints, review hints,
+# and model-profile hints only. It must not redefine gatePolicy semantics,
+# selected task gates, or provider/model IDs.
+# Cross-validation of modelProfileHint values and stricter unknown-value rejection
+# are deferred future hardening, not part of the current MVP contract.
+
 # Optional OpenCode adapter settings.
 # Omit opencode.permissionMode to keep compatibility fallback behavior.
 # permissionMode: default preserves current behavior.

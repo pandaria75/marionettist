@@ -98,6 +98,8 @@ Use available IDE tools, MCP tools, local search, or direct source inspection fo
 
 Use `task-intake` as the default entrypoint for non-trivial repository tasks. Use it to classify the task into one of the following tiers:
 
+When `.harness/tier-policy.yml` exists, use it as project-local guidance for Tier descriptions, match-rule language, workflow hints, review hints, and model-profile hints. Keep the executable workflow and all gate behavior anchored to `docs/project/harness-workflow.md` and `harness.config.yaml` `gatePolicy`.
+
 - **Tier S (Minor)**: Extremely limited scope such as a typo, comment tweak, or one-file low-risk fix.
   - *Flow*: Skip `.task/` documents and analysis skills. Proceed directly to coding, followed by review.
 - **Tier M (Standard)**: Small features, bugfixes, refactors, or documentation tasks with clear scope but more than trivial risk.
@@ -145,6 +147,16 @@ When `harness.config.yaml` defines `gatePolicy`, use it as the local default gat
 - `autonomous`: preserve the analysis gate and final approval by default; stop mid-task for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, or explicitly requested gates
 
 Template default is `gatePolicy.defaultMode: balanced` for general usability, but Tier L or otherwise high-risk work should recommend `strict` unless the user explicitly chooses a different policy.
+
+If `.harness/tier-policy.yml` provides `gateHint`, treat it as advisory classification context only. It must not replace `gatePolicy.defaultMode`, the selected task-local gate mode, or any required human-confirmation stop.
+
+If `.harness/tier-policy.yml` provides `modelProfileHint`, resolve it through existing profile roles or names from `.harness/model-profiles.yml`. Do not treat Tier policy as a place to embed raw provider or model identifiers.
+
+For the current MVP, treat `modelProfileHint` as an advisory profile reference with a documented authoring constraint. Full automatic cross-validation against `.harness/model-profiles.yml` is deferred future hardening.
+
+If a user asks to change Tier policy in natural language, route that through the normal builder/config workflow as candidate authoring: draft candidate `.harness/tier-policy.yml`, show a diff against the current file or framework defaults, surface any available conflict/override explanation, and require explicit confirmation before writing.
+
+If Tier-policy fields use unknown or unsupported ordered-field values, explain the uncertainty conservatively and keep safer workflow behavior. Stricter rejection for those cases is deferred future hardening, not current MVP behavior.
 
 If `gatePolicy.allowTaskOverride` is true, task-local artifacts may select a different mode than `gatePolicy.defaultMode` for that task; this changes the default posture for the task, not the higher-priority requirement for explicit user confirmation where this workflow already requires it.
 

@@ -3,6 +3,7 @@ import path from "node:path";
 import { parseCommonArgs } from "../core/args.js";
 import { validateOptionalGatePolicyDefaultMode } from "../core/gate-policy.js";
 import { validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface, validateOptionalOpencodePermissionMode } from "../core/manifest.js";
+import { loadTierPolicyState, tierPolicySourceRelative } from "../core/tier-policy.js";
 import { parseSimpleYaml } from "../core/yaml.js";
 
 const managedBlockStart = "<!-- harness-kit:start -->";
@@ -46,6 +47,7 @@ export async function doctorCommand(args) {
   const results = [];
 
   const harnessConfig = await checkHarnessConfig(options.project, results);
+  await checkTierPolicy(options.project, results);
   await checkAgents(options.project, results);
   const manifest = await checkManifest(options.project, results);
   checkDistributionMode(manifest, harnessConfig, results);
@@ -108,6 +110,46 @@ async function checkAgents(projectPath, results) {
     return;
   }
   results.push(fail("AGENTS.md managed block missing"));
+}
+
+async function checkTierPolicy(projectPath, results) {
+  try {
+    const state = await loadTierPolicyState(projectPath);
+    const { explanation } = state;
+    const interactionMessages = new Set((explanation.interactions ?? []).map((interaction) => interaction.message));
+
+    if (explanation.errors.length > 0) {
+      for (const error of explanation.errors) {
+        results.push(fail(error));
+      }
+    }
+
+    if (!state.projectSource.exists) {
+      results.push(warn(`${tierPolicySourceRelative} missing; task intake will use framework defaults`));
+    } else if (explanation.errors.length === 0) {
+      results.push(pass(`${tierPolicySourceRelative} parsed`));
+    } else {
+      results.push(warn(`${tierPolicySourceRelative} invalid; task intake will fall back to safe defaults where needed`));
+    }
+
+    for (const warning of explanation.warnings) {
+      if (!warning.startsWith(`${tierPolicySourceRelative} not found;`) && !interactionMessages.has(warning)) {
+        results.push(warn(warning));
+      }
+    }
+
+    for (const interaction of explanation.interactions ?? []) {
+      if (interaction.classification === "refinement") {
+        results.push(pass(interaction.message));
+      } else if (interaction.classification === "soft-conflict") {
+        results.push(warn(interaction.message));
+      } else if (interaction.classification === "explicit-override") {
+        results.push(warn(interaction.message));
+      }
+    }
+  } catch (error) {
+    results.push(fail(`${tierPolicySourceRelative} could not be evaluated: ${error.message}`));
+  }
 }
 
 async function checkManifest(projectPath, results) {
