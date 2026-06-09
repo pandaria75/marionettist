@@ -1031,7 +1031,9 @@ async function assertP1DocsAndTemplateCoverage() {
   assertIncludes(builderTemplate, "For `harness-coder`, request implementation plus lightweight self-check only.");
   assertIncludes(builderTemplate, "For `harness-reviewer`, request `diff-review` of the current slice or repair and provide changed files.");
   assertIncludes(builderTemplate, "For `harness-critic`, always state `plan-review` or `pre-done`.");
-  assertIncludes(continueCommand, "route to `harness-reviewer` in bounded `diff-review` mode");
+  assertIncludes(continueCommand, "If coding is complete but review has not passed, route to `harness-reviewer` for the current slice or group.");
+  assertIncludes(continueCommand, "Use the reviewer’s bounded high-risk two-stage mode when the task or current slice/group is Tier L, high-risk, boundary-sensitive, workflow-sensitive, or critic-required.");
+  assertIncludes(continueCommand, "Otherwise use the reviewer’s standard bounded diff-review mode by default.");
   assertIncludes(continueCommand, "route to `harness-critic` in `pre-done` mode");
   assertIncludes(workflowTemplate, "Review is diff-first and bounded to the current approved slice or group.");
   assertIncludes(workflowTemplate, "The coding agent may perform lightweight self-check");

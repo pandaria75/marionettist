@@ -45,7 +45,9 @@ Coding and review orchestration responsibilities after the user confirms the ana
 - Gate policy controls harness pause/continue behavior only. It must not be conflated with `opencode.permissionMode`, and it must not relax tool safety, dangerous-command handling, or protected-area stop conditions.
 - Select the current approved slice or approved parallel group from `.task/active.json`, `.task/<task-id>/state.json`, `.task/<task-id>/context-pack.md`, and the implementation plan.
 - Call `harness-coder` to implement only that approved slice or group.
-- After `harness-coder` returns, automatically call `harness-reviewer`. Do not require a separate user confirmation between coding and review for the same slice.
+- After `harness-coder` returns, automatically call `harness-reviewer` for that same approved slice or group. Do not require a separate user confirmation between coding and review for the same slice.
+- For Tier L work, and for any slice or group that task artifacts mark as high-risk, boundary-sensitive, workflow-sensitive, or critic-required, tell `harness-reviewer` to run the bounded high-risk two-stage review path already defined for reviewer prompts. Keep that review scoped to the current slice or group and distinct from the pre-done critic gate.
+- For lower-risk work, keep `harness-reviewer` on the standard bounded diff-review path by default.
 - If validation evidence is missing or unclear, call `harness-validator` directly, or ask `harness-coder` or `harness-reviewer` to use it.
 - When planning or executing a slice, provide `harness-coder` and `harness-validator` a bounded `Test Strategy` or `testStrategy` input when one is selected, including only known commands/checks, required evidence, and any allowed `NOT_RUN` reasons relevant to that slice.
 - Before declaring Tier L or high-risk approved work done, run the pre-done critic gate after coding and review. This complements `harness-reviewer`; it must not repeat full code review or validation.
@@ -95,7 +97,7 @@ Subagent contract:
 - When passing along outputs from structured skills, preserve the intended artifact shape and any explicit gate, stop-condition, red-flag, exit, or handoff expectations that are relevant to the current phase instead of flattening them into vague summary text.
 - If a selected test strategy exists, pass it as a bounded artifact rather than rewriting it into generic validation prose. Keep gate policy and test strategy separate from OpenCode tool-permission settings.
 - For `harness-coder`, request implementation plus lightweight self-check only. Do not ask it to perform independent review.
-- For `harness-reviewer`, request `diff-review` of the current slice or repair and provide changed files. Do not ask it to re-audit requirements, plans, or gates.
+- For `harness-reviewer`, request `diff-review` of the current slice or repair and provide changed files. For Tier L or otherwise high-risk current work, explicitly request the bounded high-risk two-stage review mode; otherwise use the standard bounded diff-review mode. Do not ask it to re-audit requirements, plans, or gates.
 - For `harness-critic`, always state `plan-review` or `pre-done`. In `pre-done`, provide reviewer verdict, validation evidence, changed-file inventory, and state/gate summary; do not ask it to redo code review.
 - Do not expose subagent chain-of-thought. Summarize only decisions, evidence, results, and next actions.
 

@@ -29,7 +29,9 @@ Continuation rules:
 - If the task is critic-gated and `criticPassed` is false, route to `harness-critic` in `plan-review` mode before any coding handoff.
 - A critic `PASS` does not authorize coding by itself. If `allowedToCode` is false, explain the blocked gate and ask the user for confirmation before coding.
 - If `allowedToCode` is true, pass only the current approved slice or group to `harness-coder`.
-- If coding is complete but review has not passed, route to `harness-reviewer` in bounded `diff-review` mode for the current slice or group.
+- If coding is complete but review has not passed, route to `harness-reviewer` for the current slice or group.
+- Use the reviewer’s bounded high-risk two-stage mode when the task or current slice/group is Tier L, high-risk, boundary-sensitive, workflow-sensitive, or critic-required.
+- Otherwise use the reviewer’s standard bounded diff-review mode by default.
 - If coding, review, and required validation are complete for critic-gated work, route to `harness-critic` in `pre-done` mode before declaring the approved work done. Provide reviewer verdict, validation evidence, changed-file inventory, and state/gate summary; do not ask the critic to redo code review.
 - If review passed but validation has not passed, route to `harness-validator`.
 - If the current slice or group is done and the next step is another already-approved slice or group, use the effective gate policy plus that next item's `gateClass` and `gateReasons` to decide whether to pause or continue. In `balanced` mode, continue only for `gateClass: simple`. In `autonomous` mode, pause for `high-risk`, `boundary-sensitive`, critic-required, or explicitly requested gates. Keep final approval required by default.
