@@ -2,250 +2,196 @@
 
 [中文版](./OPENCODE.zh-CN.md)
 
-For tech leads and developers using the optional OpenCode scaffolding installed by `harness init --with-opencode`.
+This guide is for teams that use the optional OpenCode scaffolding installed by `harness init --with-opencode`.
 
-OpenCode is recommended but optional. The harness core works without it, using plain repository files, prompts, and installed skills. See [docs/DESIGN.md](./DESIGN.md) for the design rationale.
+OpenCode improves ergonomics. It does not replace the harness workflow. The repository files, task artifacts, and gates remain the source of truth.
 
 ## 1. What OpenCode Adds
 
-OpenCode wraps the harness workflow with ergonomic improvements:
+- **Slash commands** such as `/harness`, `/harness-dev`, and `/harness-docs`.
+- **Role agents** for builder, planner, coder, reviewer, critic, indexer, and validator work.
+- **Model profiles** so each role can use an appropriate model tier.
+- **Validator guidance** for build, test, lint, and smoke-check workflows.
+- **Local permission posture** through generated OpenCode agent files.
 
-- **Model tiering.** Assign different models to different harness roles — strongest model for planning, cost-efficient model for coding and review, cheapest model for utility tasks.
-- **Slash commands.** Quick entrypoints like `/harness` that route to the correct workflow.
-- **Agent roles.** Local role definitions (builder, coder, reviewer, validator) with per-role model and permission settings.
-- **Validator scaffolding.** Build, test, and lint guidance that follows the harness workflow.
+The core harness still works without OpenCode.
 
-## 2. Model-Tiering Strategy
-
-The harness workflow naturally splits work across three capability tiers.
-
-| Tier | Profile | Roles | Model Choice |
-| --- | --- | --- | --- |
-| Think | `think` | builder, planner | Strongest reasoning model available |
-| Build | `build` | coder | Capable model with good cost-performance |
-| Review | `review` | reviewer, critic | Capable, deterministic model |
-| Run | `run` | indexer, validator | Cheapest model that reliably follows instructions |
-
-This separation is the primary reason multi-agent scaffolding exists. It matches model capability and cost to the actual demand of each job.
-
-## 3. Install
+## 2. Install
 
 ```powershell
-# During project setup
-harness init --with-opencode
-
 # Preview first
 harness init --dry-run --with-opencode
 
-# Choose command surface
-harness init --with-opencode --opencode-command-surface minimal   # default
+# Install OpenCode scaffolding
+harness init --with-opencode
+
+# Optional command surfaces
+harness init --with-opencode --opencode-command-surface minimal
 harness init --with-opencode --opencode-command-surface standard
 harness init --with-opencode --opencode-command-surface advanced
 ```
 
-You can also set the surface in project config:
+You can also set the command surface in project config:
 
 ```yaml
 opencode:
-  commandSurface: minimal  # or standard | advanced
+  commandSurface: minimal  # minimal | standard | advanced
 ```
 
-Legacy `full` remains accepted as an alias for `advanced`.
+Legacy `full` is accepted as an alias for `advanced`.
 
-OpenCode installs also follow the harness distribution modes:
+## 3. Installed Files
 
-- `embedded` — default and closest to legacy behavior
-- `hybrid` — local install with explicit adapter-aware distribution metadata
-- `adapter` — adapter-oriented install, still tracked locally for safe sync
+Typical OpenCode assets:
 
-The chosen mode is recorded in `.harness/manifest.json` as `distributionMode`. Older projects without that field remain valid, and the CLI reports or infers the effective mode. The field is written only when the user explicitly selects or provides a mode, when the manifest already contains `distributionMode`, or when `harness.config.yaml` specifies `distribution.mode`.
-
-These assets are tracked in `.harness/manifest.json` and participate in `harness diff`, `harness sync`, and `harness doctor`.
-
-## 4. What Gets Installed
-
-- `opencode.jsonc` (project root) — shared runtime setup
-- `.opencode/commands/harness.md`, `harness-dev.md`, `harness-docs.md`, `harness-config.md`, `harness-incident.md`
-- `.opencode/agents/harness-builder.md`, `harness-coder.md`, `harness-indexer.md`, `harness-planner.md`, `harness-reviewer.md`, `harness-critic.md`, `harness-validator.md`
+- `opencode.jsonc`
 - `.opencode/README.md`
+- `.opencode/commands/harness*.md`
+- `.opencode/agents/harness-*.md`
+- `.opencode/agents/validators/**`
 
-These are generated managed defaults, not locked product behavior.
+These are managed defaults. Teams may choose what to commit and what to keep local.
 
-The command surfaces are:
+For target projects, the framework template source of truth is `templates/opencode/**` in this framework distribution. Use `harness diff`, `harness sync`, and `harness doctor` to inspect drift and safe updates.
 
-- `minimal`: `/harness`, `/harness-dev`, `/harness-incident`, `/harness-docs`, `/harness-config`
-- `standard`: minimal plus `/harness-context`, `/harness-status`, `/harness-continue`
-- `advanced`: standard plus `/harness-feature`, `/harness-bugfix`, `/harness-refactor`
+## 4. Command Surfaces
 
-The design intent is builder-first usage: most teams should start from `/harness` and only expose more wrappers when they improve team ergonomics.
+| Surface | Commands | Use When |
+| --- | --- | --- |
+| `minimal` | `/harness`, `/harness-dev`, `/harness-incident`, `/harness-docs`, `/harness-config` | Default builder-first workflow |
+| `standard` | minimal plus `/harness-context`, `/harness-status`, `/harness-continue` | Teams want explicit status and continuation commands |
+| `advanced` | standard plus `/harness-feature`, `/harness-bugfix`, `/harness-refactor` | Teams want dedicated wrappers by task type |
 
-## 5. How OpenCode Fits The Harness
+Most teams should start with `minimal`. The builder can route natural-language requests from `/harness`.
 
-OpenCode follows the same harness method:
-
-1. Slash command or prompt starts the flow.
-2. Builder classifies the request and runs analysis (Think tier).
-3. Builder stops at the analysis gate for non-trivial work.
-4. Builder selects the current approved slice.
-5. Coder implements that approved work only (Build tier).
-6. Reviewer checks the same approved work immediately after coding (Review tier).
-7. If critic-gated, critic audits before coding and again before declaring done.
-8. Builder stops at the next slice gate.
-
-OpenCode makes this flow easier — it does not weaken the gate model.
-
-## 6. Key Slash Commands
+## 5. Key Commands
 
 | Command | Purpose |
 | --- | --- |
-| `/harness` | Default entrypoint. Routes natural-language requests to the correct workflow. |
-| `/harness-dev` | Development and implementation work. |
-| `/harness-incident` | Evidence-first incident investigation. Stops before coding. |
-| `/harness-docs` | Documentation or design work. |
-| `/harness-config` | Harness or project workflow configuration. |
+| `/harness` | Default entrypoint. Classifies the request and routes the workflow. |
+| `/harness-dev` | Feature or implementation work. |
+| `/harness-incident` | Urgent incident or mitigation work. |
+| `/harness-docs` | Documentation, rules, or knowledge work. |
+| `/harness-config` | Harness, workflow, tooling, or agent configuration work. |
 | `/harness-status` | Show current task state without modifying files. |
-| `/harness-continue` | Continue the active task according to task state. |
+| `/harness-continue` | Continue the active task according to recorded state. |
 
-## 7. Agent Roles
+## 6. Agent Roles
 
 | Agent | Responsibility | Profile |
 | --- | --- | --- |
-| `harness-builder` | Primary orchestrator. Reads state, enforces gates, routes subagents. | `think` |
-| `harness-planner` | Requirements, slices, validation strategy. | `think` |
-| `harness-coder` | Implements only the current approved slice or group. | `build` |
-| `harness-reviewer` | Reviews scope, boundaries, validation, and docs sync. | `review` |
-| `harness-critic` | Audits requirements, plan, and validation at critic gates. | `review` |
-| `harness-indexer` | Read-only repository exploration for docs, rules, and entrypoints. | `run` |
-| `harness-validator` | Runs build, compile, test, lint and returns diagnostics. | `run` |
+| `harness-builder` | Orchestrates the workflow, reads state, enforces gates, delegates bounded work. | `think` |
+| `harness-planner` | Plans requirements, slices, validation, and dependency order. | `think` |
+| `harness-coder` | Implements only the approved slice or group. | `build` |
+| `harness-reviewer` | Reviews the diff for scope, boundaries, validation, and docs sync. | `review` |
+| `harness-critic` | Audits risk gates before coding or before done for high-risk work. | `review` |
+| `harness-indexer` | Performs read-only repository exploration. | `run` |
+| `harness-validator` | Runs or interprets validation commands. | `run` |
 
-## 8. Gate Behavior
+The builder owns orchestration. Subagents should receive bounded inputs and return compact evidence.
 
-OpenCode flows obey the same gates:
+## 7. Model Profiles
 
-- Stop after analysis, before coding.
-- Stop after each approved slice or group.
+OpenCode agent model values are rendered from `.harness/model-profiles.yml` when it exists. Legacy `harness.config.yaml` model profiles are fallback only.
 
-Within the same approved slice, coding and review flow without an extra gate. The user confirms only before the next slice.
+Default profile intent:
 
-If review returns `BLOCKED`, the coder may attempt the smallest repair and retry — up to three total review attempts for that slice. After three blocks, stop and ask the user.
+| Profile | Use | Typical Need |
+| --- | --- | --- |
+| `think` | builder, planner | strongest reasoning available |
+| `build` | coder | capable implementation model with good cost-performance |
+| `review` | reviewer, critic | cautious and stable review model |
+| `run` | indexer, validator | cheaper reliable utility model |
 
-Common continuation prompts: `continue`, `proceed`, `start current slice`, `accept this slice and continue`, `start the next approved slice`.
-
-### Gate Policy Modes
-
-Projects can configure gate behavior separately from model or permission settings.
-
-- `strict` — stop at every normal harness gate. This is the recommended mode for Tier L work, high-risk work, and boundary-sensitive changes.
-- `balanced` — recommended as the general project default. It keeps the main harness approvals while reducing avoidable friction for routine scoped work.
-- `autonomous` — allows more approved continuation, but it does not remove slice boundaries, forbidden-scope rules, or other harness controls.
-
-The builder may recommend a stricter mode than the project default for a specific task. A common pattern is:
-
-- project default: `balanced`
-- task recommendation: `strict` for Tier L or high-risk work
-
-If task overrides are enabled, the active task can record a selected mode that differs from the project default. This is for intentional per-task handling, not silent policy drift.
-
-Final gate / final approval remains required by default. `balanced` is not “skip the last check,” and `autonomous` is not “declare done without approval.” Disable final approval only when the project or the active task explicitly says so.
-
-Existing projects with no `gatePolicy` setting remain legacy-compatible and can adopt the new modes later.
-
-## 9. Model Profiles And Customization
-
-Agent model values are rendered from the canonical `.harness/model-profiles.yml`, with legacy fallback to `harness.config.yaml` profiles only when the canonical file is absent. The profiles map to skill requirements:
+Skill-to-profile mapping:
 
 - `reasoning` → `think`
 - `coding` → `build`
 - `reflective` → `review`
 - `utility` → `run`
 
-To adjust models:
+To change models:
 
-1. Update `.harness/model-profiles.yml` first.
-2. Let `harness diff` and `harness sync` re-render values into `.opencode/agents/*.md`.
-3. Edit agent markdown permissions only for intentional local policy.
-4. Avoid duplicating harness agent model or permission values in `opencode.jsonc`.
+1. Edit `.harness/model-profiles.yml`.
+2. Run `harness diff` to preview generated changes.
+3. Run `harness sync` when the preview is safe.
+4. Avoid duplicating model choices in `opencode.jsonc`.
 
-If a project still relies on legacy `harness.config.yaml` profiles and has not created `.harness/model-profiles.yml`, sync restores the canonical file from the effective legacy values so generated OpenCode artifacts and the canonical source stay aligned. `harness doctor` reports whether expected model values came from the canonical file or the legacy fallback, and flags drift in generated artifacts.
+## 8. Gate Behavior
 
-Keep validator and reviewer `temperature` low for deterministic output. Tier 3 agents (indexer, validator) need fewer permissions than Tier 1 agents.
+OpenCode follows the same harness gates as the file-based workflow.
 
-## 10. Permission Modes And Dangerous-Command Baseline
+- Stop after analysis before coding for non-trivial work.
+- Implement only the approved slice or group.
+- Review the same slice immediately after coding.
+- Stop before the next slice unless the selected gate policy explicitly allows safe continuation.
 
-Permission mode is not the same thing as gate policy:
+Gate policy is configured separately from OpenCode permission mode. `balanced` or `autonomous` gates do not grant broader tool permissions and do not bypass dangerous-command handling.
 
-- **Gate policy** controls approval pauses in the harness workflow.
-- **Permission mode** controls how much OpenCode command/tool access friction is applied.
+For exact gate rules, use the installed `docs/project/harness-workflow.md` in the target project.
 
-For example, a project may use `balanced` gates with `default` permissions, or `strict` gates with `moderate` permissions. Choose them independently.
+## 9. Permission Modes
 
-OpenCode permission policy is configurable through `harness.config.yaml`:
+OpenCode permission mode controls tool and command friction. It is configured through `harness.config.yaml`:
 
 ```yaml
 opencode:
-  permissionMode: default  # or moderate | loose
+  permissionMode: default  # default | moderate | loose
 ```
 
-The config key is `opencode.permissionMode`.
+Mode summary:
 
-Mode meanings:
+- `default` keeps the standard generated permission posture.
+- `moderate` reduces routine friction while keeping risk warnings.
+- `loose` reduces friction further for experienced local users.
 
-- `default` — preserves current harness-compatible behavior. Use this when you want the existing generated permission posture unless your team has a clear reason to change it.
-- `moderate` — reduces routine permission friction while keeping the same dangerous-command baseline and risk warnings.
-- `loose` — reduces friction further for experienced local users, while still keeping the harness dangerous-command baseline where OpenCode schema can express it.
+Permission mode does not remove the dangerous-command baseline. Agents must still treat force pushes, history rewrites, destructive deletes, release/publish/deploy actions, global config mutation, project-external writes, and risky shell chains as high-risk.
 
-Dangerous-command baseline:
+OpenCode schema cannot express every dangerous shell pattern. Where schema rules are not enough, the harness relies on prompt text, warnings, and review guidance.
 
-- destructive deletes
-- dangerous git rewrites
-- force pushes
-- publish or release operations
-- global config mutation
-- project-external writes
-- risky shell pipe or chain patterns
+## 10. Validator Behavior
 
-This baseline is enforced as strongly as OpenCode schema allows. Some patterns can be represented directly in generated permission rules; others cannot be expressed precisely enough in schema alone. For those cases, the harness uses warnings, prompts, and agent guidance prose instead of pretending the schema provides stronger protection than it actually does.
+The validator role should use the smallest relevant validation command.
 
-Loose mode is not a blanket approval mode. It should be treated as a higher-trust local workflow option, not as a recommendation for shared defaults. The framework does **not** recommend global `permission: allow`, because that removes important friction around destructive or repository-wide operations.
+Preferred order:
 
-For target projects, keep permission choices project-neutral and team-reviewed. Start with `default` unless you have a concrete reason to accept the extra risk of `moderate` or `loose`.
+1. commands listed in `.task/<task-id>/context-pack.md`
+2. commands implied by the changed files
+3. project defaults from docs or config
+4. generic fallback checks
 
-## 11. Managed Artifact Ownership And Safe Sync
+Validation may include build, compile, unit tests, lint, type checks, smoke checks, or documentation checks. For documentation-only changes, a smoke test is often unnecessary unless the task or project rules require it.
 
-For target-project OpenCode assets, the source of truth is `templates/opencode/**` in the framework.
+## 11. Managed Ownership And Sync
 
-Managed OpenCode manifest entries record adapter-aware metadata such as:
+Generated OpenCode files are tracked through `.harness/manifest.json` when installed by the harness.
 
-- `adapter: "opencode"`
-- `commandSurface`
-- `templateHash`
-- `renderedHash`
-- legacy `hash`, retained as a compatibility fallback for older installs
+Safe behavior:
 
-Comparison uses `renderedHash ?? hash` so legacy manifests still participate in safe sync.
+- local edits are reported, not overwritten silently
+- missing managed files are reported
+- render-input drift is surfaced as a conflict
+- force-style replacement must be explicit
 
-Safety behavior:
+Use this flow:
 
-- local modifications are protected and reported, not silently overwritten
-- missing generated files are reported as missing managed files
-- render-input drift is surfaced as conflicts when the generated output no longer matches the recorded rendered hash
-- orphaned managed entries remain visible as orphan-managed records until the project chooses how to clean them up
-- force semantics are explicit; managed replacement requires an intentional force path rather than silent overwrite
+```powershell
+harness diff
+harness sync
+harness doctor
+```
 
-This means `harness diff` is the preview step, `harness sync` applies only safe managed updates, and `harness doctor` helps explain drift and ownership state.
+For general upgrade guidance, see [docs/GUIDELINES.md](./GUIDELINES.md#11-upgrade-and-sync).
 
-## 12. Validator Behavior
+## 12. Privacy And Versioning
 
-The validator template adapts to the project type (Gradle/Kotlin, Maven, Node.js, Python, or generic fallback).
+Treat `.opencode/` as local/private until your team decides what should be shared.
 
-Runtime behavior:
-- Prefer validation commands from `.task/<task-id>/context-pack.md` when available.
-- Otherwise choose the smallest relevant command for the current slice.
-- Keep long-running validation artifacts under `.harness/tmp/harness-validator/<run-id>/`.
+Before committing generated or customized OpenCode files:
 
-## 13. Privacy And Versioning
+- remove usernames and absolute local paths
+- remove secrets and internal URLs
+- review permission settings
+- confirm the team wants shared command and agent behavior
 
-- Treat `.opencode/` as local/private until your team decides what to standardize.
-- Add it to `.gitignore` if you want fully local customization.
-- Version only the files your team wants to share.
-- Scrub usernames, absolute paths, secrets, and internal URLs before sharing agent files.
+For this framework repository itself, follow `.opencode/README.md` and the root `AGENTS.md`. Self-only OpenCode files must not be copied into target-project templates.

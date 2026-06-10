@@ -2,19 +2,31 @@
 
 [English](./README.md)
 
-一套可复用的文件型框架，为任意仓库提供可持久化、可升级的 AI agent 协作契约。
+一套可复用的文件型 harness，让任意仓库中的 AI 辅助开发更安全。
+
+它为 AI agent 和人类团队提供一份共享契约：规则放在哪里、任务上下文如何准备、何时可以编码、agent 必须在何处停下等待批准。
 
 ## 解决的问题
 
-不受控的 AI 辅助开发会产生约束丢失、上下文漂移和范围悄悄扩张等问题。这套 harness 通过把可审查的协作规则和任务状态放在普通仓库文件中，让 agent 先读后动。
+AI 辅助开发常因简单原因失败：
 
-## 主要优势
+- agent 忘记了对话早期的约束
+- 项目知识留在聊天中，不在仓库里
+- 实现过程中范围悄悄扩张
+- review 发生得太晚，或依据不清晰的需求
+- agent prompt 升级覆盖了本地的团队规则
 
-- **文件即契约。** `AGENTS.md`、rules、docs 和 task 工件都是普通文件 — 可审查、可版本管理、agent 无关。
-- **工作流 gate。** Agent 在 analysis 完成后以及每个已批准 slice 完成后必须停下。不设置无边界自主执行。
-- **安全升级。** `harness diff` 预览变更。`harness sync` 只更新受管内容。本地工作默认保留。
-- **模型分层。** OpenCode 脚手架允许把最强模型分配给规划，性价比模型分配给编码和 review，最便宜的可靠模型分配给工具型任务。
-- **可选工具。** OpenCode slash commands 和 agent 角色是体验优化，不是必须项。核心 harness 仅靠文件和提示词即可运行。
+这套框架把重要内容移到普通文件中。任何 agent 都能读取，能在 Git 中 review，能安全地升级。
+
+## 亮点
+
+- **仓库内的契约。** `AGENTS.md`、rules、docs、任务状态和 manifest 都是普通文件。
+- **Agent 中立的工作流。** 这套方法适用于任何能读 Markdown、能编辑文件的 agent。
+- **显式 gate。** 非平凡工作在 analysis 完成后、以及每个已批准 slice 完成后停下。
+- **编码前先建任务上下文。** Agent 应准备紧凑的 context pack，而不是仅凭聊天记录就开始编码。
+- **安全同步。** `harness diff` 预览变更；`harness sync` 更新受管资产，同时保留本地内容。
+- **OpenCode 可选支持。** Slash commands 和角色 agent 改善体验，但 harness 不依赖 OpenCode。
+- **模型分层。** OpenCode 部署可以为规划使用更强模型，为编码/review 使用均衡模型，为工具型任务使用更便宜的可靠模型。
 
 ## 安装
 
@@ -22,67 +34,84 @@
 # 从 GitHub 安装
 npm install -g github:pandaria75/universal-ai-harness-framework
 
-# 或从本地仓库安装
+# 或从本框架仓库的本地克隆安装
 npm link
 ```
 
 ## 最小使用方式
 
-在任意目标项目中：
+在目标项目中执行以下命令：
 
 ```powershell
 # 预览将要安装的内容
 harness init --dry-run
 
-# 交互式安装
+# 交互式安装 harness
 harness init
+
+# 可选：同时安装 OpenCode commands 和 agents
+harness init --with-opencode
 ```
 
-这会安装 `AGENTS.md`、`harness.config.yaml`、项目 docs、rules、skills 和 `.harness/manifest.json`，为后续安全升级做好准备。
+初始化后，目标项目会得到以下文件：
 
-可选安装方式：
+- `AGENTS.md` — 仓库级 agent 行为
+- `harness.config.yaml` — 本地 harness 设置
+- `docs/project/*` — 工作流和知识路由
+- `.aiassistant/rules/*` — 约束规则
+- `.agents/skills/*` — 可移植工作流 skills
+- `.harness/manifest.json` — 用于安全升级
 
-- `--distribution-mode embedded`（默认）将 harness 作为目标仓库内的自包含安装。
-- `--distribution-mode hybrid` 保留标准本地安装，同时标记项目也预期使用外部 adapter 感知工具。
-- `--distribution-mode adapter` 用于 adapter 导向安装；生成资产仍在本地追踪，但 manifest 会明确记录 adapter 分发模式。
+## 小例子
 
-所选模式会记录到 `.harness/manifest.json` 的 `distributionMode`。旧安装可能还没有这个字段；此时 CLI 会保留旧行为，在可能时推断/报告有效模式，而不会仅为了补字段就静默重写 manifest。
+不使用 OpenCode 时，可以给 agent 这样的提示词：
 
-## 下一步
+```text
+请按照本仓库的 harness 工作流执行。
 
-| 文档 | 面向读者 |
-| --- | --- |
-| [docs/DESIGN.zh-CN.md](./docs/DESIGN.zh-CN.md) | 想理解设计原则的技术负责人和开发者 |
-| [docs/GUIDELINES.zh-CN.md](./docs/GUIDELINES.zh-CN.md) | 日常使用 harness 的团队 — 安装、任务 tier、gate、skills 和提示词 |
-| [docs/OPENCODE.zh-CN.md](./docs/OPENCODE.zh-CN.md) | 使用或评估可选 OpenCode 脚手架的团队 |
+任务：添加一个小功能：<描述改动>。
 
-## 常用命令速查
+从任务 intake 和上下文准备开始。
+在 analysis gate 获批前不要开始编码。
+```
+
+安装了 OpenCode 后，从 builder 命令开始：
+
+```text
+/harness 添加一个小功能：<描述改动>
+```
+
+Agent 应分类任务、准备所需上下文，在 analysis gate 停下等待批准后再编码。
+
+## 常用命令
 
 ```powershell
-# 初始化目标项目
-harness init
-harness init --with-opencode
-harness init --with-opencode --opencode-command-surface minimal
-harness init --with-opencode --opencode-command-surface standard
-harness init --with-opencode --opencode-command-surface advanced
-
-# 预览框架更新，不写入文件
+# 预览框架更新
 harness diff
 
 # 应用安全的受管内容更新
 harness sync
-harness sync --dry-run
 
-# 诊断 harness 安装状态
+# 诊断已安装的 harness
 harness doctor
 ```
 
-对 OpenCode 安装，默认命令面是 builder-first 的最小集合：`/harness`、`/harness-dev`、`/harness-incident`、`/harness-docs`、`/harness-config`。`standard` 额外提供 `/harness-context`、`/harness-status`、`/harness-continue`。`advanced` 再增加 `/harness-feature`、`/harness-bugfix`、`/harness-refactor`。旧值 `full` 仍可作为 `advanced` 的兼容别名。
+更多安装模式、命令面选项、任务 tier 和 gate 行为，请阅读使用指南。
 
-## 边界
+## 延伸阅读
 
-- 本仓库是 **framework 源码仓库**。使用 `harness self init` 维护本仓库 — 不要用普通的 `harness init`。
-- `templates/` 和 `skills/` 是可发布资产。self-only 规则不得写入这些位置。
+| 文档 | 适合人群 | 内容 |
+| --- | --- | --- |
+| [docs/DESIGN.zh-CN.md](./docs/DESIGN.zh-CN.md) | 技术负责人、架构师、框架评估者 | 设计思想、工作流哲学、资产所有权、非目标 |
+| [docs/GUIDELINES.zh-CN.md](./docs/GUIDELINES.zh-CN.md) | 采用 harness 的团队 | 安装、日常使用、任务 tier、gate、升级 |
+| [docs/OPENCODE.zh-CN.md](./docs/OPENCODE.zh-CN.md) | 使用 OpenCode 的团队 | Slash commands、agent 角色、模型 profiles、权限姿态 |
+
+## 本仓库的边界
+
+本仓库是 **framework 源码仓库**，不是普通的 target project。
+
+- 维护本 framework 仓库时使用 `harness self init`。
+- 不要在这里运行普通的 `harness init`，仿佛它是 target project。
+- `templates/` 和 `skills/` 是面向目标项目的可发布资产。
 - `.harness-self/` 是可删除的本地运行态。
-- OpenCode 是可选的。harness 本身不依赖它。
-- 文档服务于设计知识，不是代码索引。
+- OpenCode 是可选的。核心 harness 通过文件和提示词即可运行。

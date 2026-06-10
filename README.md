@@ -2,19 +2,31 @@
 
 [中文版](./README.zh-CN.md)
 
-A reusable file-based framework that gives any repository a durable, upgradeable collaboration contract for AI agents.
+A reusable, file-based harness for safer AI-assisted development in any repository.
+
+It gives AI agents and human teams a shared contract: where rules live, how task context is prepared, when coding may start, and where the agent must stop for approval.
 
 ## What Problem It Solves
 
-AI-assisted development without guardrails produces lost constraints, context drift, and silent scope expansion. The harness solves this by putting inspectable collaboration rules and task state in plain repository files that agents read before acting.
+AI-assisted work often fails for simple reasons:
 
-## Main Strengths
+- the agent forgets constraints from earlier messages
+- project knowledge stays in chat instead of the repository
+- scope expands silently during implementation
+- reviews happen too late or against unclear requirements
+- upgrades to agent prompts overwrite local team rules
 
-- **File-based contract.** `AGENTS.md`, rules, docs, and task artifacts are plain files — reviewable, versionable, and agent-neutral.
-- **Workflow gates.** Agents stop after analysis and after each approved slice. No unbounded autonomy.
-- **Safe upgrades.** `harness diff` previews changes. `harness sync` updates only managed content. Local work is preserved by default.
-- **Model tiering.** OpenCode scaffolding lets you assign the strongest model to planning, a cost-efficient model to coding and review, and the cheapest reliable model to utility tasks.
-- **Optional tooling.** OpenCode slash commands and agent roles are ergonomic improvements, not required. The core harness works with plain prompts and files alone.
+This framework moves the important parts into normal files. They can be read by any agent, reviewed in Git, and upgraded safely.
+
+## Highlights
+
+- **Repository-local contract.** `AGENTS.md`, rules, docs, task state, and manifests are plain files.
+- **Agent-neutral workflow.** The method works with any agent that can read Markdown and edit files.
+- **Explicit gates.** Non-trivial work stops after analysis and after each approved slice.
+- **Task context before coding.** Agents prepare compact context packs instead of coding from chat alone.
+- **Safe sync.** `harness diff` previews changes; `harness sync` updates managed assets while preserving local work.
+- **Optional OpenCode support.** Slash commands and role agents improve ergonomics, but the harness does not depend on OpenCode.
+- **Model tiering.** OpenCode setups can use stronger models for planning, balanced models for coding/review, and cheaper reliable models for utility work.
 
 ## Install
 
@@ -22,67 +34,84 @@ AI-assisted development without guardrails produces lost constraints, context dr
 # From GitHub
 npm install -g github:pandaria75/universal-ai-harness-framework
 
-# Or from a local clone
+# Or from a local clone of this framework repo
 npm link
 ```
 
 ## Minimal Usage
 
-From any target project:
+Run these commands inside a target project:
 
 ```powershell
-# Preview what would be installed
+# Preview what will be installed
 harness init --dry-run
 
-# Interactive install
+# Install the harness interactively
 harness init
+
+# Optional: install OpenCode commands and agents too
+harness init --with-opencode
 ```
 
-That installs `AGENTS.md`, `harness.config.yaml`, project docs, rules, skills, and a `.harness/manifest.json` for future safe upgrades.
+After init, the target project gets files such as:
 
-Optional install choices:
+- `AGENTS.md` for repository-agent behavior
+- `harness.config.yaml` for local harness settings
+- `docs/project/*` for workflow and knowledge routing
+- `.aiassistant/rules/*` for constraints
+- `.agents/skills/*` for portable workflow skills
+- `.harness/manifest.json` for safe upgrades
 
-- `--distribution-mode embedded` (default) keeps the harness self-contained in the target repo.
-- `--distribution-mode hybrid` keeps the standard local install while marking that the project also expects external adapter-aware tooling.
-- `--distribution-mode adapter` is for adapter-oriented installs where generated tooling is still tracked locally, but the manifest records adapter distribution explicitly.
+## Small Example
 
-The selected mode is recorded in `.harness/manifest.json` as `distributionMode`. Legacy installs may not have that field yet; in that case the CLI preserves legacy behavior, infers or reports the effective mode when possible, and does not silently rewrite the manifest just to add the field.
+Without OpenCode, give your agent a prompt like this:
 
-## Where To Go Next
+```text
+Follow this repository's harness workflow.
 
-| Document | Audience |
-| --- | --- |
-| [docs/DESIGN.md](./docs/DESIGN.md) | Tech leads and developers who want to understand the design principles |
-| [docs/GUIDELINES.md](./docs/GUIDELINES.md) | Teams using the harness day-to-day — installation, task tiers, gates, skills, and prompts |
-| [docs/OPENCODE.md](./docs/OPENCODE.md) | Teams using or evaluating the optional OpenCode scaffolding |
+Task: Add a small user-facing feature: <describe the change>.
 
-## Quick Command Reference
+Start with task intake and context preparation.
+Do not start coding until the analysis gate is approved.
+```
+
+With OpenCode installed, start from the builder command:
+
+```text
+/harness Add a small user-facing feature: <describe the change>
+```
+
+The agent should classify the task, prepare the needed context, stop at the analysis gate, and wait for approval before coding.
+
+## Common Commands
 
 ```powershell
-# Initialize a target project
-harness init
-harness init --with-opencode
-harness init --with-opencode --opencode-command-surface minimal
-harness init --with-opencode --opencode-command-surface standard
-harness init --with-opencode --opencode-command-surface advanced
-
-# Preview framework updates without writing
+# Preview framework updates
 harness diff
 
-# Apply safe managed-content updates
+# Apply safe managed updates
 harness sync
-harness sync --dry-run
 
-# Diagnose the harness installation
+# Diagnose an installed harness
 harness doctor
 ```
 
-For OpenCode installs, the default command surface is the builder-first minimal set: `/harness`, `/harness-dev`, `/harness-incident`, `/harness-docs`, and `/harness-config`. `standard` adds `/harness-context`, `/harness-status`, and `/harness-continue`. `advanced` adds `/harness-feature`, `/harness-bugfix`, and `/harness-refactor`. Legacy `full` remains an accepted alias for `advanced`.
+For more install modes, command-surface options, task tiers, and gate behavior, see the usage guide.
 
-## Boundaries
+## Read Next
 
-- This repository is the **framework source**. Use `harness self init` for maintaining it — not regular `harness init`.
-- `templates/` and `skills/` are publishable assets. Self-only rules do not go there.
+| Document | Best For | What It Covers |
+| --- | --- | --- |
+| [docs/DESIGN.md](./docs/DESIGN.md) | Tech leads, architects, framework evaluators | Design ideas, workflow philosophy, asset ownership, non-goals |
+| [docs/GUIDELINES.md](./docs/GUIDELINES.md) | Teams adopting the harness | Installation, daily usage, task tiers, gates, upgrades |
+| [docs/OPENCODE.md](./docs/OPENCODE.md) | Teams using OpenCode | Slash commands, agent roles, model profiles, permission posture |
+
+## Boundary For This Repository
+
+This repository is the **framework source**, not a normal target project.
+
+- Use `harness self init` when maintaining this framework repo.
+- Do not run regular `harness init` here as if this were a target project.
+- `templates/` and `skills/` are publishable assets for target projects.
 - `.harness-self/` is disposable local runtime state.
-- OpenCode is optional. The harness works without it.
-- Docs are for design knowledge, not code indexes.
+- OpenCode is optional. The core harness works through files and prompts.

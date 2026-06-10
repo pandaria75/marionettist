@@ -2,172 +2,181 @@
 
 [中文版](./DESIGN.zh-CN.md)
 
+This document is for people who want to understand why the harness exists and how its main ideas fit together. It avoids implementation details unless they explain a design choice.
+
 ## 1. Positioning
 
-The harness is a file-based collaboration framework for software repositories.
+The harness is a file-based collaboration framework for repositories that use AI agents.
 
-It is built for teams that want AI assistance to be inspectable, agent-neutral, safe to upgrade, and controlled by explicit workflow gates. It is not a business-project template, not an IDE replacement, and not tied to one agent product.
+It is for teams that want AI work to be:
 
-## 2. Design Principles
+- inspectable
+- repeatable
+- safe to pause and review
+- independent of a single agent product
+- safe to upgrade over time
 
-### 2.1 Files Are The Collaboration Contract
+It is not a business-project template, an IDE replacement, or a vendor-specific agent runtime.
 
-The main failure mode in AI-assisted work is not bad code generation. It is lost constraints, context drift, and scope expansion.
+## 2. Core Idea
 
-The harness makes important state durable in repository files:
+The main risk in AI-assisted development is usually not a single bad code suggestion. The larger risk is that context disappears, constraints drift, and the agent continues past the point where a human should decide.
 
-- `AGENTS.md` — repository entry behavior and workflow priority
-- `.aiassistant/rules/*.md` — enforceable constraints
-- `docs/**/*.md` — design knowledge and boundary context
-- `.task/` — requirement, plan, and coding context artifacts
-- `.task/active.json` and task-local `state.json` — runtime workflow state
-- `.harness/manifest.json` — framework ownership tracking
+The harness answers that by putting the collaboration contract into repository files.
 
-Because these are plain files, any agent can read them. They can be reviewed, versioned, and synced across teams.
+Important facts are not trapped in chat. They live in files that humans and agents can both inspect.
 
-### 2.2 Skills Are Lightweight Workflow Orchestration
+## 3. Design Principles
 
-The harness does not use a central orchestration server. Workflow is composed from small reusable skills:
+### 3.1 Files Are The Contract
 
-```text
-task-intake
-  -> requirement-freezer
-  -> module-inspector / workflow-inspector
-  -> implementation-slicer
-  -> context-pack-builder
-  -> coding
-  -> boundary-reviewer
-  -> workspace-knowledge-manager review
-```
+The harness uses normal files for durable state:
 
-This keeps the framework portable. A team can run the same method with plain prompting, with OpenCode, or with another agent environment that reads Markdown.
+- `AGENTS.md` defines repository-level agent behavior.
+- `.aiassistant/rules/*.md` stores enforceable constraints.
+- `docs/**/*.md` explains design, workflow, ownership, and risk.
+- `.task/` stores task-local requirements, plans, context, and state.
+- `.harness/manifest.json` tracks framework-managed assets.
 
-### 2.3 Gates Matter More Than Automation
+Plain files are easy to review, version, diff, and sync. They also keep the method portable across agents.
 
-The harness deliberately upgrades methodology from "agent keeps going" to "agent advances only through explicit state transitions."
+### 3.2 Gates Matter More Than Autonomy
 
-Core gates:
-- analysis → coding
-- current approved slice → next slice
+The harness is intentionally not an “agent keeps going until done” system.
 
-Within one approved slice, coding may flow directly into review. Outside that boundary, the agent must stop.
+For non-trivial work, the workflow stops at key points:
 
-For high-risk work, a `harness-critic` role can audit requirements, slices, and validation plans at critic gates — before coding and before declaring work done.
+1. after analysis, before coding
+2. after each approved implementation slice or approved group
 
-### 2.4 OpenCode Is Optional
+Within one approved slice, coding can flow into review. Moving beyond that slice requires the workflow to respect the selected gate policy and any explicit stop conditions.
 
-The harness core works without OpenCode. The source of truth is always the repository files and the method itself.
+Gate policy controls pause behavior. It does not relax safety rules, dangerous-command handling, or scope boundaries.
 
-OpenCode adds ergonomic scaffolding — slash commands, agent roles, and validator templates — but it is not required.
+### 3.3 Work Is Sliced
 
-## 3. Design Goals
+Large tasks are safer when split into small, reviewable units.
 
-### 3.1 Project Neutrality
+Each slice should define:
 
-Core templates, skills, and CLI defaults must not assume a specific business domain, technology stack, repository layout, build tool, or agent runtime. Project-specific knowledge belongs in target-project config, docs, rules, and local skills.
+- goal
+- allowed scope
+- forbidden scope
+- validation expectation
+- done criteria
 
-### 3.2 Safe Evolution
+This keeps approval, implementation, review, and validation focused on the same unit of work.
 
-The framework must evolve without silently overwriting project-local work. The CLI uses a manifest-aware model:
+### 3.4 Knowledge Is Routed, Not Loaded All At Once
 
-- `harness init` installs managed assets and writes `.harness/manifest.json`
-- `harness diff` computes the write plan without changing files
-- `harness sync` updates only safe managed content by default
-- `AGENTS.md` is synced by managed block, preserving the local block
-- `harness doctor` validates the installed file contract without modifying the project
+Docs should help agents understand the relevant area. They should not become source-code indexes.
 
-### 3.3 Minimal Durable Process
+The harness separates:
 
-The harness captures just enough process to control risk, without ceremony. Three task tiers adapt the workflow to complexity:
+- **docs**: explain design meaning, workflows, boundaries, risks, and decisions
+- **rules**: define behavioral constraints
+- **local search / IDE tools**: find files, symbols, call sites, and implementation details
 
-- **Tier S**: trivial low-risk change — direct coding and review
-- **Tier M**: standard scoped work — analysis and context pack before coding
-- **Tier L**: complex or boundary-sensitive work — full requirement, slicing, gates, and review
+This keeps documentation useful and prevents it from becoming stale inventory.
 
-The methodology is strict about gate transitions but flexible about how much analysis each tier needs.
+### 3.5 The Core Must Stay Project-Neutral
 
-## 4. Asset Model
+Framework templates, skills, and CLI defaults must not assume a business domain, programming language, build tool, module name, or customer-specific rule.
 
-### Framework-Managed
+Project-specific knowledge belongs in the target project’s own docs, rules, config, and task files.
 
-Installed from this repository and tracked in `.harness/manifest.json`:
-- `templates/AGENTS.md`, `templates/harness.config.yaml`, `templates/docs/project/*`, `templates/rules/*`
-- `skills/*/SKILL.md`
-- optional `.opencode/*` assets when requested
+## 4. Workflow Model
 
-### Project-Local
+The harness scales process by task complexity.
 
-Belongs to the target repository team and is preserved by default:
-- project-specific docs, rules, and skills
-- `.task/` work artifacts
-- the local section of `AGENTS.md`
-- local `.opencode/` customization not standardized by the framework
-- any file not tracked in the manifest
+- **Tier S**: trivial, low-risk work. Direct coding and review may be enough.
+- **Tier M**: standard scoped work. Prepare task context before coding.
+- **Tier L**: complex or boundary-sensitive work. Freeze requirements, slice the plan, build context, and use stronger gates.
 
-### `AGENTS.md` Split Ownership
+The exact task-state contract is installed into target projects as `docs/project/harness-workflow.md`.
 
-`AGENTS.md` uses managed-block markers so the framework can evolve the common section while leaving the project-local section editable:
+The design intent is simple: do enough analysis to make the next coding step safe, then stop at the right boundary.
 
-```html
-<!-- harness-kit:start -->
-...
-<!-- harness-kit:end -->
+## 5. Asset Ownership Model
 
-<!-- project-local:start -->
-...
-<!-- project-local:end -->
-```
+The framework separates managed assets from project-local assets.
 
-## 5. Workflow Model
+### Framework-managed assets
 
-### Analysis Before Coding
+These are installed from this repository and tracked in `.harness/manifest.json`:
 
-Non-trivial tasks do not start from coding. They start from classification and artifact creation: `requirement.md`, `implementation-plan.md`, `context-pack.md`, and `state.json`.
+- core templates
+- standard rules
+- project workflow docs
+- reusable skills
+- optional OpenCode scaffolding
 
-### Slice-Based Execution
+They can be previewed with `harness diff` and updated with `harness sync`.
 
-Complex work is split into small slices. Each slice defines goal, allowed scope, forbidden scope, validation, and done criteria. The unit of approval, coding, and review stays small.
+### Project-local assets
 
-### Same-Slice Review
+These belong to the target team and must be preserved by default:
 
-Review is not a separate future phase — it is part of the same execution unit. Implement, validate, and review the same approved slice, then stop at the slice gate.
+- local docs and rules
+- task artifacts in `.task/`
+- project-local sections of `AGENTS.md`
+- local OpenCode customizations
+- files not tracked by the manifest
 
-### Parallel Work Is Optional
+### Split ownership in `AGENTS.md`
 
-The methodology allows parallel-capable slices or groups, but the fallback is always sequential. Parallelism is an optimization, not a prerequisite.
+`AGENTS.md` uses managed and project-local blocks so the framework can update shared guidance without overwriting local team rules.
 
-## 6. Knowledge Model
+## 6. CLI Design
 
-Harness docs are for design knowledge, not source indexes.
+The CLI is a safe installer and synchronizer for text assets.
 
-Docs capture design intent, architecture direction, workflows, domain concepts, extension points, boundaries, and risk areas. They do not capture file trees, class inventories, function inventories, or call-site indexes. Use IDE tools or local search for code navigation.
+Its responsibilities are narrow:
 
-Rules enforce behavior. Docs explain meaning. The framework keeps both, but separates them.
+- install a harness into a target project
+- preview managed changes
+- apply safe managed updates
+- preserve local work by default
+- diagnose ownership and drift
 
-Context routing stays file-based:
-- start from `docs/project/knowledge-map.md`
-- match by area fields (Areas, Tags, Docs, Rules, Read When, Boundaries, Validation)
-- walk upward for nearby `MODULE_RULES.md`, `AGENTS.md`, and `HARNESS_RULES.md` when target paths are known
+The CLI does not own business knowledge, does not resolve every conflict automatically, and does not delete local content by default.
 
-## 7. CLI Model
+## 7. OpenCode Integration
 
-The CLI is a text-asset installer and synchronizer. It renders framework templates into target projects, detects safe vs unsafe updates, and preserves project-local content by default. It does not manage business knowledge, binary assets, or automatic conflict resolution.
+OpenCode is an optional execution layer.
 
-## 8. OpenCode Integration (Optional)
+It adds slash commands, role agents, validator guidance, and model-profile rendering. It does not change the core method: the repository files and harness gates remain the source of truth.
 
-When enabled, the framework installs project-local scaffolding: slash commands, agent role definitions with per-role model assignment, validator guidance, and `opencode.jsonc`.
+See [docs/OPENCODE.md](./OPENCODE.md) for practical OpenCode usage.
 
-The primary design value of multi-agent roles is model tiering — assigning the strongest model to analysis and planning, a cost-efficient model to coding and review, and the cheapest reliable model to utility tasks.
+## 8. Safe Evolution
 
-See [docs/OPENCODE.md](./OPENCODE.md) for the practical usage guide.
+The harness must be upgradeable without taking over a project.
+
+That is why the framework uses:
+
+- manifest tracking
+- dry-run previews
+- managed blocks
+- conservative sync behavior
+- explicit force paths for unsafe replacement
+
+Safe evolution matters more than convenience. A framework upgrade should not silently erase local team practice.
 
 ## 9. Non-Goals
 
 The framework does not aim to:
+
 - replace IDE navigation
-- generate exhaustive code indexes
+- generate code indexes
 - prescribe one engineering stack
-- own project-private business knowledge
-- delete project-local files by default
-- auto-resolve manifest conflicts
-- bind the method to one agent vendor
+- own project-private knowledge
+- bind teams to one agent vendor
+- bypass human approval for risky decisions
+- overwrite project-local work by default
+
+## 10. For Framework Maintainers
+
+This repository is the framework source. Maintain it using the root `AGENTS.md` and the self-profile rules under `.harness/self/`.
+
+Do not copy framework self-maintenance rules into target-project templates.

@@ -2,145 +2,157 @@
 
 [中文版](./GUIDELINES.zh-CN.md)
 
-For tech leads and developers using the harness day-to-day in a target project. Covers installation, task workflows, gates, skills, and practical prompts.
+This guide is for tech leads and developers who want to install and use the harness in a target project.
 
-For the underlying design, see [docs/DESIGN.md](./DESIGN.md).
+For design rationale, see [docs/DESIGN.md](./DESIGN.md). For OpenCode usage, see [docs/OPENCODE.md](./OPENCODE.md).
 
-## 1. Quick Start
+## 1. Install
+
+Install the CLI first:
 
 ```powershell
-# Preview the install plan
+npm install -g github:pandaria75/universal-ai-harness-framework
+```
+
+Then run it inside a target project:
+
+```powershell
+# Preview first
 harness init --dry-run
 
-# Interactive install
+# Install interactively
 harness init
 
-# Recommended: install with OpenCode scaffolding
-harness init --dry-run --with-opencode
+# Optional: include OpenCode commands and agents
 harness init --with-opencode
 ```
 
-After init, do these things:
+During interactive init, existing files are not overwritten silently. The CLI asks whether to back up, overwrite, or skip. Use `--auto` to skip existing files. Use `--force` only when you intentionally want replacement.
 
-1. Run `workspace-knowledge-manager init` to create the first project knowledge documents.
-2. Adjust `harness.config.yaml`, rules, and `docs/project/knowledge-map.md` for the real project.
-3. Fill the `project-local` block in `AGENTS.md` with team-specific rules.
-4. If OpenCode is installed, adjust agent models through `.harness/model-profiles.yml`.
+## 2. What Init Adds
 
-## 2. What You Get After Init
+Typical installed files:
 
-Core files:
-- `AGENTS.md` — repository entry behavior
-- `harness.config.yaml` — project config
-- `docs/project/harness-workflow.md` — task state contract
-- `docs/project/knowledge-map.md` — knowledge routing
+- `AGENTS.md` — repository-level agent behavior
+- `harness.config.yaml` — local harness settings
+- `docs/project/harness-workflow.md` — task workflow and state contract
+- `docs/project/knowledge-map.md` — routing map for project knowledge
 - `.aiassistant/rules/*.md` — enforceable constraints
-- `.agents/skills/*/SKILL.md` — workflow skills
-- `.task/` — task artifacts (local, not managed)
-- `.harness/manifest.json` — framework ownership tracking
+- `.agents/skills/*/SKILL.md` — portable workflow skills
+- `.harness/manifest.json` — managed-file ownership record
+- optional `.opencode/*` files when installed with OpenCode
 
-Default safety behavior:
-- Existing project-local files are preserved.
-- `AGENTS.md` updates only the managed block.
-- Future framework upgrades use the manifest to decide what is safe.
+After init, a tech lead should usually:
 
-During interactive `harness init`, the CLI asks per existing file whether to backup, overwrite, or skip. Use `--auto` to skip all existing files; add `--force` to overwrite them.
+1. Fill the project-local section in `AGENTS.md`.
+2. Adjust `harness.config.yaml` for the project.
+3. Update `docs/project/knowledge-map.md` to point to real project docs.
+4. Add or refine local rules under `.aiassistant/rules/`.
+5. If OpenCode is used, review `.harness/model-profiles.yml`.
 
-### Install Distribution Modes
+### Optional: `riskZones`
 
-`harness init` supports three install/distribution modes:
+`riskZones` is an optional config field in `harness.config.yaml` for marking higher-risk project areas.
 
-- `embedded` — default for new installs and the closest match to legacy behavior
-- `hybrid` — local harness install plus explicit adapter-aware distribution metadata
-- `adapter` — adapter-oriented install with the same local safety tracking
+- Use it to highlight areas such as auth, billing, schema changes, production config, or external API contracts.
+- If it is not configured, the harness still works normally.
+- Treat it as a lightweight project hint for analysis, documentation, and review. Do not treat it as a fully enforced policy system.
 
-The chosen mode is recorded in `.harness/manifest.json` as `distributionMode` and mirrored in `harness.config.yaml` under `distribution.mode` for readability. Legacy installs without manifest `distributionMode` remain valid; `harness diff`, `harness sync`, and `harness doctor` report or infer the effective mode. The field is written only when the user explicitly selects or provides a mode, when the manifest already contains `distributionMode`, or when `harness.config.yaml` specifies `distribution.mode`.
+Example:
 
-## 3. The Working Model
-
-The harness is a controlled sequence, not free-form continuous coding.
-
-```text
-task-intake
-  -> requirement-freezer
-  -> module-inspector / workflow-inspector
-  -> implementation-slicer
-  -> context-pack-builder
-  -> coding
-  -> boundary-reviewer
-  -> workspace-knowledge-manager review
+```yaml
+riskZones:
+  - name: "auth"
+    paths:
+      - "src/auth/**"
+      - "src/permissions/**"
+    notes:
+      - "Touches access control and user permissions"
 ```
 
-Not every step is needed for every task. The harness trims the process by tier.
+## 3. Install Modes
 
-## 4. Task Tiers
+`harness init` supports three distribution modes:
 
-### Tier S — Trivial, Low-Risk
+- `embedded` — default; the harness is installed locally in the target repo
+- `hybrid` — local install plus adapter-aware metadata
+- `adapter` — adapter-oriented install while still tracking local generated files
 
-One small change with clear scope. Examples: typo fix, comment update, single-file config tweak.
+The selected mode is recorded in `.harness/manifest.json` when applicable. Most teams can start with the default `embedded` mode.
 
-Flow: `coding -> boundary-reviewer`
+## 4. Daily Workflow
 
-```text
-This is a Tier S change.
-
-Task: <description>
-
-Requirements:
-- Modify only relevant files.
-- Do not expand scope.
-- Preserve existing style.
-- Summarize validation when done.
-```
-
-### Tier M — Standard Scoped Work
-
-Work needing analysis before safe coding. Examples: feature touching a few files, bugfix needing code-path inspection, refactor with clear boundaries.
-
-Flow: `task-intake -> module/workflow-inspector (when needed) -> context-pack-builder -> coding -> boundary-reviewer`
-
-Minimum rule: create `.task/<task-id>/context-pack.md` before coding.
+The harness is a controlled sequence:
 
 ```text
-I need to handle a standard task:
-
-<task description>
-
-Follow the current repository harness workflow.
-Start with task-intake.
-Create .task/<task-id>/context-pack.md before coding.
-Do not start coding yet.
+intake -> analysis/context -> coding -> review -> gate
 ```
 
-### Tier L — Complex or Boundary-Sensitive Work
+For non-trivial work, the agent should prepare task context before coding. For larger work, it should also freeze requirements and split implementation into slices.
 
-Unclear requirements, cross-module changes, public contract changes, high-risk refactors, or staged delivery.
-
-Flow: full `task-intake` through `workspace-knowledge-manager review`
-
-Minimum rule: code only from an approved slice.
+Useful starting prompt:
 
 ```text
-I need to handle a complex task:
+Follow this repository's harness workflow.
 
-<task description>
+Task: <describe the work>.
 
-Follow the current repository harness workflow.
-Start with task-intake.
-If requirements or boundaries are unclear, use requirement-freezer.
-Create an implementation plan and .task/<task-id>/context-pack.md before coding.
-Do not start coding yet.
+Start with task intake and context preparation.
+Do not start coding until the analysis gate is approved.
 ```
 
-## 5. Gates
+With OpenCode:
 
-For non-trivial work, gates are mandatory. The agent must stop at:
-- end of analysis, before coding
-- end of each approved slice or approved parallel group
+```text
+/harness <describe the work>
+```
 
-The agent may move directly from coding into review only for the same approved slice. It must not continue into the next slice automatically.
+## 5. Task Tiers
 
-Recommended gate report:
+### Tier S — trivial and low-risk
+
+Use for a typo, comment change, or tiny one-file update with no boundary risk.
+
+Expected flow:
+
+```text
+coding -> review
+```
+
+### Tier M — standard scoped work
+
+Use for a small feature, bugfix, refactor, or documentation task that needs context but has clear boundaries.
+
+Expected flow:
+
+```text
+analysis -> context-pack -> coding -> review -> gate
+```
+
+Minimum expectation: create or update `.task/<task-id>/context-pack.md` before coding.
+
+### Tier L — complex or sensitive work
+
+Use for cross-area changes, architecture-sensitive refactors, public contract changes, unclear requirements, or staged delivery.
+
+Expected flow:
+
+```text
+intake -> requirement -> inspection -> implementation plan -> context-pack -> approved slice coding -> review -> gate
+```
+
+Minimum expectation: code only from an approved slice. Use stricter gates unless the user explicitly chooses another allowed posture.
+
+## 6. Gates
+
+For non-trivial work, the agent must stop at these points:
+
+- after analysis, before coding
+- after each approved slice or approved group, before moving to the next one
+
+Coding may flow directly into review for the same approved slice. It must not silently continue into unrelated work.
+
+Gate report format:
 
 ```text
 Phase:
@@ -151,59 +163,50 @@ Recommended Next Step:
 User confirmation required to continue.
 ```
 
-### Gate Policy Modes
+### Gate policy modes
 
-Projects can choose a gate policy mode in `harness.config.yaml` to control how often the workflow stops for explicit approval:
+Projects can configure gate posture in `harness.config.yaml`:
 
-- `strict` — stop at every normal harness gate. Recommended for Tier L work, high-risk changes, boundary-sensitive work, and shared-team defaults when caution matters more than speed.
-- `balanced` — the recommended general default for most projects. It keeps the main harness gates, preserves final approval by default, and reduces unnecessary friction for routine scoped work.
-- `autonomous` — allows more continuation inside the approved workflow, but it is still not unbounded execution. Scope, slice approval, and other harness boundaries still apply.
+```yaml
+gatePolicy:
+  defaultMode: "strict" # strict | balanced | autonomous
+  finalApprovalRequired: true
+  allowTaskOverride: true
+```
 
-Builder guidance should normally recommend:
+- `strict` stops at every normal gate.
+- `balanced` keeps main approvals and can reduce friction for already-approved simple continuation.
+- `autonomous` allows more continuation inside approved scope, but still preserves required stops.
 
-- `balanced` for ordinary day-to-day work
-- `strict` for Tier L or otherwise high-risk work
+Gate policy is not OpenCode permission mode. It does not relax dangerous-command rules, forbidden scope, or final approval unless explicitly configured.
 
-Projects may also allow a task-level override. That means the project can keep one default mode while a specific task records a different selected mode when the user intentionally wants tighter or looser gate behavior.
+For exact gate semantics, use the installed `docs/project/harness-workflow.md` in the target project.
 
-Final gate / final approval stays on by default. Even when a project uses `balanced` or `autonomous`, the workflow should still require final approval unless the project or the current task explicitly disables that final approval requirement.
+## 7. Task Artifacts
 
-Older projects that do not define `gatePolicy` remain legacy-compatible. They can keep their current behavior and add explicit gate policy settings later.
+Common task files:
 
-## 6. Core Skills
-
-| Skill | When to Use | Output |
+| Artifact | Path | Use |
 | --- | --- | --- |
-| `task-intake` | Default entry into non-trivial work | Classification, next step |
-| `requirement-freezer` | Unclear requirements or boundaries | `.task/<task-id>/requirement.md` |
-| `module-inspector` | Understanding a module, package, or boundary | — |
-| `workflow-inspector` | Understanding execution flow or orchestration | — |
-| `implementation-slicer` | Splitting complex work into small slices | `.task/<task-id>/implementation-plan.md` |
-| `context-pack-builder` | Building minimum working context before coding | `.task/<task-id>/context-pack.md` |
-| `boundary-reviewer` | Immediate review of the same approved slice | `PASS`, `PASS_WITH_WARNINGS`, or `BLOCKED` |
-| `workspace-knowledge-manager` | Creating or maintaining design docs and knowledge | — |
+| Active task pointer | `.task/active.json` | Selects the current task and phase |
+| Requirement | `.task/<task-id>/requirement.md` | Freezes goals and constraints |
+| Implementation plan | `.task/<task-id>/implementation-plan.md` | Defines slices and validation |
+| Context pack | `.task/<task-id>/context-pack.md` | Gives the coder the compact approved context |
+| State | `.task/<task-id>/state.json` | Records gates, current slice, and status |
 
-## 7. Core Task Artifacts
-
-| Artifact | Path | When |
-| --- | --- | --- |
-| Requirement | `.task/<task-id>/requirement.md` | Tier L or ambiguous work |
-| Implementation Plan | `.task/<task-id>/implementation-plan.md` | Tier L sliced work |
-| Context Pack | `.task/<task-id>/context-pack.md` | Tier M or L before coding |
-
-Each slice in the implementation plan defines: goal, allowed scope, forbidden scope, validation, and done criteria.
+Keep these files concise. Prefer links and distilled context over copying large source files.
 
 ## 8. Practical Prompts
 
-### New Feature
+### Feature
 
 ```text
-I want to build a new feature:
+I want to build a feature:
 
-<requirement description>
+<requirement>
 
 Follow the current repository harness workflow.
-Start with task-intake.
+Start with task intake.
 Do not start coding yet.
 ```
 
@@ -214,73 +217,92 @@ I need to fix a bug:
 
 Observed: <actual behavior>
 Expected: <expected behavior>
-Reproduction: <steps>
-Evidence: <logs, failing test, screenshot, or other evidence>
+Reproduction: <steps or evidence>
 
 Follow the current repository harness workflow.
-Start with task-intake.
-Prioritize confirming the reproduction path or failing test.
-Create .task/<task-id>/context-pack.md before coding.
-Do not start coding yet.
+Confirm the reproduction path or failing test before coding.
 ```
 
 ### Refactor
 
 ```text
-I need to perform a refactor:
+I need to refactor:
 
-Goal: <refactor goal>
+Goal: <goal>
 Behavior that must stay unchanged: <constraints>
-Allowed modification scope: <scope>
-Forbidden modification scope: <scope>
+Allowed scope: <files or areas>
+Forbidden scope: <files or areas>
 
 Follow the current repository harness workflow.
-Analyze boundary and workflow impact first.
+Analyze boundary impact first.
 Do not start coding yet.
+```
+
+### Documentation
+
+```text
+I need to update documentation:
+
+Audience: <reader>
+Goal: <what the docs should explain>
+Files: <target docs>
+
+Follow the docs workflow.
+Keep language concise and avoid turning docs into code indexes.
 ```
 
 ## 9. Docs And Rules
 
-Keep the separation:
-- **Docs** explain design meaning.
-- **Rules** enforce behavior.
+Keep the separation clear:
 
-Docs capture responsibilities, workflows, domain concepts, boundaries, and risk areas. Docs should not become code indexes.
+- **Docs** explain design, responsibilities, workflows, boundaries, and risks.
+- **Rules** define constraints agents must follow.
+
+Docs should not list every file, class, function, or call site. Use IDE tools or local search for code navigation.
 
 When docs or rules are added, moved, renamed, or deleted, update `docs/project/knowledge-map.md`.
 
-## 10. Optional OpenCode
+## 10. OpenCode
 
-OpenCode is optional but recommended for faster repeated harness execution. It adds builder-first slash commands, local agent roles with per-role model assignment, and validator scaffolding.
+OpenCode is optional. The harness still works through files, prompts, and skills without it.
 
-Gate policy and OpenCode permission mode are separate controls:
+Use OpenCode when you want:
 
-- **Gate policy** decides when the workflow must pause for approval.
-- **Permission mode** decides how much tool or command friction OpenCode applies during execution.
+- `/harness` and focused slash commands
+- local role agents such as builder, coder, reviewer, validator
+- model profiles by role
+- generated validator guidance
 
-Changing one does not automatically change the other.
-
-OpenCode command surfaces are:
-
-- `minimal` — default: `/harness`, `/harness-dev`, `/harness-incident`, `/harness-docs`, `/harness-config`
-- `standard` — minimal plus `/harness-context`, `/harness-status`, `/harness-continue`
-- `advanced` — standard plus `/harness-feature`, `/harness-bugfix`, `/harness-refactor`
-
-Legacy `full` remains accepted as an alias for `advanced`.
-
-See [docs/OPENCODE.md](./OPENCODE.md) for the full guide.
+See [docs/OPENCODE.md](./OPENCODE.md) for setup and usage.
 
 ## 11. Upgrade And Sync
 
-```powershell
-# Preview changes before applying
-harness diff
+Preview changes before applying them:
 
-# Apply safe updates
+```powershell
+harness diff
+```
+
+Apply safe managed updates:
+
+```powershell
 harness sync
 harness sync --dry-run
 ```
 
-Local task artifacts, docs, rules, and skills are preserved by default. `AGENTS.md` updates only the managed block. Local modifications and conflicts are reported, not silently overwritten.
+Check the install:
 
-For OpenCode-generated managed artifacts, the source of truth is the framework template under `templates/opencode/**`. The manifest tracks ownership metadata, including rendered hashes. `harness diff` reports local modifications, conflicts, missing files, and orphaned managed entries; `harness sync` does not silently overwrite local edits. Use force only when you intentionally want managed replacement.
+```powershell
+harness doctor
+```
+
+Local task artifacts, local docs, local rules, and local skills are preserved by default. `AGENTS.md` updates only the managed block. Conflicts are reported instead of being overwritten silently.
+
+## 12. Common Pitfalls
+
+- Do not treat `harness init` as safe to run blindly in this framework source repo. Use self commands here.
+- Do not start coding for non-trivial work before the analysis gate is approved.
+- Do not use docs as a source-code index.
+- Do not confuse gate policy with OpenCode permission mode.
+- Do not put project-private rules into framework templates.
+- Do not force sync unless the team intentionally accepts managed replacement.

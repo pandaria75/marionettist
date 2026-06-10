@@ -79,4 +79,9 @@ gatePolicy:
 #   commandSurface: "minimal"
 #   permissionMode: "default"
 
+# Optional lightweight hints for higher-risk project areas.
+# Use this to flag zones such as auth, billing, schema changes,
+# production config, or external API contracts.
+# The harness still works normally when this is empty.
+# Treat this as analysis/review guidance, not as a fully enforced policy system.
 riskZones: []

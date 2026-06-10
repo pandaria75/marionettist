@@ -2,177 +2,181 @@
 
 [English](./DESIGN.md)
 
+本文档面向希望理解 harness 存在的原因及其核心思想如何衔接的人。除非实现细节有助于解释设计决策，否则不在此赘述。
+
 ## 1. 定位
 
-Harness 是一套面向软件仓库的文件型协作框架。
+Harness 是一套面向使用 AI agent 的仓库的文件型协作框架。
 
-它为希望 AI 辅助变得可审查、agent 中立、可安全升级、并通过显式工作流 gate 控制的团队而设计。它不是业务项目模板，不是 IDE 替代品，也不绑定任何单一 agent 产品。
+它为希望 AI 工作满足以下条件的团队而设计：
 
-## 2. 设计原则
+- 可审查
+- 可复现
+- 可安全暂停和 review
+- 不依赖单一 agent 产品
+- 可随时间安全升级
 
-### 2.1 文件即协作契约
+它不是业务项目模板，不是 IDE 替代品，也不是绑定特定供应商的 agent 运行时。
 
-AI 协作中最常见的失败模式不是糟糕的代码生成，而是约束丢失、上下文漂移和范围扩张。
+## 2. 核心理念
 
-Harness 将关键状态持久化到仓库文件中：
+AI 辅助开发的主要风险通常不是某一次糟糕的代码建议。更大的风险是上下文消失、约束漂移，以及 agent 在人类应当决策的位置越过了边界。
 
-- `AGENTS.md` — 仓库入口行为和流程优先级
-- `.aiassistant/rules/*.md` — 可执行约束
-- `docs/**/*.md` — 设计知识和边界上下文
-- `.task/` — 需求、计划和编码上下文工件
-- `.task/active.json` 和任务级 `state.json` — 运行时工作流状态
-- `.harness/manifest.json` — 框架 ownership 追踪
+Harness 的应对方式是将协作契约放入仓库文件中。
 
-因为是普通文件，任何 agent 都能读取。它们可以被审查、版本管理，并在团队间同步。
+重要事实不困在聊天里。它们存在于人类和 agent 都能审查的文件中。
 
-### 2.2 Skills 是轻量工作流编排
+## 3. 设计原则
 
-Harness 不使用中心化编排服务器。工作流由小型可复用 skills 组合而成：
+### 3.1 文件即契约
 
-```text
-task-intake
-  -> requirement-freezer
-  -> module-inspector / workflow-inspector
-  -> implementation-slicer
-  -> context-pack-builder
-  -> coding
-  -> boundary-reviewer
-  -> workspace-knowledge-manager review
-```
+Harness 使用普通文件承载持久状态：
 
-这保持了框架的可移植性。团队可以用普通提示词、OpenCode 或任何能读取 Markdown 的 agent 环境来运行同一套方法。
+- `AGENTS.md` 定义仓库级 agent 行为。
+- `.aiassistant/rules/*.md` 存放可执行约束。
+- `docs/**/*.md` 解释设计、工作流、所有权和风险。
+- `.task/` 存放任务级的需求、计划、上下文和状态。
+- `.harness/manifest.json` 追踪框架管理的资产。
 
-### 2.3 Gate 比自动化更重要
+普通文件便于 review、版本管理、diff 和同步。它们也让方法在不同 agent 间可移植。
 
-Harness 有意将方法论从"agent 一直做下去"升级为"agent 只能通过显式状态迁移前进"。
+### 3.2 Gate 比自主更重要
 
-核心 gate：
+Harness 刻意不是一套"agent 一直做到完"的系统。
 
-- analysis → coding
-- 当前已批准 slice → 下一 slice
+对非平凡工作，工作流在关键点停下：
 
-在同一已批准 slice 内，coding 可直接流转到 review。超出此边界，agent 必须停下。
+1. 完成分析后，进入编码前
+2. 每个已批准的实现 slice 或已批准 group 完成后
 
-对高风险工作，`harness-critic` 角色可在 critic gate — 编码前和宣告工作完成前 — 审查 requirements、slices 和 validation plans。
+在同一个已批准 slice 内，编码可以流向 review。要移动超出该 slice，工作流必须尊重当前已选的 gate policy 和所有显式停止条件。
 
-### 2.4 OpenCode 是可选的
+Gate policy 控制停顿行为。它不放宽安全规则、危险命令处理或范围边界。
 
-Harness core 无需 OpenCode 即可运行。事实来源始终是仓库文件和这套方法本身。
+### 3.3 工作应切片
 
-OpenCode 增加体验型脚手架 — slash commands、agent 角色和 validator 模板 — 但不是必需的。
+大任务拆分为小的、可审查的单元更安全。
 
-## 3. 设计目标
+每个 slice 应定义：
 
-### 3.1 项目中立
+- 目标
+- 允许范围
+- 禁止范围
+- 验证期望
+- 完成标准
 
-Core templates、skills 和 CLI 默认值不得假设特定业务领域、技术栈、仓库布局、构建工具或 agent 运行时。项目特有知识应放在目标项目的 config、docs、rules 和本地 skills 中。
+这样审批、实现、review 和验证都聚焦在同一个工作单元上。
 
-### 3.2 安全演进
+### 3.4 知识按需路由，不全量加载
 
-框架必须能演进，但不能悄悄覆盖项目本地工作。CLI 使用 manifest-aware 模型：
+文档应帮助 agent 理解相关区域。它们不应变成源码索引。
 
-- `harness init` 安装受管资产并写入 `.harness/manifest.json`
-- `harness diff` 计算写计划，不修改文件
-- `harness sync` 默认只更新安全的受管内容
-- `AGENTS.md` 按 managed block 同步，保留本地 block
-- `harness doctor` 验证已安装的文件契约，不修改项目
+Harness 分离了：
 
-### 3.3 最小但持久的流程控制
+- **docs**：解释设计含义、工作流、边界、风险和决策
+- **rules**：定义行为约束
+- **本地搜索 / IDE 工具**：查找文件、符号、调用点和实现细节
 
-Harness 只引入控制风险所需的最小流程，不搞仪式感。三层任务分级：
+这使文档保持有用，避免变成过时目录。
 
-- **Tier S**：平凡低风险改动 — 直接编码和审查
-- **Tier M**：标准范围工作 — 编码前完成分析和 context pack
-- **Tier L**：复杂或边界敏感工作 — 完整需求、切片、gate 和审查
+### 3.5 核心必须保持项目中立
 
-方法对 gate 迁移严格，但对每个 tier 所需的分析深度保持弹性。
+框架模板、skills 和 CLI 默认值不得假定某个业务领域、编程语言、构建工具、模块名称或客户规则。
 
-## 4. 资产模型
+项目特有知识应放在目标项目自身的 docs、rules、config 和 task 文件中。
 
-### Framework-Managed
+## 4. 工作流模型
 
-从本仓库安装，由 `.harness/manifest.json` 追踪：
+Harness 按任务复杂度伸缩流程。
 
-- `templates/AGENTS.md`、`templates/harness.config.yaml`、`templates/docs/project/*`、`templates/rules/*`
-- `skills/*/SKILL.md`
-- 按需安装的可选 `.opencode/*` 资产
+- **Tier S**：平凡、低风险工作。直接编码和 review 可能足够。
+- **Tier M**：标准范围工作。编码前准备任务上下文。
+- **Tier L**：复杂或边界敏感工作。冻结需求、切片计划、构建上下文、使用更严格的 gate。
 
-### Project-Local
+确切的任务状态契约会作为 `docs/project/harness-workflow.md` 安装到目标项目中。
 
-归目标仓库团队所有，默认保留：
+设计意图很简单：做足够的分析让下一步编码安全，然后在正确的边界停止。
 
-- 项目专用 docs、rules 和 skills
-- `.task/` 工作工件
-- `AGENTS.md` 的本地块
-- 未被框架标准化的本地 `.opencode/` 定制
-- 所有不在 manifest 中的文件
+## 5. 资产所有权模型
 
-### `AGENTS.md` 分区 Ownership
+框架分离受管资产和项目本地资产。
 
-`AGENTS.md` 使用 managed-block 标记，让框架能演进通用块，同时保留项目本地块可编辑：
+### 框架管资产
 
-```html
-<!-- harness-kit:start -->
-...
-<!-- harness-kit:end -->
+这些从本仓库安装，在 `.harness/manifest.json` 中追踪：
 
-<!-- project-local:start -->
-...
-<!-- project-local:end -->
-```
+- 核心模板
+- 标准规则
+- 项目工作流文档
+- 可复用 skills
+- 可选的 OpenCode 脚手架
 
-## 5. 工作流模型
+可通过 `harness diff` 预览、`harness sync` 更新。
 
-### 先分析再编码
+### 项目本地资产
 
-非平凡任务不从编码起步。它们从分类和工件创建开始：`requirement.md`、`implementation-plan.md`、`context-pack.md` 和 `state.json`。
+这些属于目标团队，默认必须保留：
 
-### 基于切片的执行
+- 本地 docs 和 rules
+- `.task/` 中的任务工件
+- `AGENTS.md` 中的项目本地块
+- 本地 OpenCode 定制
+- 不在 manifest 追踪范围内的文件
 
-复杂工作被拆分为小切片。每个切片定义 goal、allowed scope、forbidden scope、validation 和 done criteria。审批、编码和审查的最小单元保持小。
+### `AGENTS.md` 的分区所有权
 
-### 同切片审查
+`AGENTS.md` 使用 managed 和 project-local 两个 block，使框架可以更新共享指引而不会覆盖本地团队规则。
 
-Review 不是未来某个独立阶段 — 它属于同一个执行单元。实现、验证并审查同一个已批准 slice，然后在 slice gate 停下。
+## 6. CLI 设计
 
-### 并行是可选项
+CLI 是文本资产的安全安装器和同步器。
 
-方法允许声明并行能力的 slices 或 groups，但回退始终是顺序执行。并行是优化，不是前提条件。
+其职责范围是窄的：
 
-## 6. 知识模型
+- 把 harness 安装到目标项目
+- 预览受管变更
+- 应用安全的受管更新
+- 默认保留本地内容
+- 诊断所有权和漂移
 
-Harness docs 服务于设计知识，不是源码索引。
+CLI 不拥有业务知识，不自动解决所有冲突，不默认删除本地内容。
 
-文档捕捉设计意图、架构方向、工作流、领域概念、扩展点、边界和风险区域。它们不捕捉文件树、类清单、函数清单或调用点索引。用 IDE 工具或本地搜索做代码导航。
+## 7. OpenCode 集成
 
-Rules 约束行为。Docs 解释含义。Framework 两者都保留，但严格分离。
+OpenCode 是一个可选的执行层。
 
-上下文路由保持文件化：
+它添加了 slash commands、角色 agent、validator 指引和模型 profile 渲染。它不改变核心方法：仓库文件和 harness gate 仍然是事实来源。
 
-- 从 `docs/project/knowledge-map.md` 开始
-- 按 area 字段匹配（Areas、Tags、Docs、Rules、Read When、Boundaries、Validation）
-- 当目标路径已知时，向上查找就近的 `MODULE_RULES.md`、`AGENTS.md` 和 `HARNESS_RULES.md`
+OpenCode 实践指南见 [docs/OPENCODE.zh-CN.md](./OPENCODE.zh-CN.md)。
 
-## 7. CLI 模型
+## 8. 安全演进
 
-CLI 是文本资产安装器和同步器。它将框架模板渲染到目标项目，检测安全与不安全的更新，并默认保护项目本地内容。它不管理业务知识、二进制资产或自动冲突解决。
+Harness 必须能升级而不接管项目。
 
-## 8. OpenCode 集成（可选）
+因此框架使用：
 
-启用后，框架安装项目本地脚手架：slash commands、含各角色独立模型配置的 agent 角色定义、validator guidance 和 `opencode.jsonc`。
+- manifest 追踪
+- dry-run 预览
+- managed block
+- 保守的同步行为
+- 非安全替换的显式 force 路径
 
-多 agent 角色的主要设计价值是模型分层 — 把最强模型分配给分析和规划，性价比模型分配给编码和 review，最便宜的可靠模型分配给工具型任务。
-
-详见 [docs/OPENCODE.zh-CN.md](./OPENCODE.zh-CN.md) 的实用指南。
+安全演进比便利更重要。框架升级不应静默抹除本地团队实践。
 
 ## 9. 非目标
 
 框架不追求：
 
 - 替代 IDE 导航
-- 生成详尽的代码索引
+- 生成代码索引
 - 规定单一技术栈
-- 接管项目私有业务知识
-- 默认删除项目本地文件
-- 自动解决 manifest 冲突
-- 把方法绑定到单一 agent 供应商
+- 接管项目私有知识
+- 把团队绑定到单一 agent 供应商
+- 绕过人类审批执行高风险决策
+- 默认覆盖项目本地内容
+
+## 10. 给框架维护者
+
+本仓库是 framework 源。维护时请使用根目录 `AGENTS.md` 和 `.harness/self/` 下的 self-profile 规则。
+
+不要把框架自维护规则复制到目标项目的模板中。
