@@ -37,8 +37,8 @@ gatePolicy:
 Mode semantics:
 
 - `strict`: stop at the analysis-to-coding gate and after every approved coding slice or approved parallel group.
-- `balanced`: preserve the analysis gate and final approval by default; allow continuation only for already-approved `gateClass: simple` slices when the approved plan and selected policy explicitly permit that continuation.
-- `autonomous`: preserve the analysis gate and final approval by default; stop mid-task for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, or explicitly requested gates.
+- `balanced`: preserve the analysis gate and final approval by default; allow continuation only for already-approved slices whose frozen `gateClass` and supplemental `risk_score` do not require a stronger stop, and only when the approved plan and selected policy explicitly permit that continuation.
+- `autonomous`: preserve the analysis gate and final approval by default; stop mid-task for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, explicitly requested gates, or any slice whose supplemental `risk_score` requires a stronger pause than `gateClass` alone.
 
 `allowTaskOverride: true` means task-local artifacts may choose a different gate mode than `defaultMode` for that task. It does not let task-local artifacts bypass higher-priority user instructions, required analysis gates, required final approval, or any other explicit stop condition in this workflow.
 
@@ -50,16 +50,38 @@ Template default is `balanced` for general target-project usability. Tier L or o
 
 ## Gate Class Vocabulary
 
-For this workflow, `gateClass` is a non-scored hint vocabulary frozen to:
+For this workflow, `gateClass` is a non-replaced hint vocabulary frozen to:
 
 - `simple`
 - `standard`
 - `boundary-sensitive`
 - `high-risk`
 
-In `balanced` mode, only `gateClass: simple` approved slices may continue without an extra mid-slice stop, and only when no explicit gate reason or task instruction requires a pause.
+`risk_score` is supplemental per-slice gate metadata with an integer range from `1` to `5`:
 
-Numeric risk scoring is deferred. Do not invent or depend on a numeric `risk_score` in this workflow.
+- `1`: very low additional risk signal
+- `2`: low additional risk signal
+- `3`: moderate additional risk signal
+- `4`: elevated additional risk signal
+- `5`: highest additional risk signal
+
+`risk_score` does not replace `gateClass`, invent new gate classes, or weaken any pause that `gateClass`, critic requirements, or explicit gate reasons already require.
+
+Use `risk_score` only to preserve or strengthen the safer pause behavior relative to `gateClass`. If the numeric score indicates higher risk than `gateClass` alone, agents must keep the stricter stop.
+
+Treat these as common higher-risk inputs when assigning or explaining `risk_score`:
+
+- database schema updates
+- permissions or security logic
+- device communication
+- scheduling
+- public APIs
+- build scripts
+- code deletion
+- dependency upgrades
+- production configuration
+
+In `balanced` mode, continuation remains limited to already-approved slices whose frozen `gateClass` and supplemental `risk_score` both support continuation, and only when no explicit gate reason or task instruction requires a pause.
 
 ## Tier Policy And Future Workflow Configuration
 
@@ -460,8 +482,9 @@ When `state.json.slices` is used, each slice entry may record gate-policy hints 
 | --- | --- | --- | --- |
 | `id` | string | yes | Slice or approved group identifier. |
 | `status` | string | no | Slice status such as `pending`, `in_progress`, `completed`, or `blocked`. |
-| `gateClass` | string | no | Non-scored gate hint. Use only `simple`, `standard`, `boundary-sensitive`, or `high-risk`. |
-| `gateReasons` | string[] | no | Short non-scored reason labels that explain the gate posture for the slice or group. |
+| `gateClass` | string | no | Frozen gate hint vocabulary. Use only `simple`, `standard`, `boundary-sensitive`, or `high-risk`. |
+| `risk_score` | integer | no | Supplemental per-slice risk score from `1` to `5`. It may preserve or strengthen a pause relative to `gateClass`, but must not weaken required stops or replace `gateClass`. |
+| `gateReasons` | string[] | no | Short reason labels that explain the gate posture for the slice or group, including any stricter pause signaled by `risk_score` when relevant. |
 
 Example:
 
@@ -470,6 +493,7 @@ Example:
   "id": "slice-2-policy-aware-task-artifacts-skills",
   "status": "in_progress",
   "gateClass": "boundary-sensitive",
+  "risk_score": 4,
   "gateReasons": ["agent-instructions", "task-state-contract"]
 }
 ```

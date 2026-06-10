@@ -33,6 +33,7 @@ Use this skill to convert a requirement document into executable implementation 
    - forbidden files, packages, or directories
    - execution mode
    - gate class
+   - risk score
    - gate reasons
    - dependencies and parallel eligibility when the task is complex
    - validation level
@@ -54,9 +55,11 @@ Use this skill to convert a requirement document into executable implementation 
 ## Gate Class Rules
 
 - Use only this frozen `gateClass` vocabulary: `simple`, `standard`, `boundary-sensitive`, `high-risk`.
-- Emit `gateReasons` as short non-scored reason labels that explain why the slice should pause or may continue under the selected policy.
-- Do not add numeric scoring, score ranges, or implied `risk_score` fields.
-- `gateClass` and `gateReasons` are policy hints for task artifacts, not a replacement for required human gates or explicit stop conditions.
+- Emit `risk_score` as an integer from `1` to `5` for every slice or approved parallel group.
+- Emit `gateReasons` as short reason labels that explain why the slice should pause or may continue under the selected policy.
+- `risk_score` is stricter supplemental metadata, not a replacement for `gateClass`, required human gates, explicit stop conditions, or critic-required pauses.
+- When `risk_score` indicates higher risk than `gateClass` alone, preserve or strengthen the stop posture rather than weakening it.
+- Treat these as common higher-risk inputs when assigning or explaining `risk_score`: database schema updates, permissions or security logic, device communication, scheduling, public APIs, build scripts, code deletion, dependency upgrades, and production configuration.
 
 ## Output Document Template
 
@@ -110,6 +113,7 @@ Use this skill to convert a requirement document into executable implementation 
 - Merge Owner:
 - Conflict Risk: low | medium | high
 - Gate Class: simple | standard | boundary-sensitive | high-risk
+- Risk Score: 1 | 2 | 3 | 4 | 5
 - Gate Reasons:
 - Validation Level: slice | group | final
 - Recommended Agent Strategy:
@@ -158,12 +162,13 @@ Use this section only for complex tasks that have independent work worth paralle
 - Do not mark shared-file work as `parallel-capable` unless the plan names a merge owner and conflict resolution rule.
 - Do not expand the requirement scope.
 - Include validation commands whenever possible.
-- When recording slices in task state, emit `gateClass` and `gateReasons` without any numeric score field.
+- When recording slices in task state or plan artifacts, emit `gateClass`, `risk_score`, and `gateReasons` together.
+- Do not use `risk_score` to replace `gateClass`, invent new gate classes, or relax structured artifact shape.
 
 ## Gate / Stop Condition
 
 - Stop when requirement scope is still unstable or slice boundaries cannot be defined safely.
-- Stop before coding or when planning would require expanding scope, gate vocabulary, or policy semantics.
+- Stop before coding or when planning would require expanding scope, changing the frozen `gateClass` vocabulary, or turning `risk_score` into a replacement for required gates.
 
 ## Red Flags
 
@@ -171,14 +176,16 @@ Use this section only for complex tasks that have independent work worth paralle
 - Shared-file parallel work without a merge owner or conflict rule
 - Missing validation guidance for risky changes
 - Slice definitions that blur allowed versus forbidden scope
+- Slice metadata that omits one of `gateClass`, `risk_score`, or `gateReasons`
+- Numeric scoring framed as a substitute for human review or gate stops
 
 ## Exit Criteria
 
 - Each slice has a clear goal and bounded modification scope
 - Execution order, dependencies, and validation level are explicit
-- Gate metadata uses existing `gateClass` vocabulary only
+- Gate metadata uses existing `gateClass` vocabulary and includes supplemental `risk_score` plus `gateReasons`
 - The plan is ready for context packing and coding handoff
 
 ## Handoff
 
-- Hand the approved slice or parallel group, validation guidance, and forbidden scope to context-pack-builder or the coding workflow
+- Hand the approved slice or parallel group, including `gateClass`, `risk_score`, `gateReasons`, validation guidance, and forbidden scope, to context-pack-builder or the coding workflow

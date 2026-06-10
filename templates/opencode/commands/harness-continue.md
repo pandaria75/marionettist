@@ -18,8 +18,10 @@ Use this effective gate policy order for continuation decisions:
 
 Policy semantics for continuation:
 - `strict`: stop at each required harness gate.
-- `balanced`: preserve analysis and final approval gates; allow continuation only into the next already-approved `gateClass: simple` slice or group when no critic gate, explicit stop condition, or missing approval evidence blocks it.
-- `autonomous`: preserve analysis and final approval gates; stop mid-task for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, or explicitly requested gates.
+- `balanced`: preserve analysis and final approval gates; allow continuation only into the next already-approved `gateClass: simple` slice or group when supplemental `risk_score` does not strengthen the gate and no critic gate, explicit stop condition, or missing approval evidence blocks it.
+- `autonomous`: preserve analysis and final approval gates; stop mid-task for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, explicitly requested gates, or any slice whose supplemental `risk_score` requires a stronger pause than `gateClass` alone.
+
+`risk_score` is stricter supplemental metadata. Use it together with `gateClass` and `gateReasons` when deciding whether to continue, pause, or escalate. It may only preserve or strengthen required pauses and routing; it must never weaken `gateClass`, critic requirements, explicit gates, final approval, or other mandatory stops.
 
 Continuation rules:
 - If there is no active task, prompt the user to create one with `/harness` or a focused entrypoint such as `/harness-dev`, `/harness-incident`, `/harness-docs`, or `/harness-config`.
@@ -34,7 +36,11 @@ Continuation rules:
 - Otherwise use the reviewer’s standard bounded diff-review mode by default.
 - If coding, review, and required validation are complete for critic-gated work, route to `harness-critic` in `pre-done` mode before declaring the approved work done. Provide reviewer verdict, validation evidence, changed-file inventory, and state/gate summary; do not ask the critic to redo code review.
 - If review passed but validation has not passed, route to `harness-validator`.
-- If the current slice or group is done and the next step is another already-approved slice or group, use the effective gate policy plus that next item's `gateClass` and `gateReasons` to decide whether to pause or continue. In `balanced` mode, continue only for `gateClass: simple`. In `autonomous` mode, pause for `high-risk`, `boundary-sensitive`, critic-required, or explicitly requested gates. Keep final approval required by default.
+- If the current slice or group is done and the next step is another already-approved slice or group, use the effective gate policy plus that next item's `gateClass`, `risk_score`, and `gateReasons` to decide whether to pause or continue.
+- In `balanced` mode, continue only for `gateClass: simple` slices or groups whose supplemental `risk_score` does not strengthen the gate, and only when no critic-required, explicit gate, or other stop condition applies.
+- In `autonomous` mode, pause for `high-risk`, `boundary-sensitive`, critic-required, explicitly requested gates, or any next slice/group whose supplemental `risk_score` strengthens the gate beyond what `gateClass` alone would allow.
+- When pausing or escalating because of risk, explain the controlling `gateClass` and include the relevant `risk_score` and `gateReasons` in the gate explanation.
+- Keep final approval required by default.
 
 Do not use the critic gate to bypass coding, review, validation, or human-confirmation gates.
 

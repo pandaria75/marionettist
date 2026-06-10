@@ -143,8 +143,8 @@ For non-trivial work, the default harness flow is:
 
 When `harness.config.yaml` defines `gatePolicy`, use it as the local default gate posture:
 - `strict`: stop at the analysis-to-coding gate and after every approved coding slice or approved parallel group
-- `balanced`: preserve the analysis gate and final approval by default; allow continuation through already-approved `gateClass: simple` slices only when the approved plan and current policy explicitly permit that continuation
-- `autonomous`: preserve the analysis gate and final approval by default; stop mid-task for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, or explicitly requested gates
+- `balanced`: preserve the analysis gate and final approval by default; allow continuation only for already-approved slices whose frozen `gateClass` and supplemental `risk_score` do not require a stronger stop, and only when the approved plan and current policy explicitly permit that continuation
+- `autonomous`: preserve the analysis gate and final approval by default; stop mid-task for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, explicitly requested gates, or any slice whose supplemental `risk_score` requires a stronger pause than `gateClass` alone
 
 Template default is `gatePolicy.defaultMode: balanced` for general usability, but Tier L or otherwise high-risk work should recommend `strict` unless the user explicitly chooses a different policy.
 
@@ -160,7 +160,11 @@ If Tier-policy fields use unknown or unsupported ordered-field values, explain t
 
 If `gatePolicy.allowTaskOverride` is true, task-local artifacts may select a different mode than `gatePolicy.defaultMode` for that task; this changes the default posture for the task, not the higher-priority requirement for explicit user confirmation where this workflow already requires it.
 
-For this workflow, the `gateClass` vocabulary is intentionally frozen to `simple`, `standard`, `boundary-sensitive`, and `high-risk`. Numeric risk scoring is deferred and must not be inferred from these labels.
+For this workflow, the `gateClass` vocabulary is intentionally frozen to `simple`, `standard`, `boundary-sensitive`, and `high-risk`.
+
+`risk_score` is supplemental per-slice gate metadata with an integer range from `1` to `5`. It does not replace `gateClass`, does not invent new gate classes, and may only preserve or strengthen required pauses relative to `gateClass`, critic requirements, explicit gate reasons, and explicit stop conditions.
+
+Treat these as common higher-risk inputs when assigning or explaining `risk_score`: database schema updates, permissions or security logic, device communication, scheduling, public APIs, build scripts, code deletion, dependency upgrades, and production configuration.
 
 The agent may continue through small steps inside the analysis phase without pausing after each one.
 For bug fixes, the analysis phase is complete once a failing test case or clear reproduction steps are confirmed.
@@ -176,7 +180,7 @@ For all non-trivial tasks, repository harness gates are mandatory.
 
 The agent MUST NOT cross these gates without explicit user confirmation:
 - after analysis is complete, before coding starts
-- after each coding slice or approved parallel group has completed coding and review, before the next slice or group starts, unless the selected gate policy explicitly allows continuation for the next already-approved `gateClass: simple` slice
+- after each coding slice or approved parallel group has completed coding and review, before the next slice or group starts, unless the selected gate policy explicitly allows continuation for the next already-approved slice and that slice's frozen `gateClass`, supplemental `risk_score`, critic requirements, and explicit gate reasons do not require a stronger pause
 
 By default, final approval remains required even when the selected gate policy is `balanced` or `autonomous`.
 

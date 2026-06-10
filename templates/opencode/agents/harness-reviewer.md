@@ -35,6 +35,8 @@ Repository-wide search is an exception, not the default. Use it only when a conc
 
 Lower-risk work stays on the lightweight bounded diff-review path by default.
 
+Preserve the frozen `gateClass` vocabulary exactly as provided by the caller or task artifacts. Treat per-slice `risk_score` as supplemental stricter metadata only: it may justify deeper review or stronger routing, but it must never weaken the review depth, required gates, or pauses already implied by `gateClass`, critic requirements, explicit gate reasons, or explicit stop conditions.
+
 Use the fuller two-stage review only when the caller indicates the current slice or approved group is any of the following:
 - Tier L
 - high-risk
@@ -42,11 +44,13 @@ Use the fuller two-stage review only when the caller indicates the current slice
 - workflow-sensitive
 - critic-required
 
+Also use the fuller two-stage review when the caller or task artifacts indicate a higher per-slice `risk_score` that should route review more cautiously than `gateClass` alone. Treat `risk_score` as a higher-risk indicator and routing input, not as a replacement for `gateClass` and not as a source of new gate classes.
+
 When those indicators are absent, keep the review lightweight and bounded to the current diff while still checking for obvious regressions, scope mistakes, validation gaps, and rule conflicts.
 
 ## Two-Stage Review Expectations For Higher-Risk Work
 
-For higher-risk or explicitly routed work, keep the review bounded to the current approved slice or group, but evaluate it in two dimensions:
+For higher-risk or explicitly routed work, keep the review bounded to the current approved slice or group, but evaluate it in two dimensions. This includes work routed here because `risk_score` indicates stricter handling than `gateClass` alone.
 
 ### Stage 1: Boundary And Compliance Review
 
@@ -56,6 +60,8 @@ First evaluate whether the change remains acceptable from a boundary and workflo
 - scope compliance, including allowed vs forbidden files
 - rule compliance, including incorrect promotion of `observed` or `target` rules into mandatory behavior
 - validation compliance, including missing, weak, or contradictory validation evidence when validation is expected
+
+When higher-risk routing was triggered by `risk_score`, verify that the changed slice did not implicitly rely on a weaker `gateClass` interpretation to skip stricter evidence, review depth, or pause expectations.
 
 Treat Stage 1 as the first priority for higher-risk work because a change that violates boundaries, scope, rules, or required validation should not pass based only on code quality.
 
@@ -71,7 +77,7 @@ Stage 2 is still slice-bounded diff review. Do not expand into broad architectur
 
 Use `harness-indexer` only when ownership, docs, rules, or call-path context is unclear after the bounded diff review. Use `harness-validator` only when validation evidence is necessary and the caller allows validation.
 
-Do not modify files. Return findings ordered by severity with file and line references when available. If the fuller two-stage path was used, organize findings so Stage 1 and Stage 2 remain distinguishable. If no findings are discovered, state that explicitly and mention residual risks or validation gaps.
+Do not modify files. Return findings ordered by severity with file and line references when available. If the fuller two-stage path was used, organize findings so Stage 1 and Stage 2 remain distinguishable. If no findings are discovered, state that explicitly and mention residual risks or validation gaps, including any residual concern that `risk_score` suggests stricter handling even when the bounded diff itself looks clean.
 
 Return exactly one final recommendation:
 - `PASS`

@@ -712,6 +712,15 @@ async function assertMinimalOpencodeCommandsAndAgents(projectPath) {
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-planner.md")), "OpenCode harness-planner agent must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-reviewer.md")), "OpenCode harness-reviewer agent must exist");
   assert(await pathExists(path.join(projectPath, ".opencode", "agents", "harness-validator.md")), "OpenCode harness-validator agent must exist");
+
+  const builderAgent = await fs.readFile(path.join(projectPath, ".opencode", "agents", "harness-builder.md"), "utf8");
+  const plannerAgent = await fs.readFile(path.join(projectPath, ".opencode", "agents", "harness-planner.md"), "utf8");
+  const reviewerAgent = await fs.readFile(path.join(projectPath, ".opencode", "agents", "harness-reviewer.md"), "utf8");
+  const criticAgent = await fs.readFile(path.join(projectPath, ".opencode", "agents", "harness-critic.md"), "utf8");
+  assertIncludes(builderAgent, "frozen `gateClass` and supplemental `risk_score`");
+  assertIncludes(plannerAgent, "- `risk_score`: integer `1` through `5` as stricter supplemental metadata for the slice or group");
+  assertIncludes(reviewerAgent, "Treat per-slice `risk_score` as supplemental stricter metadata only");
+  assertIncludes(criticAgent, "Treat per-slice `risk_score` as supplemental stricter metadata only");
 }
 
 async function assertStandardOpencodeInstall(projectPath) {
@@ -736,6 +745,10 @@ async function assertStandardOpencodeInstall(projectPath) {
   assertIncludes(doctorOutput, "PASS  OpenCode command surface [standard] required normal commands present");
   assertIncludes(doctorOutput, "PASS  OpenCode command surface [standard] standard helper commands present");
   assertIncludes(doctorOutput, "PASS  OpenCode command surface [standard] advanced-only commands absent");
+
+  const continueCommand = await fs.readFile(path.join(projectPath, ".opencode", "commands", "harness-continue.md"), "utf8");
+  assertIncludes(continueCommand, "supplemental `risk_score`");
+  assertIncludes(continueCommand, "must never weaken `gateClass`");
 
   const diffOutput = await harness("diff", "--project", projectPath);
   assertIncludes(diffOutput, "unchanged: .opencode/commands/harness-context.md");
@@ -1031,10 +1044,14 @@ async function assertP1DocsAndTemplateCoverage() {
   assertIncludes(builderTemplate, "For `harness-coder`, request implementation plus lightweight self-check only.");
   assertIncludes(builderTemplate, "For `harness-reviewer`, request `diff-review` of the current slice or repair and provide changed files.");
   assertIncludes(builderTemplate, "For `harness-critic`, always state `plan-review` or `pre-done`.");
+  assertIncludes(builderTemplate, "frozen `gateClass` and supplemental `risk_score`");
+  assertIncludes(builderTemplate, "include both the controlling `gateClass` and any `risk_score` threshold or `gateReasons` evidence");
   assertIncludes(continueCommand, "If coding is complete but review has not passed, route to `harness-reviewer` for the current slice or group.");
   assertIncludes(continueCommand, "Use the reviewer’s bounded high-risk two-stage mode when the task or current slice/group is Tier L, high-risk, boundary-sensitive, workflow-sensitive, or critic-required.");
   assertIncludes(continueCommand, "Otherwise use the reviewer’s standard bounded diff-review mode by default.");
   assertIncludes(continueCommand, "route to `harness-critic` in `pre-done` mode");
+  assertIncludes(continueCommand, "`risk_score` is stricter supplemental metadata.");
+  assertIncludes(continueCommand, "must never weaken `gateClass`");
   assertIncludes(workflowTemplate, "Review is diff-first and bounded to the current approved slice or group.");
   assertIncludes(workflowTemplate, "The coding agent may perform lightweight self-check");
   assertIncludes(workflowTemplate, "read `knowledge.mode` and `knowledge.maturity`");
@@ -1042,6 +1059,10 @@ async function assertP1DocsAndTemplateCoverage() {
   assertIncludes(workflowTemplate, "docs/target/...");
   assertIncludes(workflowTemplate, "**L0 — Minimal capture**");
   assertIncludes(workflowTemplate, "**L4 — Strict governance**");
+  assertIncludes(workflowTemplate, "`risk_score` is supplemental per-slice gate metadata with an integer range from `1` to `5`:");
+  assertIncludes(workflowTemplate, "Use `risk_score` only to preserve or strengthen the safer pause behavior relative to `gateClass`.");
+  assertExcludes(workflowTemplate, "numeric risk scoring is deferred");
+  assertExcludes(workflowTemplate, "without any numeric score field");
 
   const incidentFrontmatter = parseSimpleFrontmatter(incidentCommand);
   assert(incidentFrontmatter.description?.length > 0, "harness-incident template must declare description frontmatter");
@@ -1074,6 +1095,16 @@ async function assertP1DocsAndTemplateCoverage() {
   assertIncludes(targetAgentsTemplate, "docs/current/");
   assertIncludes(targetAgentsTemplate, "do not treat target docs as evidence of current behavior");
   assertIncludes(targetAgentsTemplate, "Do not silently upgrade `observed` or `target` rules into stronger constraints.");
+  assertIncludes(targetAgentsTemplate, "supplemental `risk_score`");
+  assertIncludes(targetAgentsTemplate, "For this workflow, the `gateClass` vocabulary is intentionally frozen to `simple`, `standard`, `boundary-sensitive`, and `high-risk`.");
+  assertExcludes(targetAgentsTemplate, "Do not add numeric scoring");
+  assertExcludes(targetAgentsTemplate, "without any numeric score field");
+
+  const opencodeReadmeTemplate = await fs.readFile(path.join(repoRoot, "templates", "opencode", "README.md"), "utf8");
+  assertIncludes(opencodeReadmeTemplate, "supplemental `risk_score` does not strengthen the gate");
+  assertIncludes(opencodeReadmeTemplate, "whose supplemental `risk_score` requires a stronger pause than `gateClass` alone");
+
+  assertIncludes(workflowRulesTemplate, "supplemental `risk_score` does not require a stronger pause");
 
   assertIncludes(repositoryRulesTemplate, "type: observed | confirmed | target | hard");
   assertIncludes(repositoryRulesTemplate, "confidence: low | medium | high");
@@ -1153,6 +1184,11 @@ async function assertTaskStateContractTemplate() {
   assertIncludes(workflowTemplate, "### `.task/<task-id>/state.json`");
   assertIncludes(workflowTemplate, "| `taskId` | string | yes | Active task path. |");
   assertIncludes(workflowTemplate, "| `status` | string | no | Task status: `in_progress`, `completed`, or `blocked`. |");
+  assertIncludes(workflowTemplate, "| `gateClass` | string | no | Frozen gate hint vocabulary. Use only `simple`, `standard`, `boundary-sensitive`, or `high-risk`. |");
+  assertIncludes(workflowTemplate, "| `risk_score` | integer | no | Supplemental per-slice risk score from `1` to `5`.");
+  assertIncludes(workflowTemplate, "| `gateReasons` | string[] | no | Short reason labels that explain the gate posture for the slice or group");
+  assertIncludes(workflowTemplate, '  "gateClass": "boundary-sensitive",');
+  assertIncludes(workflowTemplate, '  "risk_score": 4,');
   assertIncludes(workflowTemplate, "Its `taskId` must match `.task/active.json.taskId`.");
 }
 

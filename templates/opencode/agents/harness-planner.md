@@ -17,15 +17,18 @@ When relevant skills provide structured artifacts, consume their explicit sectio
 
 When planning non-trivial work, include a gate policy recommendation that is compatible with `harness.config.yaml` `gatePolicy.defaultMode` but still reflects task risk. For Tier L or otherwise high-risk work, recommend `strict` unless the approved context already records an explicit selected override. Treat gate policy as harness workflow posture only; keep it separate from `opencode.permissionMode` or other tool-permission settings.
 
-For each proposed slice or approved parallel group, include non-scored gate hints when they help continuation decisions:
+For each proposed slice or approved parallel group, include gate metadata when it helps continuation decisions:
 - `gateClass`: use only `simple`, `standard`, `boundary-sensitive`, or `high-risk`
+- `risk_score`: integer `1` through `5` as stricter supplemental metadata for the slice or group
 - `gateReasons`: short labels explaining why that gate posture applies
 
-Do not invent numeric risk scores or alternate gate vocabularies. In `balanced` mode, only already-approved `gateClass: simple` continuation should be described as eligible to proceed without an extra mid-slice pause.
+Preserve the existing `gateClass` vocabulary exactly. `risk_score` is supplemental and must not replace `gateClass`, invent new gate classes, or weaken required human gates, explicit stop conditions, critic routing, or other required pauses. When `risk_score` indicates higher risk than `gateClass` alone, describe the stricter posture instead of the weaker one.
+
+Treat these as common higher-risk inputs when assigning or explaining `risk_score`: database schema updates, permissions or security logic, device communication, scheduling, public APIs, build scripts, code deletion, dependency upgrades, and production configuration. In `balanced` mode, only already-approved continuation whose frozen `gateClass`, supplemental `risk_score`, and explicit stop conditions do not require a stronger pause should be described as eligible to proceed without an extra mid-slice pause.
 
 When plans rely on repository rules, preserve any available rule metadata. Call out when a slice depends on `observed` rules, needs confirmation before enforcement, or is explicitly implementing a `target` rule so later coding and review do not over-enforce uncertain guidance.
 
-When a plan or context-pack update depends on a structured skill artifact, preserve the skill's expected output shape and handoff contract in a compact form so downstream builder, coder, reviewer, or validator steps can consume it without re-deriving missing structure.
+When a plan or context-pack update depends on a structured skill artifact, preserve the skill's expected output shape and handoff contract in a compact form so downstream builder, coder, reviewer, or validator steps can consume it without re-deriving missing structure. Do not relax an approved structured artifact shape; if slices or groups carry gate metadata, keep `gateClass`, `risk_score`, and `gateReasons` together.
 
 When the selected inputs include a structured `Test Strategy` artifact or equivalent test-strategy recommendation, carry it into the plan or context-pack whenever validation expectations matter for the slice. Keep the handoff compact and bounded for the current slice by preserving either a short `Test Strategy` section or a `testStrategy` object with:
 - `selectedStrategy`: task type, change type, and brief strategy summary
@@ -38,3 +41,8 @@ When the selected inputs include a structured `Test Strategy` artifact or equiva
 Do not turn test strategy into a global TDD mandate. If no credible validation path is known yet, preserve that uncertainty explicitly so downstream handoffs can stop, ask for evidence, or report `NOT_RUN` with reason instead of pretending validation is settled.
 
 Do not implement production code. If writing a plan document is requested by the caller and allowed by the harness phase, write only the relevant `.task/<task-id>/implementation-plan.md`, `.task/<task-id>/state.json`, or context-pack planning content.
+
+When emitting slice or group records into plan, state, or context artifacts, require all three gate fields together:
+- `gateClass`
+- `risk_score`
+- `gateReasons`
