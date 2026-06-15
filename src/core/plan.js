@@ -1,12 +1,12 @@
 import path from "node:path";
 import { listFiles, pathExists, readText, toPosixPath } from "./files.js";
 import { opencodeTemplatesRoot, skillsRoot, templatesRoot, versionFile } from "./framework-paths.js";
-import { renderTemplate } from "./template.js";
 import { extractManagedBlock, replaceManagedBlock } from "./managed-block.js";
 import { sha256 } from "./hash.js";
 import { buildManifest, getManagedFileHash, manifestFileMap, manifestRelative, normalizeDistributionMode, normalizeOpencodeCommandSurface, normalizeOpencodePermissionMode, opencodeArtifactAdapter, readManifest, validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface, validateOptionalOpencodePermissionMode } from "./manifest.js";
 import { buildModelProfileTemplateVariables, loadModelProfiles, loadModelProfilesState, modelProfilesSourceRelative, renderCanonicalModelProfiles } from "./model-profiles.js";
 import { getOpencodePermissionPolicy } from "./opencode-permissions.js";
+import { renderWithMetadata } from "./render.js";
 import { parseSimpleYaml } from "./yaml.js";
 
 const coreTemplateTargets = new Map([
@@ -52,17 +52,20 @@ async function buildFrameworkAssets(projectPath, options = {}) {
 
   for (const [sourceRelative, targetRelative] of coreTemplateTargets.entries()) {
     const sourcePath = path.join(templatesRoot, sourceRelative);
-    let content = renderTemplate(await readText(sourcePath), variables);
-    if (sourceRelative === modelProfilesSourceRelative && modelProfilesState.source === "legacy") {
-      content = renderCanonicalModelProfiles(modelProfilesState.effectiveProfiles);
-    }
-    if (sourceRelative === "harness.config.yaml") {
-      content = renderHarnessConfigWithSelections(content, {
-        distributionModeState: options.distributionModeState,
-        opencodeCommandSurfaceState: options.opencodeCommandSurfaceState,
-        opencodePermissionModeState: options.opencodePermissionModeState
-      });
-    }
+    const templateContent = await readText(sourcePath);
+    const renderState = buildFrameworkAssetRenderState(sourceRelative, variables, {
+      modelProfilesState,
+      distributionModeState: options.distributionModeState,
+      opencodeCommandSurfaceState: options.opencodeCommandSurfaceState,
+      opencodePermissionModeState: options.opencodePermissionModeState
+    });
+    const rendered = renderWithMetadata({
+      templateContent,
+      variables: renderState.variables,
+      renderContext: renderState.renderContext,
+      postRender: finalizeFrameworkAssetRender
+    });
+    const content = rendered.content;
     const kind = targetRelative === "AGENTS.md" ? "managed-block" : "file";
     const managedContent = kind === "managed-block" ? extractManagedBlock(content) : content;
     if (!managedContent) {
@@ -76,7 +79,10 @@ async function buildFrameworkAssets(projectPath, options = {}) {
       kind,
       content,
       managedContent,
-      frameworkHash: sha256(managedContent)
+      frameworkHash: sha256(managedContent),
+      templateHash: rendered.templateHash,
+      renderedHash: rendered.renderedHash,
+      renderInputHash: rendered.renderInputHash
     });
   }
 
@@ -127,16 +133,17 @@ async function buildOpencodeAssets(projectPath, variables = {}, states = {}) {
       ? sourceRelative
       : toPosixPath(path.join(".opencode", sourceRelative));
 
-    let content = await readText(sourcePath);
-    const templateHash = sha256(content);
-    if (sourceRelative === "agents/harness-validator.md") {
-      content = renderTemplate(content, {
-        ...opencodeVariables,
-        validatorProjectGuidance
-      });
-    } else {
-      content = renderTemplate(content, opencodeVariables);
-    }
+    const templateContent = await readText(sourcePath);
+    const rendered = renderWithMetadata({
+      templateContent,
+      variables: sourceRelative === "agents/harness-validator.md"
+        ? {
+          ...opencodeVariables,
+          validatorProjectGuidance
+        }
+        : opencodeVariables
+    });
+    const content = rendered.content;
 
     assets.push({
       sourceRelative: `templates/opencode/${sourceRelative}`,
@@ -144,7 +151,9 @@ async function buildOpencodeAssets(projectPath, variables = {}, states = {}) {
       targetPath: path.join(projectPath, targetRelative),
       kind: "file",
       adapter: opencodeArtifactAdapter,
-      templateHash,
+      templateHash: rendered.templateHash,
+      renderedHash: rendered.renderedHash,
+      renderInputHash: rendered.renderInputHash,
       commandSurface,
       permissionMode,
       content,
@@ -657,6 +666,78 @@ function renderHarnessConfigWithSelections(content, states = {}) {
   return `${trimmed}\n\n${sections.join("\n\n")}\n`;
 }
 
+function buildFrameworkAssetRenderState(sourceRelative, variables, states = {}) {
+  if (sourceRelative === modelProfilesSourceRelative && states.modelProfilesState?.source === "legacy") {
+    return {
+      variables: {},
+      renderContext: {
+        modelProfilesState: {
+          source: states.modelProfilesState.source,
+          effectiveProfiles: states.modelProfilesState.effectiveProfiles
+        }
+      }
+    };
+  }
+
+  if (sourceRelative === "harness.config.yaml") {
+    return {
+      variables,
+      renderContext: {
+        harnessConfigSelections: buildHarnessConfigRenderSelections(states)
+      }
+    };
+  }
+
+  return {
+    variables,
+    renderContext: null
+  };
+}
+
+function buildHarnessConfigRenderSelections(states = {}) {
+  return {
+    distributionModeState: states.distributionModeState?.persistToHarnessConfig
+      ? {
+        value: states.distributionModeState.value,
+        persistToHarnessConfig: true
+      }
+      : {
+        value: null,
+        persistToHarnessConfig: false
+      },
+    opencodeCommandSurfaceState: states.opencodeCommandSurfaceState?.persistToHarnessConfig
+      ? {
+        value: states.opencodeCommandSurfaceState.value,
+        persistToHarnessConfig: true
+      }
+      : {
+        value: null,
+        persistToHarnessConfig: false
+      },
+    opencodePermissionModeState: states.opencodePermissionModeState?.persistPermissionModeToHarnessConfig
+      ? {
+        permissionMode: states.opencodePermissionModeState.permissionMode,
+        persistPermissionModeToHarnessConfig: true
+      }
+      : {
+        permissionMode: null,
+        persistPermissionModeToHarnessConfig: false
+      }
+  };
+}
+
+function finalizeFrameworkAssetRender({ content, renderContext }) {
+  if (renderContext?.modelProfilesState?.source === "legacy") {
+    return renderCanonicalModelProfiles(renderContext.modelProfilesState.effectiveProfiles);
+  }
+
+  if (renderContext?.harnessConfigSelections) {
+    return renderHarnessConfigWithSelections(content, renderContext.harnessConfigSelections);
+  }
+
+  return content;
+}
+
 function normalizeKnowledgeVariables(variables = {}) {
   const knowledgeMode = normalizeKnowledgeMode(variables.knowledgeMode ?? "standard");
   const knowledgeMaturity = normalizeKnowledgeMaturity(variables.knowledgeMaturity ?? "L1");
@@ -822,7 +903,9 @@ async function operationForOrphan(previous, projectPath) {
     targetPath,
     kind: previous.kind,
     adapter: previous.adapter,
+    renderedHash: previous.renderedHash,
     templateHash: previous.templateHash,
+    renderInputHash: previous.renderInputHash,
     commandSurface: previous.commandSurface,
     permissionMode: previous.permissionMode,
     exists,

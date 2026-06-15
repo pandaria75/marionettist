@@ -58,7 +58,7 @@ export function buildManifest({ version, installedAt, previousManifest, operatio
 }
 
 export function getManagedFileHash(file) {
-  return file?.renderedHash ?? file?.hash ?? null;
+  return file?.hash ?? file?.renderedHash ?? null;
 }
 
 export function normalizeDistributionMode(value, label = "distribution mode") {
@@ -222,20 +222,28 @@ function resolveManifestOpencodePermissionMode(previousManifest, opencodePermiss
 }
 
 function buildManagedFileRecord(operation, force) {
-  const renderedHash = manifestHashForOperation(operation, force);
+  const hash = manifestHashForOperation(operation, force);
   const record = {
     path: operation.targetRelative,
     source: operation.sourceRelative,
     kind: operation.kind,
-    hash: renderedHash
+    hash
   };
+
+  if (operation.renderedHash) {
+    record.renderedHash = operation.renderedHash;
+  }
+
+  if (operation.templateHash) {
+    record.templateHash = operation.templateHash;
+  }
+
+  if (operation.renderInputHash) {
+    record.renderInputHash = operation.renderInputHash;
+  }
 
   if (operation.adapter === opencodeArtifactAdapter) {
     record.adapter = operation.adapter;
-    record.renderedHash = renderedHash;
-    if (operation.templateHash) {
-      record.templateHash = operation.templateHash;
-    }
     if (operation.commandSurface) {
       record.commandSurface = normalizeOpencodeCommandSurface(operation.commandSurface, "OpenCode command surface metadata");
     }

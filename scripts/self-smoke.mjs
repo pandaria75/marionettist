@@ -238,13 +238,19 @@ async function assertMirrorResyncFromTemplateSource() {
 }
 
 async function assertLocalSelfModelProfilesPreservedAndRendered() {
+  // Keep this as self-smoke evidence for self.js mirror rendering because the
+  // bounded regression slice avoids exporting additional self-only helpers just
+  // for unit tests. This exercises the real self init render path end-to-end.
   const profilesRelative = ".harness/model-profiles.yml";
   const builderRelative = ".opencode/agents/harness-builder.md";
   const profilesAbsolute = path.join(repoRoot, profilesRelative);
   const builderAbsolute = path.join(repoRoot, builderRelative);
   const originalProfiles = await fs.readFile(profilesAbsolute, "utf8");
   const originalBuilder = await fs.readFile(builderAbsolute, "utf8");
-  const overriddenProfiles = originalProfiles.replace('default: "openai/gpt-5.5"', 'default: "self/smoke-think"');
+  const overriddenProfiles = originalProfiles.replace(
+    /^    default: ".*"$/m,
+    '    default: "self/smoke-think"'
+  );
   try {
     await fs.writeFile(profilesAbsolute, overriddenProfiles, "utf8");
     const output = await harness("self", "init", "--apply", "--with-opencode");

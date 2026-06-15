@@ -116,6 +116,7 @@ try {
   assert(manifest.frameworkVersion === frameworkVersion, "manifest must record framework version");
   assert(manifest.managedFiles.some((file) => file.path === "AGENTS.md" && file.kind === "managed-block"), "manifest must include AGENTS.md as a managed block");
   assert(!manifest.managedFiles.some((file) => file.path.startsWith(".opencode/")), "manifest must not include OpenCode assets when init runs without --with-opencode");
+  await assertCoreManifestRenderMetadata(project, manifest);
 
   const cleanDiffOutput = await harness("diff", "--project", project);
   assertIncludes(cleanDiffOutput, "distribution mode: embedded");
@@ -589,6 +590,7 @@ async function assertOpencodeManifestMetadataAndSafety(projectPath, manifest = n
     assert(entry.adapter === "opencode", `expected ${entry.path} adapter metadata`);
     assert(typeof entry.templateHash === "string" && entry.templateHash.length > 0, `expected ${entry.path} templateHash metadata`);
     assert(typeof entry.renderedHash === "string" && entry.renderedHash.length > 0, `expected ${entry.path} renderedHash metadata`);
+    assert(typeof entry.renderInputHash === "string" && entry.renderInputHash.length > 0, `expected ${entry.path} renderInputHash metadata`);
     assert(entry.hash === entry.renderedHash, `expected ${entry.path} hash to mirror renderedHash for schemaVersion 1 compatibility`);
     assert(entry.commandSurface === "minimal", `expected ${entry.path} commandSurface metadata to record minimal install`);
   }
@@ -626,6 +628,24 @@ async function assertOpencodeManifestMetadataAndSafety(projectPath, manifest = n
     await fs.writeFile(profilesPath, originalProfiles, "utf8");
     await fs.writeFile(commandPath, originalCommand, "utf8");
   }
+}
+
+async function assertCoreManifestRenderMetadata(projectPath, manifest = null) {
+  const currentManifest = manifest ?? await readManifest(projectPath);
+  const agentsEntry = currentManifest.managedFiles.find((file) => file.path === "AGENTS.md");
+  const configEntry = currentManifest.managedFiles.find((file) => file.path === "harness.config.yaml");
+
+  assert(agentsEntry, "expected AGENTS.md manifest entry to exist");
+  assert(typeof agentsEntry.templateHash === "string" && agentsEntry.templateHash.length > 0, "expected AGENTS.md templateHash metadata");
+  assert(typeof agentsEntry.renderedHash === "string" && agentsEntry.renderedHash.length > 0, "expected AGENTS.md renderedHash metadata");
+  assert(typeof agentsEntry.renderInputHash === "string" && agentsEntry.renderInputHash.length > 0, "expected AGENTS.md renderInputHash metadata");
+  assert(agentsEntry.hash !== agentsEntry.renderedHash, "expected AGENTS.md managed-block hash to differ from full renderedHash");
+
+  assert(configEntry, "expected harness.config.yaml manifest entry to exist");
+  assert(typeof configEntry.templateHash === "string" && configEntry.templateHash.length > 0, "expected harness.config.yaml templateHash metadata");
+  assert(typeof configEntry.renderedHash === "string" && configEntry.renderedHash.length > 0, "expected harness.config.yaml renderedHash metadata");
+  assert(typeof configEntry.renderInputHash === "string" && configEntry.renderInputHash.length > 0, "expected harness.config.yaml renderInputHash metadata");
+  assert(configEntry.hash === configEntry.renderedHash, "expected harness.config.yaml file hash to mirror renderedHash");
 }
 
 async function assertDoctorFailures(projectPath) {

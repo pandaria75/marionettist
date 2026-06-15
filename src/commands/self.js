@@ -3,7 +3,7 @@ import path from "node:path";
 import { frameworkRoot } from "../core/framework-paths.js";
 import { buildModelProfileTemplateVariables, loadCanonicalOrFrameworkModelProfiles, modelProfilesSourceRelative } from "../core/model-profiles.js";
 import { getOpencodePermissionPolicy } from "../core/opencode-permissions.js";
-import { renderTemplate } from "../core/template.js";
+import { renderWithMetadata } from "../core/render.js";
 import { initCommand } from "./init.js";
 import { diffCommand } from "./diff.js";
 import { syncCommand } from "./sync.js";
@@ -723,7 +723,10 @@ async function buildSelfOpencodeMirrorEntries() {
       entries.push({
         path: targetRelative,
         source: toPosix(path.join(templatesOpencodeRelative, sourceRelative)),
-        content: renderTemplate(sourceContent, renderVariables)
+        content: renderWithMetadata({
+          templateContent: sourceContent,
+          variables: renderVariables
+        }).content
       });
     }
   }
