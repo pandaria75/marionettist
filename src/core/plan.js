@@ -16,6 +16,7 @@ const coreTemplateTargets = new Map([
   ["harness.config.yaml", "harness.config.yaml"],
   ["docs/project/harness-workflow.md", "docs/project/harness-workflow.md"],
   ["docs/project/knowledge-map.md", "docs/project/knowledge-map.md"],
+  ["docs/project/tier-policy-workflow-design.md", "docs/project/tier-policy-workflow-design.md"],
   ["docs/current/system-map.md", "docs/current/system-map.md"],
   ["docs/target/architecture-intent.md", "docs/target/architecture-intent.md"],
   ["rules/00-repository-rules.md", ".aiassistant/rules/00-repository-rules.md"],

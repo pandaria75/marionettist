@@ -205,6 +205,17 @@ test("buildPlan canonicalizes legacy harness.config model profiles into .harness
   });
 });
 
+test("buildPlan includes tier policy workflow design doc in core template targets", async (t) => {
+  await withTempProject(t, async (projectPath) => {
+    const plan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath }));
+    const operation = plan.operations.find((entry) => entry.targetRelative === "docs/project/tier-policy-workflow-design.md");
+
+    assert(operation, "expected tier policy workflow design doc operation");
+    assert.equal(operation.sourceRelative, "templates/docs/project/tier-policy-workflow-design.md");
+    assert.equal(operation.status, "new-managed");
+  });
+});
+
 test("buildPlan preserves orphan render metadata for removed managed records", async (t) => {
   await withTempProject(t, async (projectPath) => {
     await fs.mkdir(path.join(projectPath, ".harness"), { recursive: true });
