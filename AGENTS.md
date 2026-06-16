@@ -66,6 +66,7 @@ When changing templates or skills, validate that:
 ## Guardrails
 
 - Do not implement broad behavior changes without updating templates and docs consistently.
+- When a task comes from GitHub issues, add a completion summary comment to the relevant issue(s) before closing the task; include what changed, validation results, residual risks, and follow-up impact for related issues.
 - Do not mix framework-maintenance rules with target-project harness rules.
 - Do not put self-only OpenCode commands, agents, or policy into `templates/AGENTS.md`, `templates/opencode/`, or `skills/`.
 - Do not edit generated `.opencode/agents/harness-*.md`, `.opencode/agents/validators/**`, or `.opencode/commands/harness-*.md` directly; edit `templates/opencode/**` and rerun `harness self init --apply --with-opencode`.

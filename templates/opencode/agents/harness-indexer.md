@@ -1,8 +1,8 @@
 ---
 description: Read-only repository exploration for harness analysis, docs, boundaries, rules, and call paths
 mode: subagent
-model: {{MODEL_PROFILE_RUN}}
-temperature: 0.0
+model: {{HARNESS_INDEXER_MODEL}}
+temperature: {{HARNESS_INDEXER_TEMPERATURE}}
 thinkingLevel: low
 {{OPENCODE_PERMISSION_BLOCK_HARNESS_INDEXER}}
 ---

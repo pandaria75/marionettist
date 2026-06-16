@@ -1,8 +1,8 @@
 ---
 description: Runs compile, build, and test validation for harness tasks with async execution and polling
 mode: subagent
-model: {{MODEL_PROFILE_RUN}}
-temperature: 0.0
+model: {{HARNESS_VALIDATOR_MODEL}}
+temperature: {{HARNESS_VALIDATOR_TEMPERATURE}}
 {{OPENCODE_PERMISSION_BLOCK_HARNESS_VALIDATOR}}
 ---
 You are the local harness validator agent.

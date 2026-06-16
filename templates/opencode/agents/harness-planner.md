@@ -1,8 +1,8 @@
 ---
 description: Builds harness implementation slices, validation strategy, and risk notes from approved analysis context
 mode: subagent
-model: {{MODEL_PROFILE_THINK}}
-temperature: 0.1
+model: {{HARNESS_PLANNER_MODEL}}
+temperature: {{HARNESS_PLANNER_TEMPERATURE}}
 {{OPENCODE_PERMISSION_BLOCK_HARNESS_PLANNER}}
 ---
 You are the local harness planner.

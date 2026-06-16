@@ -7,6 +7,43 @@ export const modelProfilesSourceRelative = ".harness/model-profiles.yml";
 export const legacyHarnessConfigRelative = "harness.config.yaml";
 export const requiredModelProfiles = ["think", "build", "review", "run"];
 
+const opencodeAgentProfileBindings = [
+  ["harness-builder", "think", "harnessBuilder"],
+  ["harness-planner", "think", "harnessPlanner"],
+  ["harness-coder", "build", "harnessCoder"],
+  ["harness-reviewer", "review", "harnessReviewer"],
+  ["harness-critic", "review", "harnessCritic"],
+  ["harness-indexer", "run", "harnessIndexer"],
+  ["harness-validator", "run", "harnessValidator"]
+];
+
+const builtInProfileDefaults = {
+  think: {
+    description: "Deep reasoning, planning, and gate decisions",
+    default: "openai/gpt-5.5",
+    temperature: 0.1,
+    agentOverrides: {}
+  },
+  build: {
+    description: "Focused coding and implementation from approved task context",
+    default: "openai/gpt-5.4",
+    temperature: 0.1,
+    agentOverrides: {}
+  },
+  review: {
+    description: "Reflective, cautious, nuanced review",
+    default: "opencode-go/glm-5.1",
+    temperature: 0,
+    agentOverrides: {}
+  },
+  run: {
+    description: "Fast utility work such as indexing and validation",
+    default: "opencode-go/deepseek-v4-flash",
+    temperature: 0,
+    agentOverrides: {}
+  }
+};
+
 export async function loadModelProfiles(projectPath) {
   return (await loadModelProfilesState(projectPath)).effectiveProfiles;
 }
@@ -23,11 +60,12 @@ export async function loadModelProfilesState(projectPath) {
     "canonical"
   );
   if (canonicalProfiles) {
+    const normalizedCanonicalProfiles = normalizeModelProfiles(canonicalProfiles);
     return {
       frameworkDefaults,
-      canonicalProfiles: normalizeModelProfiles(canonicalProfiles),
+      canonicalProfiles: normalizedCanonicalProfiles,
       legacyProfiles: null,
-      effectiveProfiles: mergeModelProfiles(frameworkDefaults, canonicalProfiles),
+      effectiveProfiles: mergeModelProfiles(frameworkDefaults, normalizedCanonicalProfiles),
       source: "canonical"
     };
   }
@@ -37,11 +75,12 @@ export async function loadModelProfilesState(projectPath) {
     "legacy"
   );
   if (legacyProfiles) {
+    const normalizedLegacyProfiles = normalizeModelProfiles(legacyProfiles);
     return {
       frameworkDefaults,
       canonicalProfiles: null,
-      legacyProfiles: normalizeModelProfiles(legacyProfiles),
-      effectiveProfiles: mergeModelProfiles(frameworkDefaults, legacyProfiles),
+      legacyProfiles: normalizedLegacyProfiles,
+      effectiveProfiles: mergeModelProfiles(frameworkDefaults, normalizedLegacyProfiles),
       source: "legacy"
     };
   }
@@ -67,7 +106,7 @@ export async function loadCanonicalOrFrameworkModelProfiles(projectPath) {
     "canonical"
   );
 
-  return canonicalProfiles ? mergeModelProfiles(frameworkDefaults, canonicalProfiles) : frameworkDefaults;
+  return canonicalProfiles ? mergeModelProfiles(frameworkDefaults, normalizeModelProfiles(canonicalProfiles)) : frameworkDefaults;
 }
 
 export function buildModelProfileTemplateVariables(profiles, variables = {}) {
@@ -80,6 +119,29 @@ export function buildModelProfileTemplateVariables(profiles, variables = {}) {
   };
 }
 
+export function buildOpencodeAgentTemplateVariables(profiles, variables = {}) {
+  const resolvedVariables = buildModelProfileTemplateVariables(profiles, variables);
+
+  for (const [agentName, profileName, variablePrefix] of opencodeAgentProfileBindings) {
+    const resolved = resolveAgentModelConfig(profiles, profileName, agentName);
+    resolvedVariables[`${variablePrefix}Model`] = resolved.model;
+    resolvedVariables[`${variablePrefix}Temperature`] = renderTemperatureValue(resolved.temperature);
+  }
+
+  return resolvedVariables;
+}
+
+export function resolveAgentModelConfig(profiles, profileName, agentName) {
+  const profile = profiles?.[profileName] ?? {};
+  const builtInProfile = builtInProfileDefaults[profileName] ?? {};
+  const override = profile.agentOverrides?.[agentName] ?? {};
+
+  return {
+    model: readProfileField(override, "model", readProfileField(profile, "default", builtInProfile.default ?? "unknown")),
+    temperature: readTemperatureField(override, "temperature", readTemperatureField(profile, "temperature", builtInProfile.temperature ?? 0))
+  };
+}
+
 export function renderCanonicalModelProfiles(profiles) {
   const lines = ["profiles:"];
 
@@ -88,7 +150,22 @@ export function renderCanonicalModelProfiles(profiles) {
     lines.push(`  ${profileName}:`);
     lines.push(`    description: ${JSON.stringify(profile.description ?? "unknown")}`);
     lines.push(`    default: ${JSON.stringify(profile.default ?? "unknown")}`);
-    lines.push(`    fallback: ${JSON.stringify(profile.fallback ?? "unknown")}`);
+    lines.push(`    temperature: ${renderTemperatureValue(typeof profile.temperature === "number" ? profile.temperature : 0)}`);
+
+    const agentOverrideNames = Object.keys(profile.agentOverrides ?? {}).sort();
+    if (agentOverrideNames.length > 0) {
+      lines.push("    agentOverrides:");
+      for (const agentName of agentOverrideNames) {
+        const override = profile.agentOverrides[agentName] ?? {};
+        lines.push(`      ${agentName}:`);
+        if (typeof override.model === "string" && override.model.length > 0) {
+          lines.push(`        model: ${JSON.stringify(override.model)}`);
+        }
+        if (typeof override.temperature === "number" && Number.isFinite(override.temperature)) {
+          lines.push(`        temperature: ${renderTemperatureValue(override.temperature)}`);
+        }
+      }
+    }
   }
 
   return `${lines.join("\n")}\n`;
@@ -99,7 +176,9 @@ async function loadFrameworkDefaultProfiles() {
     path.join(templatesRoot, modelProfilesSourceRelative),
     "canonical"
   );
-  return frameworkDefaultSource ? normalizeModelProfiles(frameworkDefaultSource) : null;
+  return frameworkDefaultSource
+    ? mergeModelProfiles(builtInProfileDefaults, frameworkDefaultSource)
+    : normalizeModelProfiles(builtInProfileDefaults);
 }
 
 async function readModelProfilesFromPath(filePath, sourceType) {
@@ -124,11 +203,24 @@ function normalizeModelProfiles(rawProfiles) {
 
   for (const profileName of requiredModelProfiles) {
     const rawProfile = rawProfiles?.[profileName];
-    result[profileName] = {
-      description: readProfileField(rawProfile, "description"),
-      default: readProfileField(rawProfile, "default"),
-      fallback: readProfileField(rawProfile, "fallback")
+    const normalizedProfile = {
+      agentOverrides: normalizeAgentOverrides(rawProfile?.agentOverrides)
     };
+
+    if (typeof rawProfile?.description === "string" && rawProfile.description.length > 0) {
+      normalizedProfile.description = rawProfile.description;
+    }
+    if (typeof rawProfile?.default === "string" && rawProfile.default.length > 0) {
+      normalizedProfile.default = rawProfile.default;
+    }
+
+    const hasTemperature = Object.prototype.hasOwnProperty.call(rawProfile ?? {}, "temperature");
+    const temperature = readTemperatureField(rawProfile, "temperature", Number.NaN);
+    if (hasTemperature && Number.isFinite(temperature)) {
+      normalizedProfile.temperature = temperature;
+    }
+
+    result[profileName] = normalizedProfile;
   }
 
   return result;
@@ -141,7 +233,8 @@ function mergeModelProfiles(defaultProfiles, overrideProfiles) {
     result[profileName] = {
       description: readProfileField(overrideProfiles?.[profileName], "description", defaultProfiles[profileName].description),
       default: readProfileField(overrideProfiles?.[profileName], "default", defaultProfiles[profileName].default),
-      fallback: readProfileField(overrideProfiles?.[profileName], "fallback", defaultProfiles[profileName].fallback)
+      temperature: readTemperatureField(overrideProfiles?.[profileName], "temperature", defaultProfiles[profileName].temperature),
+      agentOverrides: mergeAgentOverrides(defaultProfiles[profileName].agentOverrides, overrideProfiles?.[profileName]?.agentOverrides)
     };
   }
 
@@ -151,4 +244,87 @@ function mergeModelProfiles(defaultProfiles, overrideProfiles) {
 function readProfileField(rawProfile, fieldName, fallback = "unknown") {
   const value = rawProfile?.[fieldName];
   return typeof value === "string" && value.length > 0 ? value : fallback;
+}
+
+function readTemperatureField(rawProfile, fieldName, fallback = 0) {
+  const value = rawProfile?.[fieldName];
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return fallback;
+}
+
+function normalizeAgentOverrides(rawOverrides) {
+  if (!rawOverrides || typeof rawOverrides !== "object" || Array.isArray(rawOverrides)) {
+    return {};
+  }
+
+  const normalized = {};
+  for (const [agentName, rawOverride] of Object.entries(rawOverrides)) {
+    if (!rawOverride || typeof rawOverride !== "object" || Array.isArray(rawOverride)) {
+      continue;
+    }
+
+    const override = {};
+    if (typeof rawOverride.model === "string" && rawOverride.model.length > 0) {
+      override.model = rawOverride.model;
+    }
+
+    const hasTemperature = Object.prototype.hasOwnProperty.call(rawOverride, "temperature");
+    const temperature = readTemperatureField(rawOverride, "temperature", Number.NaN);
+    if (hasTemperature && Number.isFinite(temperature)) {
+      override.temperature = temperature;
+    }
+
+    if (Object.keys(override).length > 0) {
+      normalized[agentName] = override;
+    }
+  }
+
+  return normalized;
+}
+
+function mergeAgentOverrides(defaultOverrides = {}, overrideOverrides = {}) {
+  const merged = {};
+  const agentNames = new Set([
+    ...Object.keys(defaultOverrides ?? {}),
+    ...Object.keys(overrideOverrides ?? {})
+  ]);
+
+  for (const agentName of agentNames) {
+    const defaultOverride = defaultOverrides?.[agentName] ?? {};
+    const overrideOverride = overrideOverrides?.[agentName] ?? {};
+    const mergedOverride = {};
+
+    if (typeof overrideOverride.model === "string" && overrideOverride.model.length > 0) {
+      mergedOverride.model = overrideOverride.model;
+    } else if (typeof defaultOverride.model === "string" && defaultOverride.model.length > 0) {
+      mergedOverride.model = defaultOverride.model;
+    }
+
+    if (typeof overrideOverride.temperature === "number" && Number.isFinite(overrideOverride.temperature)) {
+      mergedOverride.temperature = overrideOverride.temperature;
+    } else if (typeof defaultOverride.temperature === "number" && Number.isFinite(defaultOverride.temperature)) {
+      mergedOverride.temperature = defaultOverride.temperature;
+    }
+
+    if (Object.keys(mergedOverride).length > 0) {
+      merged[agentName] = mergedOverride;
+    }
+  }
+
+  return merged;
+}
+
+function renderTemperatureValue(value) {
+  return Number.isInteger(value) ? `${value}.0` : String(value);
 }

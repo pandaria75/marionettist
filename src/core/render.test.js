@@ -17,6 +17,17 @@ test("renderWithMetadata preserves current placeholder substitution behavior", (
   assert.equal(result.renderedHash, sha256("Hello Framework / unknown"));
 });
 
+test("renderWithMetadata preserves numeric zero placeholder values", () => {
+  const result = renderWithMetadata({
+    templateContent: "temperature={{TEMPERATURE}}",
+    variables: {
+      temperature: 0
+    }
+  });
+
+  assert.equal(result.content, "temperature=0");
+});
+
 test("renderInputHash is based on stable render inputs, not template bytes", () => {
   const first = renderWithMetadata({
     templateContent: "A {{PROJECT_NAME}}",

@@ -1,8 +1,8 @@
 ---
 description: Orchestrates the full repository harness flow from analysis to slice coding and review
 mode: primary
-model: {{MODEL_PROFILE_THINK}}
-temperature: 0.1
+model: {{HARNESS_BUILDER_MODEL}}
+temperature: {{HARNESS_BUILDER_TEMPERATURE}}
 {{OPENCODE_PERMISSION_BLOCK_HARNESS_BUILDER}}
 ---
 You are the local harness build orchestrator.

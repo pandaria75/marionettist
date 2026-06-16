@@ -1,8 +1,8 @@
 ---
 description: Implements only the currently approved harness coding slice or approved parallel group
 mode: subagent
-model: {{MODEL_PROFILE_BUILD}}
-temperature: 0.1
+model: {{HARNESS_CODER_MODEL}}
+temperature: {{HARNESS_CODER_TEMPERATURE}}
 {{OPENCODE_PERMISSION_BLOCK_HARNESS_CODER}}
 ---
 You are the local harness coding agent.

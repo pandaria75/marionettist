@@ -4,7 +4,7 @@ import { opencodeTemplatesRoot, skillsRoot, templatesRoot, versionFile } from ".
 import { extractManagedBlock, replaceManagedBlock } from "./managed-block.js";
 import { sha256 } from "./hash.js";
 import { buildManifest, getManagedFileHash, manifestFileMap, manifestRelative, normalizeDistributionMode, normalizeOpencodeCommandSurface, normalizeOpencodePermissionMode, opencodeArtifactAdapter, readManifest, validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface, validateOptionalOpencodePermissionMode } from "./manifest.js";
-import { buildModelProfileTemplateVariables, loadModelProfiles, loadModelProfilesState, modelProfilesSourceRelative, renderCanonicalModelProfiles } from "./model-profiles.js";
+import { buildOpencodeAgentTemplateVariables, loadModelProfiles, loadModelProfilesState, modelProfilesSourceRelative, renderCanonicalModelProfiles } from "./model-profiles.js";
 import { getOpencodePermissionPolicy } from "./opencode-permissions.js";
 import { renderWithMetadata } from "./render.js";
 import { parseSimpleYaml } from "./yaml.js";
@@ -170,7 +170,7 @@ async function resolveOpencodeVariables(projectPath, variables = {}, permissionM
   const permissionPolicy = getOpencodePermissionPolicy(permissionModeState.permissionMode ?? "default");
 
   return {
-    ...buildModelProfileTemplateVariables(profiles, variables),
+    ...buildOpencodeAgentTemplateVariables(profiles, variables),
     ...permissionPolicy.renderVariables
   };
 }

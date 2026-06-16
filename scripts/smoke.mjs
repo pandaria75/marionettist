@@ -1049,7 +1049,8 @@ async function assertP1DocsAndTemplateCoverage() {
   assertIncludes(harnessConfigTemplate, "knowledge:");
   assertIncludes(harnessConfigTemplate, 'mode: "{{KNOWLEDGE_MODE}}"');
   assertIncludes(harnessConfigTemplate, 'maturity: "{{KNOWLEDGE_MATURITY}}"');
-  assertIncludes(criticTemplate, "model: {{MODEL_PROFILE_REVIEW}}");
+  assertIncludes(criticTemplate, "model: {{HARNESS_CRITIC_MODEL}}");
+  assertIncludes(criticTemplate, "temperature: {{HARNESS_CRITIC_TEMPERATURE}}");
   assertIncludes(criticTemplate, "Your model field is rendered from `.harness/model-profiles.yml` profile `profiles.review.default` when present, with legacy fallback to `harness.config.yaml` `models.profiles.review.default` only when needed.");
   assertIncludes(coderTemplate, "Your responsibility is implementation plus lightweight self-check, not independent review.");
   assertIncludes(coderTemplate, "Do not perform broad `git diff` review, repository-wide search, gate audit, requirement audit, or docs/knowledge-map review");

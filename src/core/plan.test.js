@@ -81,6 +81,59 @@ test("buildPlan rerenders OpenCode agents when only model profile config changes
   });
 });
 
+test("buildPlan rerenders OpenCode agents when resolved agent override values change in config only", async (t) => {
+  await withTempProject(t, async (projectPath) => {
+    const initPlan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true }));
+    await applyManagedOperations(initPlan);
+
+    const initialBuilderRecord = initPlan.manifest.managedFiles.find((file) => file.path === ".opencode/agents/harness-builder.md");
+    assert(initialBuilderRecord, "expected initial OpenCode builder manifest record");
+
+    const initialReviewerContent = await fs.readFile(path.join(projectPath, ".opencode", "agents", "harness-reviewer.md"), "utf8");
+
+    const profilesPath = path.join(projectPath, ".harness", "model-profiles.yml");
+    await fs.writeFile(profilesPath, [
+      "profiles:",
+      "  think:",
+      "    description: \"Deep reasoning, planning, and gate decisions\"",
+      "    default: \"openai/gpt-5.5\"",
+      "    temperature: 0.1",
+      "    agentOverrides:",
+      "      harness-builder:",
+      "        model: \"override/builder\"",
+      "        temperature: 0.7",
+      "  build:",
+      "    description: \"Focused coding and implementation from approved task context\"",
+      "    default: \"openai/gpt-5.4\"",
+      "    temperature: 0.1",
+      "  review:",
+      "    description: \"Reflective, cautious, nuanced review\"",
+      "    default: \"opencode-go/glm-5.1\"",
+      "    temperature: 0",
+      "  run:",
+      "    description: \"Fast utility work such as indexing and validation\"",
+      "    default: \"opencode-go/deepseek-v4-flash\"",
+      "    temperature: 0",
+      "",
+    ].join("\n"), "utf8");
+
+    const syncPlan = await buildPlan(projectPath, "sync", buildPlanOptions({ project: projectPath, withOpencode: true }));
+    const builderSyncOperation = syncPlan.operations.find((operation) => operation.targetRelative === ".opencode/agents/harness-builder.md");
+    const reviewerSyncOperation = syncPlan.operations.find((operation) => operation.targetRelative === ".opencode/agents/harness-reviewer.md");
+    assert(builderSyncOperation, "expected sync plan OpenCode builder operation");
+    assert(reviewerSyncOperation, "expected sync plan OpenCode reviewer operation");
+
+    assert.equal(builderSyncOperation.status, "update");
+    assert(builderSyncOperation.content.includes("model: override/builder"), "expected builder override model to rerender");
+    assert(builderSyncOperation.content.includes("temperature: 0.7"), "expected builder override temperature to rerender");
+    assert.equal(builderSyncOperation.templateHash, initialBuilderRecord.templateHash, "expected config-only builder change to preserve templateHash");
+    assert.notEqual(builderSyncOperation.renderInputHash, initialBuilderRecord.renderInputHash, "expected builder renderInputHash to change when resolved variables change");
+
+    assert.equal(reviewerSyncOperation.status, "unchanged");
+    assert.equal(reviewerSyncOperation.content, initialReviewerContent, "expected unrelated agent rendered content to remain stable");
+  });
+});
+
 test("buildPlan renders harness.config.yaml from persisted plan selections", async (t) => {
   await withTempProject(t, async (projectPath) => {
     const plan = await buildPlan(projectPath, "init", buildPlanOptions({
@@ -117,6 +170,8 @@ test("buildPlan canonicalizes legacy harness.config model profiles into .harness
     assert(modelProfilesOperation.content.includes('  think:\n    description: '), "expected canonical model profile content");
     assert(modelProfilesOperation.content.includes('    default: "legacy/think"'));
     assert(modelProfilesOperation.content.includes('    default: "legacy/build"'));
+    assert(modelProfilesOperation.content.includes('    temperature: 0.1'));
+    assert(!modelProfilesOperation.content.includes("fallback:"), "expected canonical output to omit legacy fallback field");
     assert(!modelProfilesOperation.content.includes("{{MODEL_PROFILE_"), "expected legacy model profile render to finalize to concrete content");
   });
 });

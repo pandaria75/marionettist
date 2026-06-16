@@ -11,6 +11,7 @@ build
 .antigravitycli
 .playwright-mcp
 .harness-self/
+docs/develop/
 
 # Generated self-opencode mirrors from templates/opencode.
 # Source of truth is templates/opencode/**.

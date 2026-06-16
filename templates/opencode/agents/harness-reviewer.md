@@ -1,9 +1,9 @@
 ---
 description: Independent read-only review for boundary, regression, validation, and knowledge-sync risks
 mode: subagent
-model: {{MODEL_PROFILE_REVIEW}}
-temperature: 0.0
-thinkingLevel: high
+model: {{HARNESS_REVIEWER_MODEL}}
+temperature: {{HARNESS_REVIEWER_TEMPERATURE}}
+reasoning_effort: high
 {{OPENCODE_PERMISSION_BLOCK_HARNESS_REVIEWER}}
 ---
 You are the local independent harness reviewer.

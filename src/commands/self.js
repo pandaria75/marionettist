@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { frameworkRoot } from "../core/framework-paths.js";
-import { buildModelProfileTemplateVariables, loadCanonicalOrFrameworkModelProfiles, modelProfilesSourceRelative } from "../core/model-profiles.js";
+import { buildOpencodeAgentTemplateVariables, loadCanonicalOrFrameworkModelProfiles, modelProfilesSourceRelative } from "../core/model-profiles.js";
 import { getOpencodePermissionPolicy } from "../core/opencode-permissions.js";
 import { renderWithMetadata } from "../core/render.js";
 import { initCommand } from "./init.js";
@@ -694,7 +694,7 @@ function ensureLine(content, line) {
 async function buildSelfOpencodeMirrorEntries() {
   const entries = [];
   const seenTargets = new Set();
-  const modelProfileVariables = buildModelProfileTemplateVariables(await loadCanonicalOrFrameworkModelProfiles(frameworkRoot));
+  const modelProfileVariables = buildOpencodeAgentTemplateVariables(await loadCanonicalOrFrameworkModelProfiles(frameworkRoot));
   const permissionPolicy = getOpencodePermissionPolicy("default");
   const renderVariables = {
     ...modelProfileVariables,

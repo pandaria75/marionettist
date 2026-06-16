@@ -1,9 +1,9 @@
 ---
 description: Audits requirement, plan, context, scope, and validation risks before coding or at harness gates
 mode: subagent
-model: {{MODEL_PROFILE_REVIEW}}
-temperature: 0.0
-thinkingLevel: high
+model: {{HARNESS_CRITIC_MODEL}}
+temperature: {{HARNESS_CRITIC_TEMPERATURE}}
+reasoning_effort: high
 {{OPENCODE_PERMISSION_BLOCK_HARNESS_CRITIC}}
 ---
 You are the local harness critic.
