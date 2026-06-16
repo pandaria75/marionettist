@@ -27,8 +27,9 @@ This file governs work on the framework itself. It is not the same as `templates
 - `templates/AGENTS.md` defines target-project agent behavior.
 - Root `AGENTS.md` defines framework maintenance behavior.
 - Framework self-bootstrap behavior belongs in `.harness/self/` and self OpenCode files, not target-project templates.
-- `templates/opencode/` remains the only source of truth for target-project OpenCode agents and commands.
-- Root `.opencode/` may contain both self-only files and generated mirrors from `templates/opencode/` for local framework maintenance.
+- `templates/core/` and `templates/pathways/` are the future framework source roots for shared and Pathway-specific template content as that layout fills in.
+- `templates/opencode/` remains the current backward-safe fallback source for target-project OpenCode agents and commands until equivalent files exist under the future roots.
+- Root `.opencode/` may contain both self-only files and generated mirrors from the active framework OpenCode source candidates for local framework maintenance.
 - Template files must not assume a specific language, build tool, backend framework, frontend framework, or module layout.
 - Template files may reference `harness.config.yaml` as the target-project source of local configuration.
 - Managed template sections must be safe for `harness sync` to update without overwriting project-local sections.
@@ -68,6 +69,6 @@ When changing templates or skills, validate that:
 - Do not implement broad behavior changes without updating templates and docs consistently.
 - When a task comes from GitHub issues, add a completion summary comment to the relevant issue(s) before closing the task; include what changed, validation results, residual risks, and follow-up impact for related issues.
 - Do not mix framework-maintenance rules with target-project harness rules.
-- Do not put self-only OpenCode commands, agents, or policy into `templates/AGENTS.md`, `templates/opencode/`, or `skills/`.
-- Do not edit generated `.opencode/agents/harness-*.md`, `.opencode/agents/validators/**`, or `.opencode/commands/harness-*.md` directly; edit `templates/opencode/**` and rerun `harness self init --apply --with-opencode`.
+- Do not put self-only OpenCode commands, agents, or policy into `templates/AGENTS.md`, publishable template source roots, or `skills/`.
+- Do not edit generated `.opencode/agents/harness-*.md`, `.opencode/agents/validators/**`, or `.opencode/commands/harness-*.md` directly; edit the active framework OpenCode source files instead, using `templates/pathways/opencode/**` when populated or `templates/opencode/**` as the legacy fallback, then rerun `harness self init --apply --with-opencode`.
 - Do not treat generated target-project docs as code indexes.

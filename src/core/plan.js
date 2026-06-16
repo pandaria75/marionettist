@@ -1,6 +1,6 @@
 import path from "node:path";
 import { listFiles, pathExists, readText, toPosixPath } from "./files.js";
-import { opencodeTemplatesRoot, skillsRoot, templatesRoot, versionFile } from "./framework-paths.js";
+import { listResolvedOpencodeTemplateRelatives, resolveCoreTemplateSource, resolveOpencodeTemplateSource, skillsRoot, templatesRoot, versionFile } from "./framework-paths.js";
 import { extractManagedBlock, replaceManagedBlock } from "./managed-block.js";
 import { sha256 } from "./hash.js";
 import { buildManifest, getManagedFileHash, manifestFileMap, manifestRelative, normalizeDistributionMode, normalizeOpencodeCommandSurface, normalizeOpencodePermissionMode, opencodeArtifactAdapter, readManifest, validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface, validateOptionalOpencodePermissionMode } from "./manifest.js";
@@ -51,8 +51,11 @@ async function buildFrameworkAssets(projectPath, options = {}) {
   const modelProfilesState = await loadModelProfilesState(projectPath);
 
   for (const [sourceRelative, targetRelative] of coreTemplateTargets.entries()) {
-    const sourcePath = path.join(templatesRoot, sourceRelative);
-    const templateContent = await readText(sourcePath);
+    const resolvedSource = await resolveCoreTemplateSource(sourceRelative);
+    if (!resolvedSource) {
+      throw new Error(`Framework template source not found: templates/${sourceRelative}`);
+    }
+    const templateContent = await readText(resolvedSource.sourcePath);
     const renderState = buildFrameworkAssetRenderState(sourceRelative, variables, {
       modelProfilesState,
       distributionModeState: options.distributionModeState,
@@ -73,7 +76,7 @@ async function buildFrameworkAssets(projectPath, options = {}) {
     }
 
     assets.push({
-      sourceRelative: `templates/${sourceRelative}`,
+      sourceRelative: resolvedSource.sourceRelative,
       targetRelative,
       targetPath: path.join(projectPath, targetRelative),
       kind,
@@ -115,13 +118,16 @@ async function buildFrameworkAssets(projectPath, options = {}) {
 async function buildOpencodeAssets(projectPath, variables = {}, states = {}) {
   const assets = [];
   const opencodeVariables = await resolveOpencodeVariables(projectPath, variables, states.permissionModeState);
-  const opencodeFiles = await listFiles(opencodeTemplatesRoot);
+  const opencodeRelatives = await listResolvedOpencodeTemplateRelatives();
   const validatorProjectGuidance = await buildValidatorProjectGuidance(projectPath, opencodeVariables);
   const commandSurface = normalizeOpencodeCommandSurface(states.commandSurfaceState?.value ?? "advanced", "effective OpenCode command surface");
   const permissionMode = normalizeOpencodePermissionMode(states.permissionModeState?.permissionMode ?? "default", "effective OpenCode permission mode");
 
-  for (const sourcePath of opencodeFiles) {
-    const sourceRelative = toPosixPath(path.relative(opencodeTemplatesRoot, sourcePath));
+  for (const sourceRelative of opencodeRelatives) {
+    const resolvedSource = await resolveOpencodeTemplateSource(sourceRelative);
+    if (!resolvedSource) {
+      throw new Error(`Framework OpenCode template source not found: templates/opencode/${sourceRelative}`);
+    }
     if (sourceRelative.startsWith(opencodeValidatorTemplatePrefix)) {
       continue;
     }
@@ -133,7 +139,7 @@ async function buildOpencodeAssets(projectPath, variables = {}, states = {}) {
       ? sourceRelative
       : toPosixPath(path.join(".opencode", sourceRelative));
 
-    const templateContent = await readText(sourcePath);
+    const templateContent = await readText(resolvedSource.sourcePath);
     const rendered = renderWithMetadata({
       templateContent,
       variables: sourceRelative === "agents/harness-validator.md"
@@ -146,7 +152,7 @@ async function buildOpencodeAssets(projectPath, variables = {}, states = {}) {
     const content = rendered.content;
 
     assets.push({
-      sourceRelative: `templates/opencode/${sourceRelative}`,
+      sourceRelative: resolvedSource.sourceRelative,
       targetRelative,
       targetPath: path.join(projectPath, targetRelative),
       kind: "file",
@@ -177,7 +183,7 @@ async function resolveOpencodeVariables(projectPath, variables = {}, permissionM
 
 async function buildValidatorProjectGuidance(projectPath, variables = {}) {
   const guidanceParts = [];
-  const genericFallback = await readText(path.join(opencodeTemplatesRoot, "agents", "validators", "generic-fallback.md"));
+  const genericFallback = await readResolvedOpencodeTemplateText("agents/validators/generic-fallback.md");
   guidanceParts.push(genericFallback.trim());
 
   guidanceParts.push([
@@ -189,26 +195,35 @@ async function buildValidatorProjectGuidance(projectPath, variables = {}) {
   ].join("\n"));
 
   if (await detectGradleKotlinProject(projectPath, variables)) {
-    const gradleKotlin = await readText(path.join(opencodeTemplatesRoot, "agents", "validators", "gradle-kotlin.md"));
+    const gradleKotlin = await readResolvedOpencodeTemplateText("agents/validators/gradle-kotlin.md");
     guidanceParts.push(gradleKotlin.trim());
   }
 
   if (await detectMavenProject(projectPath, variables)) {
-    const maven = await readText(path.join(opencodeTemplatesRoot, "agents", "validators", "maven.md"));
+    const maven = await readResolvedOpencodeTemplateText("agents/validators/maven.md");
     guidanceParts.push(maven.trim());
   }
 
   if (await detectNodeProject(projectPath, variables)) {
-    const node = await readText(path.join(opencodeTemplatesRoot, "agents", "validators", "node.md"));
+    const node = await readResolvedOpencodeTemplateText("agents/validators/node.md");
     guidanceParts.push(node.trim());
   }
 
   if (await detectPythonProject(projectPath, variables)) {
-    const python = await readText(path.join(opencodeTemplatesRoot, "agents", "validators", "python.md"));
+    const python = await readResolvedOpencodeTemplateText("agents/validators/python.md");
     guidanceParts.push(python.trim());
   }
 
   return guidanceParts.join("\n\n");
+}
+
+async function readResolvedOpencodeTemplateText(sourceRelative) {
+  const resolvedSource = await resolveOpencodeTemplateSource(sourceRelative);
+  if (!resolvedSource) {
+    throw new Error(`Framework OpenCode template source not found: templates/opencode/${sourceRelative}`);
+  }
+
+  return readText(resolvedSource.sourcePath);
 }
 
 async function detectGradleKotlinProject(projectPath, variables = {}) {

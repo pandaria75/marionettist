@@ -3,6 +3,7 @@ import { syncCommand } from "../commands/sync.js";
 import { diffCommand } from "../commands/diff.js";
 import { doctorCommand } from "../commands/doctor.js";
 import { selfCommand } from "../commands/self.js";
+import { clearCommand } from "../commands/clear.js";
 import { fileURLToPath } from "node:url";
 
 const help = `Universal AI Harness Framework
@@ -12,6 +13,8 @@ Usage:
   harness sync [--project <path>] [--dry-run] [--force]
   harness diff [--project <path>]
   harness doctor [--project <path>]
+  harness clear [--project <path>] [--scope <all|opencode>] [--apply]
+  harness uninstall [--project <path>] [--scope <all|opencode>] [--apply]
   harness self init [--apply] [--with-opencode]
   harness self doctor
   harness self test
@@ -43,6 +46,11 @@ export async function runCli(args) {
 
   if (command === "doctor") {
     await doctorCommand(rest);
+    return;
+  }
+
+  if (command === "clear" || command === "uninstall") {
+    await clearCommand(rest);
     return;
   }
 

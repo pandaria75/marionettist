@@ -2,13 +2,16 @@ import path from "node:path";
 import { normalizeDistributionMode, normalizeOpencodeCommandSurface, normalizeOpencodePermissionMode } from "./manifest.js";
 
 export function parseCommonArgs(args) {
+  const clearScopes = new Set(["all", "opencode"]);
   const knowledgeModes = new Set(["standard", "mudball"]);
   const knowledgeMaturities = new Set(["L0", "L1", "L2", "L3", "L4"]);
   const options = {
     project: process.cwd(),
     dryRun: false,
+    apply: false,
     force: false,
     auto: false,
+    scope: "all",
     withOpencode: null,
     distributionMode: null,
     opencodeCommandSurface: null,
@@ -32,6 +35,11 @@ export function parseCommonArgs(args) {
 
     if (arg === "--dry-run") {
       options.dryRun = true;
+      continue;
+    }
+
+    if (arg === "--apply") {
+      options.apply = true;
       continue;
     }
 
@@ -102,6 +110,19 @@ export function parseCommonArgs(args) {
         throw new Error(`Unsupported --knowledge-maturity value: ${value}`);
       }
       options.knowledgeMaturity = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--scope") {
+      const value = args[index + 1];
+      if (!value) {
+        throw new Error("--scope requires all or opencode");
+      }
+      if (!clearScopes.has(value)) {
+        throw new Error(`Unsupported --scope value: ${value}`);
+      }
+      options.scope = value;
       index += 1;
       continue;
     }

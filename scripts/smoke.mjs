@@ -22,6 +22,10 @@ const gradleProject = path.join(tempBase, `harness-smoke-gradle-${process.pid}`)
 const legacyDistributionProject = path.join(tempBase, `harness-smoke-legacy-mode-${process.pid}`);
 const gatePolicyProject = path.join(tempBase, `harness-smoke-gate-policy-${process.pid}`);
 const tierPolicyProject = path.join(tempBase, `harness-smoke-tier-policy-${process.pid}`);
+const clearWorkflowProject = path.join(tempBase, `harness-smoke-clear-${process.pid}`);
+const clearManagedOnlyProject = path.join(tempBase, `harness-smoke-clear-managed-only-${process.pid}`);
+const clearPartialFailureProject = path.join(tempBase, `harness-smoke-clear-partial-${process.pid}`);
+const clearSymlinkEscapeProject = path.join(tempBase, `harness-smoke-clear-symlink-${process.pid}`);
 const validatorSnippetPathText = ["templates", "opencode", "agents", "validators"].join("/");
 const publishableScanRoots = ["README.md", "README.zh-CN.md", "docs", "templates", "skills", "src", "scripts", "package.json"];
 const publishableScanExcludedDirectories = [path.join("docs", "blogs")];
@@ -67,7 +71,7 @@ const binaryLikeExtensions = new Set([
 ]);
 
 try {
-  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject, legacyDistributionProject, gatePolicyProject, tierPolicyProject);
+  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject, legacyDistributionProject, gatePolicyProject, tierPolicyProject, clearWorkflowProject, clearManagedOnlyProject, clearPartialFailureProject, clearSymlinkEscapeProject);
 
   const dryRunOutput = await harness("init", "--project", dryRunProject, "--dry-run", "--auto");
   assertIncludes(dryRunOutput, "distribution mode: embedded");
@@ -165,11 +169,160 @@ try {
   await assertExplicitFalseSkipsOpencode(opencodeProject);
   await assertOpencodeBackfill(backfillProject);
   await assertGradleValidatorGuidance(gradleProject);
+  await assertClearWorkflowAndMigration(clearWorkflowProject);
+  await assertManagedOnlyAgentsClearApply(clearManagedOnlyProject);
+  await assertClearPartialFailureSemantics(clearPartialFailureProject);
+  await assertClearSymlinkEscape(clearSymlinkEscapeProject);
   await assertPublishableSensitiveScan();
 
   console.log("smoke: PASS");
 } finally {
-  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject, legacyDistributionProject, gatePolicyProject, tierPolicyProject);
+  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject, legacyDistributionProject, gatePolicyProject, tierPolicyProject, clearWorkflowProject, clearManagedOnlyProject, clearPartialFailureProject, clearSymlinkEscapeProject);
+}
+
+async function assertClearWorkflowAndMigration(projectPath) {
+  await cleanupPaths(projectPath);
+  const initOutput = await harness("init", "--project", projectPath, "--auto", "--with-opencode");
+  assertIncludes(initOutput, "write-manifest: .harness/manifest.json");
+
+  const agentsPath = path.join(projectPath, "AGENTS.md");
+  await fs.appendFile(agentsPath, "\n## Local Clear Note\n\nKeep this note after clear.\n", "utf8");
+
+  const manifest = await readManifest(projectPath);
+  const opencodeManaged = manifest.managedFiles.find((file) => file.adapter === "opencode" && file.kind === "file");
+  assert(opencodeManaged, "clear smoke requires at least one manifest-managed OpenCode file");
+
+  const previewOutput = await harness("clear", "--project", projectPath, "--scope", "all");
+  assertIncludes(previewOutput, "harness clear (preview)");
+  assertIncludes(previewOutput, "scope: all");
+  assertIncludes(previewOutput, "manifest: .harness/manifest.json");
+  assertIncludes(previewOutput, `remove: ${opencodeManaged.path}`);
+  assertIncludes(previewOutput, "edit: AGENTS.md");
+  assertIncludes(previewOutput, "dry-run: preview only; no files will be changed");
+  assert(await pathExists(path.join(projectPath, opencodeManaged.path)), "clear preview must not remove managed OpenCode files");
+  assertIncludes(await fs.readFile(agentsPath, "utf8"), "Keep this note after clear.");
+
+  const opencodePreviewOutput = await harness("clear", "--project", projectPath, "--scope", "opencode");
+  assertIncludes(opencodePreviewOutput, "scope: opencode");
+  assertIncludes(opencodePreviewOutput, `remove: ${opencodeManaged.path}`);
+  assertExcludes(opencodePreviewOutput, "edit: AGENTS.md");
+
+  const applyOutput = await harness("uninstall", "--project", projectPath, "--scope", "all", "--apply");
+  assertIncludes(applyOutput, "harness clear (apply)");
+  assertIncludes(applyOutput, "scope: all");
+  assertIncludes(applyOutput, `applied remove: ${opencodeManaged.path}`);
+  assertIncludes(applyOutput, "applied edit: AGENTS.md");
+  const backupRootRelative = parseBackupRoot(applyOutput);
+  assert(await pathExists(path.join(projectPath, backupRootRelative)), "clear apply must create a backup root inside the project");
+  assert(await pathExists(path.join(projectPath, backupRootRelative, opencodeManaged.path)), "clear apply must back up removed OpenCode files");
+  assert(await pathExists(path.join(projectPath, backupRootRelative, "AGENTS.md")), "clear apply must back up AGENTS.md before editing it");
+  assert(!(await pathExists(path.join(projectPath, opencodeManaged.path))), "clear apply must remove the managed OpenCode file");
+  const clearedAgents = await fs.readFile(agentsPath, "utf8");
+  assertIncludes(clearedAgents, "Keep this note after clear.");
+  assertExcludes(clearedAgents, "<!-- harness-kit:start -->");
+
+  const reinitOutput = await harness("init", "--project", projectPath, "--auto", "--with-opencode");
+  assertIncludes(reinitOutput, "write-manifest: .harness/manifest.json");
+  assert(await pathExists(path.join(projectPath, opencodeManaged.path)), "re-init after clear must restore managed OpenCode files");
+  const reinitAgents = await fs.readFile(agentsPath, "utf8");
+  assertIncludes(reinitAgents, "Keep this note after clear.");
+}
+
+async function assertManagedOnlyAgentsClearApply(projectPath) {
+  await cleanupPaths(projectPath);
+  await fs.mkdir(path.join(projectPath, ".harness"), { recursive: true });
+  await fs.writeFile(path.join(projectPath, "AGENTS.md"), "<!-- harness-kit:start -->\n\nManaged only.\n\n<!-- harness-kit:end -->\n", "utf8");
+  await writeManifest(projectPath, {
+    schemaVersion: 1,
+    frameworkVersion: frameworkVersion,
+    installedAt: "2026-06-16T00:00:00.000Z",
+    updatedAt: "2026-06-16T00:00:00.000Z",
+    managedFiles: [
+      {
+        path: "AGENTS.md",
+        source: "templates/AGENTS.md",
+        kind: "managed-block",
+        hash: "managed-only-agents"
+      }
+    ]
+  });
+
+  const applyOutput = await harness("clear", "--project", projectPath, "--scope", "all", "--apply");
+  assertIncludes(applyOutput, "applied edit: AGENTS.md (managed block removed; safe empty file kept)");
+  assert((await fs.readFile(path.join(projectPath, "AGENTS.md"), "utf8")) === "# AGENTS\n", "managed-only AGENTS clear must keep a safe placeholder file");
+  const backupRootRelative = parseBackupRoot(applyOutput);
+  assert(await pathExists(path.join(projectPath, backupRootRelative, "AGENTS.md")), "managed-only AGENTS clear must back up the original file");
+}
+
+async function assertClearPartialFailureSemantics(projectPath) {
+  await cleanupPaths(projectPath);
+  await fs.mkdir(path.join(projectPath, ".harness"), { recursive: true });
+  await fs.writeFile(path.join(projectPath, "A.txt"), "first\n", "utf8");
+  await fs.mkdir(path.join(projectPath, "broken-dir"), { recursive: true });
+  await writeManifest(projectPath, {
+    schemaVersion: 1,
+    frameworkVersion: frameworkVersion,
+    installedAt: "2026-06-16T00:00:00.000Z",
+    updatedAt: "2026-06-16T00:00:00.000Z",
+    managedFiles: [
+      {
+        path: "A.txt",
+        source: "templates/A.txt",
+        kind: "file",
+        hash: "a-hash"
+      },
+      {
+        path: "broken-dir",
+        source: "templates/broken-dir",
+        kind: "file",
+        hash: "broken-hash"
+      }
+    ]
+  });
+
+  const result = await harnessAllowFailure("clear", "--project", projectPath, "--scope", "all", "--apply");
+  assert(result.code !== 0, "clear apply must fail when a later backup target cannot be copied");
+  assert(result.stderr.length > 0, "clear apply partial failure should surface the raw filesystem error");
+  assert(!(await pathExists(path.join(projectPath, "A.txt"))), "clear apply is non-atomic; earlier removals may already be applied");
+
+  const backupsRoot = path.join(projectPath, ".harness", "backups");
+  const backupEntries = await fs.readdir(backupsRoot);
+  assert(backupEntries.length === 1, "clear apply partial failure should still create one backup root");
+  const backupRootPath = path.join(backupsRoot, backupEntries[0]);
+  assert(await pathExists(path.join(backupRootPath, "A.txt")), "clear apply partial failure must preserve backups for already-applied removals");
+  assert(await pathExists(path.join(projectPath, "broken-dir")), "failed later targets must remain in place after partial failure");
+}
+
+async function assertClearSymlinkEscape(projectPath) {
+  await cleanupPaths(projectPath);
+  await fs.mkdir(path.join(projectPath, ".harness"), { recursive: true });
+  const outsidePath = path.join(tempBase, `harness-smoke-clear-symlink-outside-${process.pid}.txt`);
+  await fs.writeFile(outsidePath, "outside\n", "utf8");
+  try {
+    await fs.symlink(outsidePath, path.join(projectPath, "linked.txt"));
+    await writeManifest(projectPath, {
+      schemaVersion: 1,
+      frameworkVersion: frameworkVersion,
+      installedAt: "2026-06-16T00:00:00.000Z",
+      updatedAt: "2026-06-16T00:00:00.000Z",
+      managedFiles: [
+        {
+          path: "linked.txt",
+          source: "templates/linked.txt",
+          kind: "file",
+          hash: "linked-hash"
+        }
+      ]
+    });
+
+    const result = await harnessAllowFailure("clear", "--project", projectPath, "--scope", "all", "--apply");
+    assert(result.code !== 0, "clear apply must reject symlink targets that resolve outside the project root");
+    assertIncludes(result.stderr, "Target path resolves outside project root: linked.txt");
+    assert((await fs.readFile(outsidePath, "utf8")) === "outside\n", "clear apply must not mutate the symlink destination outside the project root");
+    assert(await pathExists(path.join(projectPath, "linked.txt")), "clear apply must leave the symlink untouched after rejecting it");
+  } finally {
+    await fs.rm(outsidePath, { force: true });
+  }
 }
 
 async function assertKnowledgeInitAndManagedDocs(projectPath, { mode, maturity }) {
@@ -1153,6 +1306,16 @@ function toPosix(relativePath) {
 
 async function readManifest(projectPath) {
   return JSON.parse(await fs.readFile(path.join(projectPath, ".harness", "manifest.json"), "utf8"));
+}
+
+async function writeManifest(projectPath, manifest) {
+  await fs.writeFile(path.join(projectPath, ".harness", "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+}
+
+function parseBackupRoot(output) {
+  const match = output.match(/^backup root: (.+)$/m);
+  assert(match, `Expected clear output to include backup root. Actual output:\n${output}`);
+  return match[1];
 }
 
 async function assertPublishableSensitiveScan() {

@@ -81,6 +81,35 @@ test("buildPlan rerenders OpenCode agents when only model profile config changes
   });
 });
 
+test("buildPlan records future pathway OpenCode sources when present and falls back otherwise", async (t) => {
+  const futureSource = path.join(process.cwd(), "templates", "pathways", "opencode", "commands", "slice-3-plan-source.md");
+  const legacySource = path.join(process.cwd(), "templates", "opencode", "commands", "slice-3-plan-source.md");
+
+  await fs.mkdir(path.dirname(legacySource), { recursive: true });
+  await fs.writeFile(legacySource, "legacy command", "utf8");
+
+  t.after(async () => {
+    await fs.rm(futureSource, { force: true });
+    await fs.rm(legacySource, { force: true });
+  });
+
+  await withTempProject(t, async (projectPath) => {
+    let plan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true, opencodeCommandSurface: "advanced" }));
+    let operation = plan.operations.find((entry) => entry.targetRelative === ".opencode/commands/slice-3-plan-source.md");
+    assert(operation, "expected legacy fallback command to be planned");
+    assert.equal(operation.sourceRelative, "templates/opencode/commands/slice-3-plan-source.md");
+
+    await fs.mkdir(path.dirname(futureSource), { recursive: true });
+    await fs.writeFile(futureSource, "future command", "utf8");
+
+    plan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true, opencodeCommandSurface: "advanced" }));
+    operation = plan.operations.find((entry) => entry.targetRelative === ".opencode/commands/slice-3-plan-source.md");
+    assert(operation, "expected future pathway command to be planned");
+    assert.equal(operation.sourceRelative, "templates/pathways/opencode/commands/slice-3-plan-source.md");
+    assert.equal(operation.content, "future command");
+  });
+});
+
 test("buildPlan rerenders OpenCode agents when resolved agent override values change in config only", async (t) => {
   await withTempProject(t, async (projectPath) => {
     const initPlan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true }));

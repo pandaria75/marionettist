@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveOpencodeTemplateSource } from "../src/core/framework-paths.js";
 import { parseSimpleYaml } from "../src/core/yaml.js";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -21,7 +22,6 @@ const advancedOnlyOpencodeCommands = [
   "harness-bugfix.md",
   "harness-refactor.md"
 ];
-const templateOpencodePath = (...segments) => ["templates", "opencode", ...segments].join("/");
 const selfOpencodeFiles = [
   "opencode.jsonc",
   ".opencode/README.md",
@@ -33,15 +33,15 @@ const selfOpencodeFiles = [
 ];
 const mirrorChecks = [
   {
-    source: templateOpencodePath("commands", "harness-feature.md"),
+    sourceRelative: "commands/harness-feature.md",
     target: ".opencode/commands/harness-feature.md"
   },
   {
-    source: templateOpencodePath("commands", "harness-incident.md"),
+    sourceRelative: "commands/harness-incident.md",
     target: ".opencode/commands/harness-incident.md"
   },
   {
-    source: templateOpencodePath("agents", "validators", "generic-fallback.md"),
+    sourceRelative: "agents/validators/generic-fallback.md",
     target: ".opencode/agents/validators/generic-fallback.md"
   }
 ];
@@ -55,7 +55,8 @@ try {
 
   const beforeRelevantOpencode = await readExistingFiles([...selfOpencodeFiles, ...expectedMirrorFiles]);
   const beforeTemplateAgents = await fs.readFile(path.join(repoRoot, "templates", "AGENTS.md"), "utf8");
-  const beforeTemplateOpencode = await snapshotDirectory(path.join(repoRoot, "templates", "opencode"));
+  const beforeTemplateOpencodeLegacy = await snapshotDirectory(path.join(repoRoot, "templates", "opencode"));
+  const beforeTemplateOpencodePathway = await snapshotDirectory(path.join(repoRoot, "templates", "pathways", "opencode"));
   const beforeSkills = await snapshotDirectory(path.join(repoRoot, "skills"));
 
   const selfOpencodeDryRun = await harness("self", "init", "--with-opencode");
@@ -81,7 +82,8 @@ try {
   assertIncludes(gitignoreContent, ".harness-self/");
 
   for (const check of mirrorChecks) {
-    assert((await readRelative(check.target)) === (await readRelative(check.source)), `${check.target} must exactly mirror ${check.source}`);
+    const sourcePath = await resolvedTemplateOpencodePath(check.sourceRelative);
+    assert((await readRelative(check.target)) === (await readRelative(sourcePath)), `${check.target} must exactly mirror ${sourcePath}`);
   }
 
   const selfOpencodeReadme = await readRelative(".opencode/README.md");
@@ -100,7 +102,8 @@ try {
   assertIncludes(mirroredBuilder, "edit: allow");
 
   assert((await fs.readFile(path.join(repoRoot, "templates", "AGENTS.md"), "utf8")) === beforeTemplateAgents, "self OpenCode init must not modify templates/AGENTS.md");
-  assertSameFileSnapshot(beforeTemplateOpencode, await snapshotDirectory(path.join(repoRoot, "templates", "opencode")), "self OpenCode init must not modify templates/opencode sources");
+  assertSameFileSnapshot(beforeTemplateOpencodeLegacy, await snapshotDirectory(path.join(repoRoot, "templates", "opencode")), "self OpenCode init must not modify templates/opencode sources");
+  assertSameFileSnapshot(beforeTemplateOpencodePathway, await snapshotDirectory(path.join(repoRoot, "templates", "pathways", "opencode")), "self OpenCode init must not modify templates/pathways/opencode sources");
   assertSameFileSnapshot(beforeSkills, await snapshotDirectory(path.join(repoRoot, "skills")), "self OpenCode init must not modify skills");
 
   const doctorOutput = await harness("self", "doctor");
@@ -111,8 +114,8 @@ try {
   assertIncludes(doctorOutput, "PASS  opencode.jsonc exists");
   assertIncludes(doctorOutput, "PASS  .opencode/commands/harness-self-test.md exists");
   assertIncludes(doctorOutput, "PASS  .opencode/agents/harness-framework-reviewer.md exists");
-  assertIncludes(doctorOutput, "PASS  .opencode/agents/harness-planner.md matches templates/opencode/agents/harness-planner.md");
-  assertIncludes(doctorOutput, "PASS  .opencode/commands/harness-feature.md matches templates/opencode/commands/harness-feature.md");
+  assertIncludes(doctorOutput, `PASS  .opencode/agents/harness-planner.md matches ${await resolvedTemplateOpencodePath("agents/harness-planner.md")}`);
+  assertIncludes(doctorOutput, `PASS  .opencode/commands/harness-feature.md matches ${await resolvedTemplateOpencodePath("commands/harness-feature.md")}`);
 
   await assertDoctorFailsForMissingSelfOpencodeFile();
   await assertDoctorFailsForUnresolvedPlaceholder();
@@ -127,7 +130,8 @@ try {
   const templateAgents = await fs.readFile(path.join(repoRoot, "templates", "AGENTS.md"), "utf8");
   assertExcludes(templateAgents, "HARNESS_SELF_POLICY");
   assertExcludes(templateAgents, ".harness-self");
-  assertSameFileSnapshot(beforeTemplateOpencode, await snapshotDirectory(path.join(repoRoot, "templates", "opencode")), "self smoke must restore templates/opencode sources after resync test");
+  assertSameFileSnapshot(beforeTemplateOpencodeLegacy, await snapshotDirectory(path.join(repoRoot, "templates", "opencode")), "self smoke must restore templates/opencode sources after resync test");
+  assertSameFileSnapshot(beforeTemplateOpencodePathway, await snapshotDirectory(path.join(repoRoot, "templates", "pathways", "opencode")), "self smoke must restore templates/pathways/opencode sources after resync test");
 
   const testOutput = await harness("self", "test");
   assertIncludes(testOutput, "Harness Self Test");
@@ -196,8 +200,8 @@ async function assertMirrorDriftDetected() {
     await fs.writeFile(absolute, `${original}\nDrifted locally.\n`, "utf8");
     const result = await harnessAllowFailure("self", "doctor");
     assert(result.code !== 0, "self doctor must fail when a mirror file drifts");
-    assertIncludes(result.stdout, `${mirror} drifted from ${templateOpencodePath("agents", "harness-planner.md")}`);
-    assertIncludes(result.stdout, "Edit templates/opencode/** instead, then rerun harness self init --apply --with-opencode.");
+    assertIncludes(result.stdout, `${mirror} drifted from ${await resolvedTemplateOpencodePath("agents/harness-planner.md")}`);
+    assertIncludes(result.stdout, "Edit that template source, then rerun harness self init --apply --with-opencode.");
   } finally {
     await fs.writeFile(absolute, original, "utf8");
   }
@@ -211,15 +215,15 @@ async function assertMissingMirrorDetected() {
   try {
     const result = await harnessAllowFailure("self", "doctor");
     assert(result.code !== 0, "self doctor must fail when a mirror file is missing");
-    assertIncludes(result.stdout, `${mirror} missing; mirror drift from ${templateOpencodePath("commands", "harness-feature.md")}`);
-    assertIncludes(result.stdout, "Edit templates/opencode/** instead, then rerun harness self init --apply --with-opencode.");
+    assertIncludes(result.stdout, `${mirror} missing; mirror drift from ${await resolvedTemplateOpencodePath("commands/harness-feature.md")}`);
+    assertIncludes(result.stdout, "Edit that template source, then rerun harness self init --apply --with-opencode.");
   } finally {
     await fs.rename(backup, absolute);
   }
 }
 
 async function assertMirrorResyncFromTemplateSource() {
-  const source = templateOpencodePath("agents", "harness-planner.md");
+  const source = await resolvedTemplateOpencodePath("agents/harness-planner.md");
   const target = ".opencode/agents/harness-planner.md";
   const sourceAbsolute = path.join(repoRoot, source);
   const targetAbsolute = path.join(repoRoot, target);
@@ -362,6 +366,12 @@ async function readExistingFiles(relativeFiles) {
 
 async function readRelative(relative) {
   return fs.readFile(path.join(repoRoot, relative), "utf8");
+}
+
+async function resolvedTemplateOpencodePath(sourceRelative) {
+  const resolvedSource = await resolveOpencodeTemplateSource(sourceRelative);
+  assert(resolvedSource, `expected resolved template source for ${sourceRelative}`);
+  return resolvedSource.sourceRelative;
 }
 
 async function snapshotDirectory(directoryPath) {

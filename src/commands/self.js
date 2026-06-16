@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { frameworkRoot } from "../core/framework-paths.js";
+import { frameworkRoot, listResolvedOpencodeTemplateRelatives, resolveCoreTemplateSource, resolveOpencodeTemplateSource } from "../core/framework-paths.js";
 import { buildOpencodeAgentTemplateVariables, loadCanonicalOrFrameworkModelProfiles, modelProfilesSourceRelative } from "../core/model-profiles.js";
 import { getOpencodePermissionPolicy } from "../core/opencode-permissions.js";
 import { renderWithMetadata } from "../core/render.js";
@@ -370,7 +370,11 @@ async function runTargetOldManifest(runRoot, results) {
 }
 
 async function assertSelfAssetsClean(results) {
-  const templateContent = await fs.readFile(path.join(frameworkRoot, templatesAgentsRelative), "utf8");
+  const templateAgentsSource = await resolveCoreTemplateSource("AGENTS.md");
+  if (!templateAgentsSource) {
+    throw new Error("Framework template source not found: templates/AGENTS.md");
+  }
+  const templateContent = await fs.readFile(templateAgentsSource.sourcePath, "utf8");
   const contaminated = forbiddenTemplateTerms.filter((term) => templateContent.toLowerCase().includes(term.toLowerCase()));
   results.push(contaminated.length === 0 ? pass("templates/AGENTS.md remains free of self rules") : fail(`templates/AGENTS.md self contamination: ${contaminated.join(", ")}`));
 
@@ -430,8 +434,11 @@ async function buildSelfInitOperations(options = {}) {
     note: `root AGENTS.md is not rewritten; any future self policy must use ${selfPolicyStart} / ${selfPolicyEnd}`
   });
 
-  const modelProfilesTemplatePath = path.join(frameworkRoot, "templates", modelProfilesSourceRelative);
-  const modelProfilesTemplateContent = await fs.readFile(modelProfilesTemplatePath, "utf8");
+  const modelProfilesTemplateSource = await resolveCoreTemplateSource(modelProfilesSourceRelative);
+  if (!modelProfilesTemplateSource) {
+    throw new Error(`Framework template source not found: templates/${modelProfilesSourceRelative}`);
+  }
+  const modelProfilesTemplateContent = await fs.readFile(modelProfilesTemplateSource.sourcePath, "utf8");
   const modelProfilesAbsolute = path.join(frameworkRoot, modelProfilesSourceRelative);
   const modelProfilesCurrent = await readOptional(modelProfilesAbsolute);
   operations.push({
@@ -543,7 +550,7 @@ async function checkSelfOpencodeMirrors(results) {
     const target = path.join(frameworkRoot, mirror.path);
     const current = await readOptional(target);
     if (current === null) {
-      results.push(fail(`${mirror.path} missing; mirror drift from ${mirror.source}. Edit templates/opencode/** instead, then rerun harness self init --apply --with-opencode.`));
+      results.push(fail(`${mirror.path} missing; mirror drift from ${mirror.source}. Edit that template source, then rerun harness self init --apply --with-opencode.`));
       continue;
     }
     if (containsUnresolvedModelProfilePlaceholder(current)) {
@@ -555,7 +562,7 @@ async function checkSelfOpencodeMirrors(results) {
       continue;
     }
     if (!textEquals(current, mirror.content)) {
-      results.push(fail(`${mirror.path} drifted from ${mirror.source}. Edit templates/opencode/** instead, then rerun harness self init --apply --with-opencode.`));
+      results.push(fail(`${mirror.path} drifted from ${mirror.source}. Edit that template source, then rerun harness self init --apply --with-opencode.`));
       continue;
     }
     results.push(pass(`${mirror.path} matches ${mirror.source}`));
@@ -563,7 +570,12 @@ async function checkSelfOpencodeMirrors(results) {
 }
 
 async function checkTemplatesClean(results) {
-  const content = await readOptional(path.join(frameworkRoot, templatesAgentsRelative));
+  const templatesAgentsSource = await resolveCoreTemplateSource("AGENTS.md");
+  if (!templatesAgentsSource) {
+    results.push(fail(`${templatesAgentsRelative} missing`));
+    return;
+  }
+  const content = await readOptional(templatesAgentsSource.sourcePath);
   if (content === null) {
     results.push(fail(`${templatesAgentsRelative} missing`));
     return;
@@ -701,54 +713,38 @@ async function buildSelfOpencodeMirrorEntries() {
     ...permissionPolicy.renderVariables
   };
 
-  for (const root of selfOpencodeMirrorRoots) {
-    const sourceRoot = path.join(frameworkRoot, templatesOpencodeRelative, root);
-    if (!(await exists(sourceRoot))) {
+  const sourceRelatives = await listResolvedOpencodeTemplateRelatives();
+  for (const sourceRelative of sourceRelatives) {
+    if (!selfOpencodeMirrorRoots.some((root) => sourceRelative.startsWith(`${root}/`))) {
       continue;
     }
-
-    for (const sourcePath of await collectFilesRecursive(sourceRoot)) {
-      const sourceRelative = toPosix(path.relative(path.join(frameworkRoot, templatesOpencodeRelative), sourcePath));
-      const targetRelative = toPosix(path.join(".opencode", sourceRelative));
-
-      if (selfOnlyOpencodePaths.has(targetRelative)) {
-        throw new Error(`self-opencode path conflict: ${targetRelative} is reserved for self-only files but would also mirror ${toPosix(path.join(templatesOpencodeRelative, sourceRelative))}`);
-      }
-      if (seenTargets.has(targetRelative)) {
-        throw new Error(`self-opencode mirror path conflict: multiple template files map to ${targetRelative}`);
-      }
-
-      seenTargets.add(targetRelative);
-      const sourceContent = await fs.readFile(sourcePath, "utf8");
-      entries.push({
-        path: targetRelative,
-        source: toPosix(path.join(templatesOpencodeRelative, sourceRelative)),
-        content: renderWithMetadata({
-          templateContent: sourceContent,
-          variables: renderVariables
-        }).content
-      });
+    const resolvedSource = await resolveOpencodeTemplateSource(sourceRelative);
+    if (!resolvedSource) {
+      throw new Error(`Framework OpenCode template source not found: templates/opencode/${sourceRelative}`);
     }
+    const targetRelative = toPosix(path.join(".opencode", sourceRelative));
+
+    if (selfOnlyOpencodePaths.has(targetRelative)) {
+      throw new Error(`self-opencode path conflict: ${targetRelative} is reserved for self-only files but would also mirror ${resolvedSource.sourceRelative}`);
+    }
+    if (seenTargets.has(targetRelative)) {
+      throw new Error(`self-opencode mirror path conflict: multiple template files map to ${targetRelative}`);
+    }
+
+    seenTargets.add(targetRelative);
+    const sourceContent = await fs.readFile(resolvedSource.sourcePath, "utf8");
+    entries.push({
+      path: targetRelative,
+      source: resolvedSource.sourceRelative,
+      content: renderWithMetadata({
+        templateContent: sourceContent,
+        variables: renderVariables
+      }).content
+    });
   }
 
   entries.sort((left, right) => left.path.localeCompare(right.path));
   return entries;
-}
-
-async function collectFilesRecursive(rootPath) {
-  const files = [];
-  const entries = await fs.readdir(rootPath, { withFileTypes: true });
-  for (const entry of entries) {
-    const absolute = path.join(rootPath, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...await collectFilesRecursive(absolute));
-      continue;
-    }
-    if (entry.isFile()) {
-      files.push(absolute);
-    }
-  }
-  return files;
 }
 
 function textEquals(left, right) {

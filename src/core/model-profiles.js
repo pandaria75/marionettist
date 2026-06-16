@@ -1,7 +1,7 @@
 import path from "node:path";
 import { pathExists, readText } from "./files.js";
+import { resolveCoreTemplateSource, templatesRoot } from "./framework-paths.js";
 import { parseSimpleYaml } from "./yaml.js";
-import { templatesRoot } from "./framework-paths.js";
 
 export const modelProfilesSourceRelative = ".harness/model-profiles.yml";
 export const legacyHarnessConfigRelative = "harness.config.yaml";
@@ -172,10 +172,10 @@ export function renderCanonicalModelProfiles(profiles) {
 }
 
 async function loadFrameworkDefaultProfiles() {
-  const frameworkDefaultSource = await readModelProfilesFromPath(
-    path.join(templatesRoot, modelProfilesSourceRelative),
-    "canonical"
-  );
+  const resolvedSource = await resolveCoreTemplateSource(modelProfilesSourceRelative);
+  const frameworkDefaultSource = resolvedSource
+    ? await readModelProfilesFromPath(resolvedSource.sourcePath, "canonical")
+    : null;
   return frameworkDefaultSource
     ? mergeModelProfiles(builtInProfileDefaults, frameworkDefaultSource)
     : normalizeModelProfiles(builtInProfileDefaults);

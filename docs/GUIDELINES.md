@@ -298,7 +298,49 @@ harness doctor
 
 Local task artifacts, local docs, local rules, and local skills are preserved by default. `AGENTS.md` updates only the managed block. Conflicts are reported instead of being overwritten silently.
 
-## 12. Common Pitfalls
+## 12. Clear And Re-Init
+
+Use `harness clear` when you want to remove framework-managed files before a clean reinstall or migration. `harness uninstall` is an alias.
+
+Preview first:
+
+```powershell
+harness clear
+harness clear --scope opencode
+```
+
+Apply only when you are ready to remove managed assets:
+
+```powershell
+harness clear --apply
+harness uninstall --scope all --apply
+```
+
+- Default mode is preview only. No files change unless `--apply` is present.
+- `--scope all` removes all manifest-managed harness assets that still exist.
+- `--scope opencode` removes only manifest-managed files recorded with the OpenCode adapter; it does not infer ownership from `.opencode/` paths alone.
+- Apply mode writes backups under `.harness/backups/<timestamp>/` before each file removal or `AGENTS.md` managed-block edit.
+- `AGENTS.md` is not deleted wholesale. Clear removes only the harness-managed block and preserves project-local sections.
+- If `AGENTS.md` contains only the managed block, clear keeps a safe `# AGENTS` placeholder file instead of deleting it.
+- Apply is not atomic across all targets. If a later backup or delete step fails, earlier targets may already be backed up and removed. Use the backup folder to restore as needed.
+- Current apply failures surface the underlying filesystem error directly. Treat that output as the immediate recovery clue.
+
+Typical migration flow:
+
+```powershell
+# 1) Preview what clear would remove
+harness clear --scope all
+
+# 2) Apply clear after reviewing the preview
+harness clear --scope all --apply
+
+# 3) Reinstall the harness cleanly
+harness init --with-opencode
+```
+
+Run apply only in the target project you intend to clean. The command refuses manifest targets that escape the project root, including symlink targets that resolve outside the workspace.
+
+## 13. Common Pitfalls
 
 - Do not treat `harness init` as safe to run blindly in this framework source repo. Use self commands here.
 - Do not start coding for non-trivial work before the analysis gate is approved.

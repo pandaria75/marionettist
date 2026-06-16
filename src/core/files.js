@@ -1,6 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
+export const backupsRootRelative = ".harness/backups";
+
 export async function pathExists(filePath) {
   try {
     await fs.access(filePath);
@@ -47,4 +49,43 @@ export async function listFiles(root) {
 
 export function toPosixPath(value) {
   return value.split(path.sep).join("/");
+}
+
+export function isBackupPath(relativePath) {
+  const normalized = toPosixPath(path.normalize(relativePath));
+  return normalized === backupsRootRelative || normalized.startsWith(`${backupsRootRelative}/`);
+}
+
+export function resolveContainedPath(projectRoot, relativePath) {
+  const rootPath = path.resolve(projectRoot);
+  const targetPath = path.resolve(rootPath, relativePath);
+  const relativeTargetPath = path.relative(rootPath, targetPath);
+
+  if (
+    relativeTargetPath === ".."
+    || relativeTargetPath.startsWith(`..${path.sep}`)
+    || path.isAbsolute(relativeTargetPath)
+  ) {
+    throw new Error(`Target path escapes project root: ${toPosixPath(relativePath)}`);
+  }
+
+  return targetPath;
+}
+
+export async function resolveExistingContainedPath(projectRoot, relativePath) {
+  const rootPath = path.resolve(projectRoot);
+  const containedPath = resolveContainedPath(rootPath, relativePath);
+  const realProjectRoot = await fs.realpath(rootPath);
+  const realTargetPath = await fs.realpath(containedPath);
+  const relativeRealTargetPath = path.relative(realProjectRoot, realTargetPath);
+
+  if (
+    relativeRealTargetPath === ".."
+    || relativeRealTargetPath.startsWith(`..${path.sep}`)
+    || path.isAbsolute(relativeRealTargetPath)
+  ) {
+    throw new Error(`Target path resolves outside project root: ${toPosixPath(relativePath)}`);
+  }
+
+  return containedPath;
 }
