@@ -46,13 +46,21 @@ opencode:
 
 - `opencode.jsonc`
 - `.opencode/README.md`
+- `.opencode/plugin/opencode-tasks.js`
 - `.opencode/commands/harness*.md`
 - `.opencode/agents/harness-*.md`
 - `.opencode/agents/validators/**`
 
 这些是受管默认值。团队可自行决定哪些需要提交、哪些保留本地。
 
-对目标项目而言，框架模板的 source of truth 是本框架分发中的 `templates/opencode/**`。使用 `harness diff`、`harness sync` 和 `harness doctor` 检查漂移和安全更新。
+当前 MVP 姿态：
+
+- `opencode.jsonc` 启用仓库本地插件路径 `./.opencode/plugin/opencode-tasks.js`
+- 只要该插件存在，就默认采用 plugin-first 行为
+- 生成的 `.opencode/agents/**` 和 `.opencode/commands/**` 文件仍然是受支持的回退资产
+- 框架 source 目前有意拆分：插件原型资产来自 `templates/pathways/opencode/**`，生成式回退资产来自 `templates/opencode/**`
+
+使用 `harness diff`、`harness sync` 和 `harness doctor` 检查漂移和安全更新。若重新生成了 `opencode.jsonc` 或 `.opencode/plugin/**`，而当前会话没有自动重载配置，请重启 OpenCode。
 
 ## 4. 命令面
 
@@ -166,12 +174,20 @@ Validator 角色应使用最小的相关验证命令。
 
 生成的 OpenCode 文件在通过 harness 安装时，会通过 `.harness/manifest.json` 追踪。
 
+对这个 MVP 来说，即使默认姿态是 plugin-first，manifest 所有权和生成文件回退仍然成立。
+
 安全行为：
 
 - 本地编辑被报告，不会静默覆盖
 - 缺失的受管文件被报告
 - 渲染输入漂移被标记为冲突
 - force 式替换必须显式触发
+
+操作说明：
+
+- 如果插件条目和文件条目使用同名，插件条目可能会覆盖文件条目
+- 如果显式插件配置与 `.opencode/plugin/` 自动发现同时加载同一个插件，当前原型仍可接受，因为其 config hook 是幂等的
+- 当本地 OpenCode CLI 不可用或不支持 `--command` 时，命令 smoke 可能带证据地报告 `NOT_RUN`；但在关闭 MVP 运行时验证工作前，仍应至少在一个具备能力的环境中运行一次 `opencode run --command harness-pathway-prototype`
 
 使用以下流程：
 

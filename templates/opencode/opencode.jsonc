@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  // Auto-enabled by harness --with-opencode so recurring validation can opt into
-  // the community scheduler plugin without requiring global user config.
-  "plugin": ["opencode-tasks"]
+  // Auto-enabled by harness --with-opencode so repositories can install a
+  // local OpenCode pathway plugin prototype without requiring global user config.
+  "plugin": {{OPENCODE_PLUGIN_ARRAY}}
 }

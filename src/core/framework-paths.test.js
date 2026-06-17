@@ -15,6 +15,7 @@ import {
   opencodeTemplatesRoot,
   pathwayOpencodeTemplatesRoot,
   pathwaysTemplatesRoot,
+  resolveOpencodeTemplateSource,
   resolveFirstExistingPath,
   templatesRoot
 } from "./framework-paths.js";
@@ -105,4 +106,31 @@ test("resolved OpenCode relatives ignore placeholder files and include future ca
   const relatives = await listResolvedOpencodeTemplateRelatives();
   assert(relatives.includes("commands/slice-3-test-command.md"));
   assert(!relatives.includes(".gitkeep"));
+});
+
+test("resolveOpencodeTemplateSource prefers pathway source and falls back to legacy", async (t) => {
+  const sourceRelative = "commands/slice-38-2-resolution-test.md";
+  const futureSource = path.join(pathwayOpencodeTemplatesRoot, sourceRelative);
+  const legacySource = path.join(opencodeTemplatesRoot, sourceRelative);
+
+  await fs.mkdir(path.dirname(legacySource), { recursive: true });
+  await fs.writeFile(legacySource, "legacy", "utf8");
+
+  t.after(async () => {
+    await fs.rm(futureSource, { force: true });
+    await fs.rm(legacySource, { force: true });
+  });
+
+  let resolved = await resolveOpencodeTemplateSource(sourceRelative);
+  assert(resolved, "expected legacy source to resolve");
+  assert.equal(resolved.sourcePath, legacySource);
+  assert.equal(resolved.sourceRelative, "templates/opencode/commands/slice-38-2-resolution-test.md");
+
+  await fs.mkdir(path.dirname(futureSource), { recursive: true });
+  await fs.writeFile(futureSource, "future", "utf8");
+
+  resolved = await resolveOpencodeTemplateSource(sourceRelative);
+  assert(resolved, "expected future pathway source to resolve");
+  assert.equal(resolved.sourcePath, futureSource);
+  assert.equal(resolved.sourceRelative, "templates/pathways/opencode/commands/slice-38-2-resolution-test.md");
 });

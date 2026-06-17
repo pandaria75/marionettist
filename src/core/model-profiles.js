@@ -121,14 +121,24 @@ export function buildModelProfileTemplateVariables(profiles, variables = {}) {
 
 export function buildOpencodeAgentTemplateVariables(profiles, variables = {}) {
   const resolvedVariables = buildModelProfileTemplateVariables(profiles, variables);
+  const resolvedAgentModels = buildResolvedOpencodeAgentModelConfigs(profiles);
 
-  for (const [agentName, profileName, variablePrefix] of opencodeAgentProfileBindings) {
-    const resolved = resolveAgentModelConfig(profiles, profileName, agentName);
+  for (const [agentName,, variablePrefix] of opencodeAgentProfileBindings) {
+    const resolved = resolvedAgentModels[agentName];
     resolvedVariables[`${variablePrefix}Model`] = resolved.model;
     resolvedVariables[`${variablePrefix}Temperature`] = renderTemperatureValue(resolved.temperature);
   }
 
   return resolvedVariables;
+}
+
+export function buildResolvedOpencodeAgentModelConfigs(profiles) {
+  return Object.fromEntries(
+    opencodeAgentProfileBindings.map(([agentName, profileName]) => [
+      agentName,
+      resolveAgentModelConfig(profiles, profileName, agentName)
+    ])
+  );
 }
 
 export function resolveAgentModelConfig(profiles, profileName, agentName) {

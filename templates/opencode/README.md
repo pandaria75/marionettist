@@ -4,7 +4,8 @@ These files are optional local OpenCode assets for repositories that want a harn
 
 ### What Is Included
 
-- `opencode.jsonc`: project-level OpenCode config that enables the `opencode-tasks` plugin.
+- `opencode.jsonc`: project-level OpenCode config that enables the repository-local `./.opencode/plugin/opencode-tasks.js` plugin prototype.
+- `.opencode/plugin/opencode-tasks.js`: repository-local OpenCode plugin prototype asset installed from the Pathway source root.
 - `commands/*.md`: starter slash commands that route users into the harness workflow, with `/harness` as the default builder-first entrypoint and optional `minimal`, `standard`, and `advanced` command surfaces.
 - `agents/*.md`: starter agent definitions for builder, coder, critic, indexer, planner, reviewer, and validator roles.
 - `agents/validators/*.md`: validator guidance variants you can copy from or adapt to your project type.
@@ -28,8 +29,11 @@ These files are optional local OpenCode assets for repositories that want a harn
 - That baseline is enforced as strongly as OpenCode schema allows. Where schema cannot express a risky pattern precisely, templates fall back to warnings, prompts, and agent guidance prose.
 - Treat `loose` as a higher-trust local option, not as a shared default recommendation. Do not treat these templates as endorsing global `permission: allow`.
 - Install/distribution mode is recorded in `.harness/manifest.json` as `distributionMode` (`embedded`, `hybrid`, or `adapter`). Legacy installs without that field remain valid and are reported safely.
-- OpenCode generated artifact ownership stays template-driven: framework source of truth is `templates/opencode/**`, while target-project manifest entries track adapter metadata, `templateHash`, `renderedHash`, and legacy `hash` compatibility.
+- OpenCode generated artifact ownership stays template-driven: plugin prototype assets currently come from `templates/pathways/opencode/**`, generated fallback assets remain in `templates/opencode/**`, and target-project manifest entries track adapter metadata, `templateHash`, `renderedHash`, and legacy `hash` compatibility.
 - `harness diff` and `harness sync` protect local modifications. Missing files, conflicts, and orphaned managed entries are reported rather than silently overwritten; explicit force is required for intentional managed replacement.
+- Same-name plugin and file entries may conflict. If a plugin-provided agent or command shares a name with a generated or project-local file entry, the plugin entry may win.
+- OpenCode may load the same plugin from both the explicit config entry and `.opencode/plugin/` auto-discovery. The current prototype is accepted because its config hook is idempotent.
+- If generated config or plugin files change, restarting OpenCode may be required before the running session observes the update.
 - Permission settings are also examples. Tighten or relax them to fit your safety requirements.
 - Keep terminology aligned with your repository docs, rules, and `docs/project/knowledge-map.md`.
 

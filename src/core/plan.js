@@ -4,9 +4,9 @@ import { listResolvedOpencodeTemplateRelatives, resolveCoreTemplateSource, resol
 import { extractManagedBlock, replaceManagedBlock } from "./managed-block.js";
 import { sha256 } from "./hash.js";
 import { buildManifest, getManagedFileHash, manifestFileMap, manifestRelative, normalizeDistributionMode, normalizeOpencodeCommandSurface, normalizeOpencodePermissionMode, opencodeArtifactAdapter, readManifest, validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface, validateOptionalOpencodePermissionMode } from "./manifest.js";
-import { buildOpencodeAgentTemplateVariables, loadModelProfiles, loadModelProfilesState, modelProfilesSourceRelative, renderCanonicalModelProfiles } from "./model-profiles.js";
+import { buildOpencodeAgentTemplateVariables, buildResolvedOpencodeAgentModelConfigs, loadModelProfiles, loadModelProfilesState, modelProfilesSourceRelative, renderCanonicalModelProfiles } from "./model-profiles.js";
 import { getOpencodePermissionPolicy } from "./opencode-permissions.js";
-import { renderWithMetadata } from "./render.js";
+import { renderWithMetadata, stableJsonStringify } from "./render.js";
 import { parseSimpleYaml } from "./yaml.js";
 
 const coreTemplateTargets = new Map([
@@ -108,6 +108,7 @@ async function buildFrameworkAssets(projectPath, options = {}) {
 
   if (options.includeOpencode) {
     assets.push(...await buildOpencodeAssets(projectPath, variables, {
+      distributionModeState: options.distributionModeState,
       commandSurfaceState: options.opencodeCommandSurfaceState,
       permissionModeState: options.opencodePermissionModeState
     }));
@@ -118,7 +119,8 @@ async function buildFrameworkAssets(projectPath, options = {}) {
 
 async function buildOpencodeAssets(projectPath, variables = {}, states = {}) {
   const assets = [];
-  const opencodeVariables = await resolveOpencodeVariables(projectPath, variables, states.permissionModeState);
+  const opencodeRenderState = await resolveOpencodeRenderState(projectPath, variables, states);
+  const opencodeVariables = opencodeRenderState.variables;
   const opencodeRelatives = await listResolvedOpencodeTemplateRelatives();
   const validatorProjectGuidance = await buildValidatorProjectGuidance(projectPath, opencodeVariables);
   const commandSurface = normalizeOpencodeCommandSurface(states.commandSurfaceState?.value ?? "advanced", "effective OpenCode command surface");
@@ -148,7 +150,10 @@ async function buildOpencodeAssets(projectPath, variables = {}, states = {}) {
           ...opencodeVariables,
           validatorProjectGuidance
         }
-        : opencodeVariables
+        : opencodeVariables,
+      renderContext: sourceRelative === opencodeProjectConfigSource
+        ? opencodeRenderState.configRenderContext
+        : null
     });
     const content = rendered.content;
 
@@ -172,14 +177,30 @@ async function buildOpencodeAssets(projectPath, variables = {}, states = {}) {
   return assets;
 }
 
-async function resolveOpencodeVariables(projectPath, variables = {}, permissionModeState = {}) {
+async function resolveOpencodeRenderState(projectPath, variables = {}, states = {}) {
   const profiles = await loadModelProfiles(projectPath);
-  const permissionPolicy = getOpencodePermissionPolicy(permissionModeState.permissionMode ?? "default");
+  const resolvedAgentModels = buildResolvedOpencodeAgentModelConfigs(profiles);
+  const permissionPolicy = getOpencodePermissionPolicy(states.permissionModeState?.permissionMode ?? "default");
 
   return {
-    ...buildOpencodeAgentTemplateVariables(profiles, variables),
-    ...permissionPolicy.renderVariables
+    variables: {
+      ...buildOpencodeAgentTemplateVariables(profiles, variables),
+      ...permissionPolicy.renderVariables,
+      opencodePluginArray: stableJsonStringify(buildDefaultOpencodePluginEntries())
+    },
+    configRenderContext: {
+      pathwayMode: "plugin-first",
+      generatedFilesFallback: true,
+      distributionMode: states.distributionModeState?.value ?? null,
+      commandSurface: states.commandSurfaceState?.value ?? null,
+      permissionMode: states.permissionModeState?.permissionMode ?? null,
+      resolvedAgentModels
+    }
   };
+}
+
+function buildDefaultOpencodePluginEntries() {
+  return ["./.opencode/plugin/opencode-tasks.js"];
 }
 
 async function buildValidatorProjectGuidance(projectPath, variables = {}) {

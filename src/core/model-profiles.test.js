@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   buildOpencodeAgentTemplateVariables,
+  buildResolvedOpencodeAgentModelConfigs,
   loadModelProfilesState,
   renderCanonicalModelProfiles,
   resolveAgentModelConfig
@@ -181,4 +182,44 @@ test("buildOpencodeAgentTemplateVariables exposes per-agent resolved model and t
   assert.equal(variables.harnessCriticTemperature, "0.0");
   assert.equal(variables.harnessValidatorModel, "model/run");
   assert.equal(variables.harnessValidatorTemperature, "0.0");
+});
+
+test("buildResolvedOpencodeAgentModelConfigs exposes structured resolved agent model settings", () => {
+  const resolved = buildResolvedOpencodeAgentModelConfigs({
+    think: {
+      description: "Think",
+      default: "model/think",
+      temperature: 0.1,
+      agentOverrides: {
+        "harness-builder": { model: "model/builder", temperature: 0.6 }
+      }
+    },
+    build: {
+      description: "Build",
+      default: "model/build",
+      temperature: 0.2,
+      agentOverrides: {}
+    },
+    review: {
+      description: "Review",
+      default: "model/review",
+      temperature: 0,
+      agentOverrides: {
+        "harness-critic": { model: "model/critic" }
+      }
+    },
+    run: {
+      description: "Run",
+      default: "model/run",
+      temperature: 0,
+      agentOverrides: {
+        "harness-validator": { temperature: 0.4 }
+      }
+    }
+  });
+
+  assert.deepEqual(resolved["harness-builder"], { model: "model/builder", temperature: 0.6 });
+  assert.deepEqual(resolved["harness-planner"], { model: "model/think", temperature: 0.1 });
+  assert.deepEqual(resolved["harness-critic"], { model: "model/critic", temperature: 0 });
+  assert.deepEqual(resolved["harness-validator"], { model: "model/run", temperature: 0.4 });
 });

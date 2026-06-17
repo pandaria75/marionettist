@@ -86,6 +86,6 @@ export async function initCommand(args) {
   await applyPlan(plan, finalOptions);
 
   if (withOpencode) {
-    console.log("note: project-level opencode-tasks is enabled via opencode.jsonc");
+    console.log("note: project-level opencode pathway prototype is enabled via opencode.jsonc");
   }
 }

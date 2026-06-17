@@ -46,13 +46,21 @@ Typical OpenCode assets:
 
 - `opencode.jsonc`
 - `.opencode/README.md`
+- `.opencode/plugin/opencode-tasks.js`
 - `.opencode/commands/harness*.md`
 - `.opencode/agents/harness-*.md`
 - `.opencode/agents/validators/**`
 
 These are managed defaults. Teams may choose what to commit and what to keep local.
 
-For target projects, the framework template source of truth is `templates/opencode/**` in this framework distribution. Use `harness diff`, `harness sync`, and `harness doctor` to inspect drift and safe updates.
+Current MVP posture:
+
+- `opencode.jsonc` enables the repository-local plugin path `./.opencode/plugin/opencode-tasks.js`
+- plugin-first behavior is the default when that plugin is present
+- generated `.opencode/agents/**` and `.opencode/commands/**` files remain supported fallback assets
+- framework source stays split on purpose: plugin prototype assets come from `templates/pathways/opencode/**`, while generated fallback assets come from `templates/opencode/**`
+
+Use `harness diff`, `harness sync`, and `harness doctor` to inspect drift and safe updates. After regenerating `opencode.jsonc` or `.opencode/plugin/**`, restart OpenCode if the current session does not reload configuration automatically.
 
 ## 4. Command Surfaces
 
@@ -166,12 +174,20 @@ Validation may include build, compile, unit tests, lint, type checks, smoke chec
 
 Generated OpenCode files are tracked through `.harness/manifest.json` when installed by the harness.
 
+For this MVP, manifest ownership and generated-file fallback still apply even though the default posture is plugin-first.
+
 Safe behavior:
 
 - local edits are reported, not overwritten silently
 - missing managed files are reported
 - render-input drift is surfaced as a conflict
 - force-style replacement must be explicit
+
+Operational notes:
+
+- if a plugin entry and a file entry share the same name, the plugin entry may win
+- if both an explicit plugin entry and `.opencode/plugin/` auto-discovery load the same plugin, the current prototype remains acceptable because its config hook is idempotent
+- command smoke may report `NOT_RUN` with evidence when the local OpenCode CLI is unavailable or lacks `--command` support; at least one capable environment should still run `opencode run --command harness-pathway-prototype` before closing MVP runtime validation work
 
 Use this flow:
 
