@@ -261,7 +261,7 @@ test("buildPlan tracks plugin-first OpenCode config render metadata through the 
   });
 });
 
-test("buildPlan installs repository-local OpenCode pathway plugin prototype assets", async (t) => {
+test("buildPlan installs repository-local OpenCode pathway plugin assets and keeps them discoverable during sync", async (t) => {
   await withTempProject(t, async (projectPath) => {
     const plan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true }));
 
@@ -269,24 +269,38 @@ test("buildPlan installs repository-local OpenCode pathway plugin prototype asse
     const pluginOperation = plan.operations.find((operation) => operation.targetRelative === ".opencode/plugin/opencode-tasks.js");
     const agentAssetOperation = plan.operations.find((operation) => operation.targetRelative === ".opencode/pathway/agents/harness-pathway-prototype.md");
     const commandAssetOperation = plan.operations.find((operation) => operation.targetRelative === ".opencode/pathway/commands/harness-pathway-prototype.md");
+    const configCommandAssetOperation = plan.operations.find((operation) => operation.targetRelative === ".opencode/pathway/commands/harness-pathway-config.md");
     const skillAssetOperation = plan.operations.find((operation) => operation.targetRelative === ".opencode/pathway-skills/harness-pathway-prototype/SKILL.md");
+    const configSkillAssetOperation = plan.operations.find((operation) => operation.targetRelative === ".opencode/pathway-skills/harness-pathway-config/SKILL.md");
     const fallbackCommandOperation = plan.operations.find((operation) => operation.targetRelative === ".opencode/commands/harness.md");
 
     assert(configOperation, "expected OpenCode config operation");
     assert(pluginOperation, "expected local plugin operation");
     assert(agentAssetOperation, "expected prototype agent asset operation");
     assert(commandAssetOperation, "expected prototype command asset operation");
+    assert(configCommandAssetOperation, "expected pathway config command asset operation");
     assert(skillAssetOperation, "expected prototype skill asset operation");
+    assert(configSkillAssetOperation, "expected pathway config skill asset operation");
     assert(fallbackCommandOperation, "expected fallback harness command operation");
 
     assert.equal(pluginOperation.sourceRelative, "templates/pathways/opencode/plugin/opencode-tasks.js");
     assert.equal(agentAssetOperation.sourceRelative, "templates/pathways/opencode/pathway/agents/harness-pathway-prototype.md");
     assert.equal(commandAssetOperation.sourceRelative, "templates/pathways/opencode/pathway/commands/harness-pathway-prototype.md");
+    assert.equal(configCommandAssetOperation.sourceRelative, "templates/pathways/opencode/pathway/commands/harness-pathway-config.md");
     assert.equal(skillAssetOperation.sourceRelative, "templates/pathways/opencode/pathway-skills/harness-pathway-prototype/SKILL.md");
+    assert.equal(configSkillAssetOperation.sourceRelative, "templates/pathways/opencode/pathway-skills/harness-pathway-config/SKILL.md");
     assert.equal(fallbackCommandOperation.sourceRelative, "templates/opencode/commands/harness.md");
     assert.match(configOperation.content, /"plugin": \["\.\/\.opencode\/plugin\/opencode-tasks\.js"\]/);
 
     await applyManagedOperations(plan);
+
+    const syncPlan = await buildPlan(projectPath, "sync", buildPlanOptions({ project: projectPath, withOpencode: true }));
+    const syncConfigCommandAssetOperation = syncPlan.operations.find((operation) => operation.targetRelative === ".opencode/pathway/commands/harness-pathway-config.md");
+    const syncConfigSkillAssetOperation = syncPlan.operations.find((operation) => operation.targetRelative === ".opencode/pathway-skills/harness-pathway-config/SKILL.md");
+    assert(syncConfigCommandAssetOperation, "expected sync plan pathway config command asset operation");
+    assert(syncConfigSkillAssetOperation, "expected sync plan pathway config skill asset operation");
+    assert.equal(syncConfigCommandAssetOperation.status, "unchanged");
+    assert.equal(syncConfigSkillAssetOperation.status, "unchanged");
 
     const pluginModule = await import(`${pathToFileURL(path.join(projectPath, ".opencode", "plugin", "opencode-tasks.js")).href}?test=${Date.now()}`);
     const hooks = await pluginModule.default();
@@ -301,6 +315,7 @@ test("buildPlan installs repository-local OpenCode pathway plugin prototype asse
     assert.equal(cfg.agent["harness-pathway-prototype"].mode, "subagent");
     assert.match(cfg.agent["harness-pathway-prototype"].prompt, /repository-local OpenCode pathway prototype agent/i);
     assert.match(cfg.command["harness-pathway-prototype"].template, /Run a bounded inspection of the repository-local OpenCode pathway prototype/i);
+    assert.match(cfg.command["harness-pathway-config"].template, /Pathway MVP configuration/i);
     assert.deepEqual(cfg.skills.paths, ["custom-skills", ".opencode/pathway-skills"]);
   });
 });

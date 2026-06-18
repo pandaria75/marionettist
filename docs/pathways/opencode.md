@@ -2,6 +2,20 @@
 
 This note captures the confirmed MVP direction for OpenCode Pathway support in the harness framework.
 
+Current-state reminder:
+
+- current commands, config files, and repository docs still use **harness** naming
+- `marionettist-pathway-opencode` is a future packaging direction, not a current released artifact
+- generated `.opencode/**` assets remain part of the supported MVP story
+
+Related docs:
+
+- [Documentation home](../README.md)
+- [Pathways landing page](./README.md)
+- [OpenCode operator guide](../OPENCODE.md)
+- [Configuration guide](../user-guide/configuration.md)
+- [Migration planning](../migration/README.md)
+
 ## Decisions
 
 - Default posture: plugin-first.
@@ -9,6 +23,25 @@ This note captures the confirmed MVP direction for OpenCode Pathway support in t
 - Default plugin path: `./.opencode/plugin/opencode-tasks.js`.
 - Compatibility: generated OpenCode files remain a supported fallback under `templates/opencode/**` and generated `.opencode/agents/**` and `.opencode/commands/**` files.
 - Validation path: `opencode run --command harness-pathway-prototype` is the accepted runtime smoke path for this MVP.
+
+## Pathway Configuration Workflow
+
+The OpenCode Pathway MVP now documents a distinct `harness-pathway-config` workflow for Pathway-scoped configuration authoring.
+
+Important boundaries:
+
+- it is Pathway-scoped, not a new core CLI `harness config` feature
+- it is distinct from the existing general or legacy `harness-config` OpenCode wrapper
+- current naming stays `harness`; Marionettist remains future-facing roadmap framing only
+
+Expected workflow posture:
+
+- draft candidate YAML or config changes for the relevant harness-managed files
+- show a diff or diff-like preview before any write
+- require explicit user confirmation before writing config changes
+- mention an OpenCode restart when config changes or plugin, command, or skill changes/assets may not load into the current session automatically
+
+For this MVP, the documented targets are illustrative rather than exhaustive: existing harness/OpenCode configuration surfaces include `harness.config.yaml`, `.harness/model-profiles.yml`, OpenCode config such as `opencode.jsonc`, and explicit tier-policy request targets when a user is asking the Pathway workflow to draft those policy changes. The workflow still does not create a broader non-OpenCode Pathway configuration system.
 
 ## What Plugin-First Means
 
@@ -83,6 +116,8 @@ Two MVP caveats are currently accepted:
 - the current prototype `config` hook is idempotent, so this posture is accepted for the MVP instead of adding extra hardening in this slice
 
 After regenerating `opencode.jsonc` or `.opencode/plugin/**`, restart OpenCode if the running session does not pick up the changes automatically.
+
+The same restart guidance applies when a config-writing workflow updates OpenCode-visible plugin, command, or skill assets and the current session does not reload them automatically.
 
 ## User Mitigation Options
 

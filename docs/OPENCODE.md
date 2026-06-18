@@ -6,6 +6,12 @@ This guide is for teams that use the optional OpenCode scaffolding installed by 
 
 OpenCode improves ergonomics. It does not replace the harness workflow. The repository files, task artifacts, and gates remain the source of truth.
 
+Navigation note:
+
+- start from [docs/README.md](./README.md) for the main documentation entrypoint
+- use [docs/pathways/README.md](./pathways/README.md) for pathway-specific context
+- use [docs/user-guide/README.md](./user-guide/README.md) for the shorter install-and-usage path
+
 ## 1. What OpenCode Adds
 
 - **Slash commands** such as `/harness`, `/harness-dev`, and `/harness-docs`.

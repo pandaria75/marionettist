@@ -6,6 +6,11 @@ This guide is for tech leads and developers who want to install and use the harn
 
 For design rationale, see [docs/DESIGN.md](./DESIGN.md). For OpenCode usage, see [docs/OPENCODE.md](./OPENCODE.md).
 
+Navigation note:
+
+- start from [docs/README.md](./README.md) for the reorganized documentation entrypoint
+- use [docs/user-guide/README.md](./user-guide/README.md) for the shorter task-focused path through setup and daily use
+
 ## 1. Install
 
 Install the CLI first:

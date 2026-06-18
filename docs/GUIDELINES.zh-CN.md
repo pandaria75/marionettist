@@ -6,6 +6,11 @@
 
 设计理念见 [docs/DESIGN.zh-CN.md](./DESIGN.zh-CN.md)。OpenCode 用法见 [docs/OPENCODE.zh-CN.md](./OPENCODE.zh-CN.md)。
 
+导航说明：
+
+- 如需从重组后的文档入口开始，请见 [docs/README.md](./README.md)
+- 如需更短的安装与日常使用路径，请见 [docs/user-guide/README.md](./user-guide/README.md)
+
 ## 1. 安装
 
 先安装 CLI：

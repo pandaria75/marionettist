@@ -6,6 +6,12 @@
 
 OpenCode 改善体验，但不替代 harness 工作流。仓库文件、任务工件和 gate 仍然是事实来源。
 
+导航说明：
+
+- 主文档入口见 [docs/README.md](./README.md)
+- Pathway 相关背景见 [docs/pathways/README.md](./pathways/README.md)
+- 更短的安装与使用路径见 [docs/user-guide/README.md](./user-guide/README.md)
+
 ## 1. OpenCode 增加了什么
 
 - **Slash commands**，如 `/harness`、`/harness-dev`、`/harness-docs`。

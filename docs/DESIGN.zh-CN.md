@@ -4,6 +4,12 @@
 
 本文档面向希望理解 harness 存在的原因及其核心思想如何衔接的人。除非实现细节有助于解释设计决策，否则不在此赘述。
 
+导航说明：
+
+- 主文档地图见 [docs/README.md](./README.md)
+- 稳定概念与维护者参考见 [docs/reference/README.md](./reference/README.md)
+- gate、tier、slicing 等深入主题见 [docs/advanced/README.md](./advanced/README.md)
+
 ## 1. 定位
 
 Harness 是一套面向使用 AI agent 的仓库的文件型协作框架。

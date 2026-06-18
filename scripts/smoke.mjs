@@ -28,6 +28,7 @@ const clearPartialFailureProject = path.join(tempBase, `harness-smoke-clear-part
 const clearSymlinkEscapeProject = path.join(tempBase, `harness-smoke-clear-symlink-${process.pid}`);
 const validatorSnippetPathText = ["templates", "opencode", "agents", "validators"].join("/");
 const prototypeOpencodeCommandName = "harness-pathway-prototype";
+const pathwayConfigOpencodeCommandName = "harness-pathway-config";
 const publishableScanRoots = ["README.md", "README.zh-CN.md", "docs", "templates", "skills", "src", "scripts", "package.json"];
 const publishableScanExcludedDirectories = [path.join("docs", "blogs")];
 const normalOpencodeCommands = [
@@ -722,8 +723,11 @@ async function assertOpencodeInstall(projectPath) {
   assertIncludes(projectConfig, '"plugin": ["./.opencode/plugin/opencode-tasks.js"]');
   assert(await pathExists(path.join(projectPath, ".opencode", "plugin", "opencode-tasks.js")), "OpenCode install must include repository-local plugin prototype");
   assert(await pathExists(path.join(projectPath, ".opencode", "pathway-skills", "harness-pathway-prototype", "SKILL.md")), "OpenCode install must include repository-local pathway skill prototype");
+  assert(await pathExists(path.join(projectPath, ".opencode", "pathway", "commands", "harness-pathway-config.md")), "OpenCode install must include repository-local pathway config command");
+  assert(await pathExists(path.join(projectPath, ".opencode", "pathway-skills", "harness-pathway-config", "SKILL.md")), "OpenCode install must include repository-local pathway config skill");
   assert(await pathExists(path.join(projectPath, ".harness", "model-profiles.yml")), "OpenCode install must include .harness/model-profiles.yml");
-  await assertOpencodePrototypeCommandSmoke(projectPath);
+  await assertOpencodeCommandSmoke(projectPath, prototypeOpencodeCommandName, "prototype");
+  await assertOpencodeCommandSmoke(projectPath, pathwayConfigOpencodeCommandName, "pathway-config");
 
   const validatorContent = await fs.readFile(path.join(projectPath, ".opencode", "agents", "harness-validator.md"), "utf8");
   assertIncludes(validatorContent, "# Generic Validator Guidance");
@@ -1003,21 +1007,21 @@ async function assertAdvancedOpencodeInstall(projectPath) {
   assertIncludes(invalidDoctor.stdout, "FAIL  OpenCode command surface [advanced] missing required normal command(s): .opencode/commands/harness.md");
 }
 
-async function assertOpencodePrototypeCommandSmoke(projectPath) {
+async function assertOpencodeCommandSmoke(projectPath, commandName, label = commandName) {
   const helpCommand = ["run", "--help"];
   const helpResult = await execAllowFailure("opencode", helpCommand, repoRoot, {
     timeout: 30_000
   });
 
   if (helpResult.code === "ENOENT") {
-    console.log(`opencode-command-smoke: NOT_RUN opencode CLI unavailable (${formatCommand("opencode", helpCommand)})`);
+    console.log(`opencode-command-smoke:${label}: NOT_RUN opencode CLI unavailable (${formatCommand("opencode", helpCommand)})`);
     return;
   }
 
   const helpOutput = [helpResult.stdout, helpResult.stderr].filter(Boolean).join("\n");
   if (!helpOutput.includes("--command")) {
     console.log([
-      "opencode-command-smoke: NOT_RUN current opencode CLI syntax does not advertise --command support",
+      `opencode-command-smoke:${label}: NOT_RUN current opencode CLI syntax does not advertise --command support`,
       `evidence command: ${formatCommand("opencode", helpCommand)}`,
       `evidence exit: ${String(helpResult.code)}`,
       helpOutput ? `evidence output:\n${helpOutput}` : "evidence output: <empty>"
@@ -1033,8 +1037,8 @@ async function assertOpencodePrototypeCommandSmoke(projectPath) {
     `stderr:\n${helpResult.stderr}`
   ].join("\n"));
 
-  const smokeCommand = ["run", "--dir", projectPath, "--format", "json", "--command", prototypeOpencodeCommandName, "smoke validation"];
-  console.log(`opencode-command-smoke: attempting ${formatCommand("opencode", smokeCommand)}`);
+  const smokeCommand = ["run", "--dir", projectPath, "--format", "json", "--command", commandName, "smoke validation"];
+  console.log(`opencode-command-smoke:${label}: attempting ${formatCommand("opencode", smokeCommand)}`);
   const runResult = await execAllowFailureWithPty("opencode", smokeCommand, repoRoot, {
     timeout: 120_000,
     env: {
@@ -1044,7 +1048,7 @@ async function assertOpencodePrototypeCommandSmoke(projectPath) {
   });
 
   assert(runResult.code === 0, [
-    "OpenCode prototype command smoke failed.",
+    `OpenCode ${label} command smoke failed.`,
     `command: ${formatCommand("opencode", smokeCommand)}`,
     `exit: ${String(runResult.code)}`,
     `stdout:\n${runResult.stdout}`,
@@ -1053,17 +1057,17 @@ async function assertOpencodePrototypeCommandSmoke(projectPath) {
 
   const combinedOutput = [runResult.stdout, runResult.stderr].filter(Boolean).join("\n");
   assert(combinedOutput.trim().length > 0, [
-    "OpenCode prototype command smoke returned no output.",
+    `OpenCode ${label} command smoke returned no output.`,
     `command: ${formatCommand("opencode", smokeCommand)}`
   ].join("\n"));
   assert(!combinedOutput.includes('"type":"error"') && !combinedOutput.includes("Unexpected server error"), [
-    "OpenCode prototype command smoke reported an in-band runtime error.",
+    `OpenCode ${label} command smoke reported an in-band runtime error.`,
     `command: ${formatCommand("opencode", smokeCommand)}`,
     `stdout:\n${runResult.stdout}`,
     `stderr:\n${runResult.stderr}`
   ].join("\n"));
 
-  console.log(`opencode-command-smoke: PASS ${formatCommand("opencode", smokeCommand)}`);
+  console.log(`opencode-command-smoke:${label}: PASS ${formatCommand("opencode", smokeCommand)}`);
 }
 
 async function assertCommandSurface(projectPath, { mode }) {

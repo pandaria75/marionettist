@@ -4,6 +4,12 @@
 
 This document is for people who want to understand why the harness exists and how its main ideas fit together. It avoids implementation details unless they explain a design choice.
 
+Navigation note:
+
+- start from [docs/README.md](./README.md) for the main documentation map
+- use [docs/reference/README.md](./reference/README.md) for stable concept and maintainer references
+- use [docs/advanced/README.md](./advanced/README.md) for workflow-depth topics such as gates, tiers, and slicing
+
 ## 1. Positioning
 
 The harness is a file-based collaboration framework for repositories that use AI agents.
