@@ -21,6 +21,8 @@ Output:
 Requirements:
 - Keep the context pack compact.
 - Include only what is needed for the current coding slice.
+- Include visible gate policy state when available: config `defaultMode`, recommended policy, selected policy, effective policy, and `finalApprovalRequired`.
+- If task-local override is allowed and `selected` is still missing at a decision point, surface the available choices `strict`, `balanced`, and `autonomous` instead of silently defaulting when the task still needs an explicit selection.
 - State allowed modification scope.
 - State forbidden modification scope.
 - State validation commands.

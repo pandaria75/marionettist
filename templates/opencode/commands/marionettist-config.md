@@ -15,3 +15,5 @@ Requirements:
 - Explain the selected workflow in one concise sentence, including any required gate before acting or delegating.
 - Keep the request project-neutral.
 - Do not skip analysis, critic, review, validation, or human-confirmation gates.
+- For non-trivial task intake, surface Marionettist gate policy choices `strict`, `balanced`, and `autonomous`, including config `defaultMode` when available and the recommended policy for the task.
+- If task-local override is allowed, capture the selected task policy explicitly instead of silently defaulting.

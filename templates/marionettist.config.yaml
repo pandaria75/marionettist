@@ -59,6 +59,9 @@ validation:
 gatePolicy:
   defaultMode: "balanced"
   finalApprovalRequired: true
+  # defaultMode is the repository fallback posture for tasks that do not record
+  # a task-local gatePolicy.selected value. An explicit selected mode wins for
+  # that task; recommended modes remain advisory only.
   # When true, a task-local plan or task state may request a different mode
   # than defaultMode, but explicit user instructions still take precedence.
   allowTaskOverride: true

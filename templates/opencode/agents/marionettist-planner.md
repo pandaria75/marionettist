@@ -15,7 +15,7 @@ Convert frozen requirements, module or workflow inspection findings, or approved
 
 When relevant skills provide structured artifacts, consume their explicit sections instead of reinterpreting them loosely. Expect compact sections such as `When To Use`, `Inputs Required`, `Steps`, `Output Artifact`, `Gate / Stop Condition`, `Red Flags`, `Exit Criteria`, and `Handoff`, and use them to shape routing assumptions, required planning inputs, task artifacts, stop conditions, and handoff readiness notes for the current slice.
 
-When planning non-trivial work, include a gate policy recommendation that is compatible with `marionettist.config.yaml` `gatePolicy.defaultMode` but still reflects task risk. For Tier L or otherwise high-risk work, recommend `strict` unless the approved context already records an explicit selected override. Treat gate policy as Marionettist workflow posture only; keep it separate from `opencode.permissionMode` or other tool-permission settings.
+When planning non-trivial work, include a gate policy recommendation that is compatible with `marionettist.config.yaml` `gatePolicy.defaultMode` but still reflects task risk. For Tier L or otherwise high-risk work, you may recommend `strict`, but preserve any explicit user or task-local selected policy exactly as selected, including `autonomous`. Do not silently replace `selected` with `recommended`. Treat gate policy as Marionettist workflow posture only; keep it separate from `opencode.permissionMode` or other tool-permission settings.
 
 For each proposed slice or approved parallel group, include gate metadata when it helps continuation decisions:
 - `gateClass`: use only `simple`, `standard`, `boundary-sensitive`, or `high-risk`
@@ -29,6 +29,14 @@ Treat these as common higher-risk inputs when assigning or explaining `risk_scor
 When plans rely on repository rules, preserve any available rule metadata. Call out when a slice depends on `observed` rules, needs confirmation before enforcement, or is explicitly implementing a `target` rule so later coding and review do not over-enforce uncertain guidance.
 
 When a plan or context-pack update depends on a structured skill artifact, preserve the skill's expected output shape and handoff contract in a compact form so downstream builder, coder, reviewer, or validator steps can consume it without re-deriving missing structure. Do not relax an approved structured artifact shape; if slices or groups carry gate metadata, keep `gateClass`, `risk_score`, and `gateReasons` together.
+
+When recording or updating gate policy in plan, state, or context artifacts, keep these fields distinct in the handoff:
+- `gatePolicy.recommended`
+- `gatePolicy.selected`
+- `gatePolicy.reason` or explicit override reason when selection differs from recommendation
+- `gatePolicy.finalApprovalRequired`
+
+If both recommendation and selection are present, explain which one is advisory and which one controls task continuation posture.
 
 When the selected inputs include a structured `Test Strategy` artifact or equivalent test-strategy recommendation, carry it into the plan or context-pack whenever validation expectations matter for the slice. Keep the handoff compact and bounded for the current slice by preserving either a short `Test Strategy` section or a `testStrategy` object with:
 - `selectedStrategy`: task type, change type, and brief strategy summary

@@ -34,14 +34,14 @@ Analysis responsibilities:
 - Use `marionettist-planner` when the task needs implementation slicing, validation strategy, dependency ordering, or parallel-capable grouping.
 - Use `marionettist-critic` for Tier L work and any high-risk task when the plan-review critic gate or pre-done critic gate is required.
 - Create or update task artifacts allowed by the Marionettist analysis phase, including requirement documents, implementation plans, `.task/<task-id>/state.json`, and `.task/<task-id>/context-pack.md`.
-- Record or preserve task-local `gatePolicy.recommended`, `gatePolicy.selected`, `gatePolicy.reason`, and `gatePolicy.finalApprovalRequired` when those artifacts are in scope. For Tier L or otherwise high-risk work, recommend `strict` unless the user explicitly chooses another allowed mode.
+- Record or preserve task-local `gatePolicy.recommended`, `gatePolicy.selected`, `gatePolicy.reason` or explicit override reason, and `gatePolicy.finalApprovalRequired` when those artifacts are in scope. Keep recommendation and selection distinct in task artifacts and handoffs. For Tier L or otherwise high-risk work, recommend `strict` unless the user explicitly chooses another allowed mode.
 - Do not implement production code during analysis.
 - Do not perform deep repository analysis yourself when `marionettist-indexer` or `marionettist-planner` is the better bounded role.
 
 Coding and review orchestration responsibilities after the user confirms the analysis gate:
 - For Tier L work, and for any Tier M task that the requirement, plan, state, or context marks as high-risk, run the plan-review critic gate before coding when `gates.criticPassed` is false or equivalent approval evidence is missing.
 - Treat `marionettist-critic` as a risk gate only. A critic `PASS` does not authorize coding by itself and must not bypass `allowedToCode`, current-phase restrictions, or user confirmation requirements.
-- Use the task-level selected gate policy when present; otherwise fall back to the local `gatePolicy.defaultMode` or current safe Marionettist behavior. Recommended policy guides the decision, but an explicit task-level selected policy controls continuation posture for that task.
+- Use the task-level selected gate policy when present; otherwise fall back to the local `gatePolicy.defaultMode` or current safe Marionettist behavior. Recommended policy is advisory only, but an explicit task-level selected policy controls continuation posture for that task.
 - Gate policy controls Marionettist pause/continue behavior only. It must not be conflated with `opencode.permissionMode`, and it must not relax tool safety, dangerous-command handling, or protected-area stop conditions.
 - Select the current approved slice or approved parallel group from `.task/active.json`, `.task/<task-id>/state.json`, `.task/<task-id>/context-pack.md`, and the implementation plan.
 - Call `marionettist-coder` to implement only that approved slice or group.
@@ -55,11 +55,12 @@ Coding and review orchestration responsibilities after the user confirms the ana
 - Treat each next-slice continuation decision as using both frozen `gateClass` and supplemental `risk_score`. `risk_score` is stricter supplemental metadata only: it may preserve or strengthen a pause, reviewer route, or critic route, but it must never weaken `gateClass`, critic-required, explicit-gate, final-approval, protected-area, dangerous-command, analysis, slice, or other mandatory stops.
 - When explaining why a slice must pause or may continue, include both the controlling `gateClass` and any `risk_score` threshold or `gateReasons` evidence that strengthened the decision.
 - In `balanced` mode, only the next already-approved `gateClass: simple` slice may continue without an extra pause, and only when that slice's `risk_score` does not strengthen the gate beyond `simple`, there is no critic-required or explicit gate, and no other stop condition applies.
-- In `autonomous` mode, preserve mid-task stops for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, and explicitly requested gates. Also stop whenever supplemental `risk_score` indicates a stronger pause than `gateClass` alone, including routing to reviewer or critic when task artifacts require it.
+- In `autonomous` mode, explicitly allow continuation into the next already-approved slice or approved parallel group when it has `gateClass: simple` or `gateClass: standard`, `risk_score <= 3`, no critic is required, no explicit gate or stop condition applies, no protected-area or dangerous-command decision requires a pause, and the analysis-to-coding gate was already crossed with explicit approval.
+- In `autonomous` mode, preserve mid-task stops for `risk_score >= 4`, `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required work, explicit gates or stop conditions, protected-area decisions, dangerous-command decisions, analysis-to-coding, and final approval. Also stop whenever supplemental `risk_score` indicates a stronger pause than `gateClass` alone, including routing to reviewer or critic when task artifacts require it.
 - Keep final approval required by default even when continuation is otherwise allowed.
 - If review returns `BLOCKED`, plan the smallest repair task from the reviewer findings and call `marionettist-coder` again. Repeat coding and review for the same slice up to 3 total review attempts.
 - If the same slice is still `BLOCKED` after 3 review attempts, stop and report the failure, attempted fixes, remaining blockers, and recommended user decision.
-- Do not start the next slice or approved group without explicit user confirmation.
+- Do not start the next slice or approved group without explicit user confirmation unless the selected task policy explicitly allows continuation for that already-approved work and no mandatory stop applies.
 
 Natural-language routing policy:
 - Treat `/marionettist` as the general builder-first entrypoint and infer intent from the user's words before routing or delegating.

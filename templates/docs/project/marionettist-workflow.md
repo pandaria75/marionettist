@@ -12,7 +12,7 @@ This project uses a branched Marionettist workflow based on task complexity:
 2. **Tier M (Standard)**: Analysis plus task-scoped `.task/<task-id>/context-pack.md` before coding. `requirement-freezer` is optional and only used when behavior or business rules are unclear.
 3. **Tier L (Complex)**: Full mandatory Marionettist flow with analysis, approved slice execution, automatic slice review, and finalization.
 
-For Tier M and L, the agent must complete phases in order and must not automatically cross analysis or inter-slice gates.
+For Tier M and L, the agent must complete phases in order. They must not automatically cross the analysis gate, and they must not automatically cross an inter-slice gate unless the selected gate policy explicitly permits that continuation and no mandatory stop applies.
 
 Critic defaults by tier are:
 - **Tier S**: no critic by default
@@ -38,11 +38,19 @@ Mode semantics:
 
 - `strict`: stop at the analysis-to-coding gate and after every approved coding slice or approved parallel group.
 - `balanced`: preserve the analysis gate and final approval by default; allow continuation only for already-approved slices whose frozen `gateClass` and supplemental `risk_score` do not require a stronger stop, and only when the approved plan and selected policy explicitly permit that continuation.
-- `autonomous`: preserve the analysis gate and final approval by default; stop mid-task for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, explicitly requested gates, or any slice whose supplemental `risk_score` requires a stronger pause than `gateClass` alone.
+- `autonomous`: preserve the analysis gate and final approval by default; allow continuation only for already-approved next slices or approved parallel groups whose frozen `gateClass` is `simple` or `standard`, whose supplemental `risk_score` is `3` or lower, and for which no mandatory stop applies; still stop mid-task for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, explicit gates or stop conditions, protected-area or dangerous-command work, or any slice whose supplemental `risk_score` requires a stronger pause than `gateClass` alone.
 
 `allowTaskOverride: true` means task-local artifacts may choose a different gate mode than `defaultMode` for that task. It does not let task-local artifacts bypass higher-priority user instructions, required analysis gates, required final approval, or any other explicit stop condition in this workflow.
 
 Selecting a task-local override is a policy choice for that task, not a bypass of required gates. A task may become more or less interruption-tolerant within the allowed workflow, but it must still stop wherever this workflow or the user explicitly requires a stop.
+
+Policy precedence for the current task is:
+
+1. explicit user instruction and task-local `gatePolicy.selected`
+2. `marionettist.config.yaml` `gatePolicy.defaultMode` as fallback when no task-local selection exists
+3. `recommended` values from tier hints or task artifacts as advisory context only
+
+In other words, `defaultMode` sets repository default posture, not an override of a selected task policy. A `recommended` value may explain why `strict` is safer for a task, but it must not replace an explicit task-local `selected` mode.
 
 Template default is `balanced` for general target-project usability. Tier L or otherwise high-risk tasks should recommend `strict` unless the user explicitly chooses a different policy.
 
@@ -82,6 +90,16 @@ Treat these as common higher-risk inputs when assigning or explaining `risk_scor
 - production configuration
 
 In `balanced` mode, continuation remains limited to already-approved slices whose frozen `gateClass` and supplemental `risk_score` both support continuation, and only when no explicit gate reason or task instruction requires a pause.
+
+In selected `autonomous` mode, continuation to the next already-approved slice or approved parallel group is allowed without extra slice confirmation only when all of the following are true:
+
+- the next approved work has frozen `gateClass: simple` or `gateClass: standard`
+- the next approved work has `risk_score <= 3`
+- the next approved work is not critic-required
+- no explicit gate reason or stop condition requires a pause
+- no protected-area decision or dangerous command requires a pause
+
+Selected `autonomous` never weakens mandatory stops. The workflow must still pause for the analysis-to-coding gate, final approval when required, `gateClass: boundary-sensitive`, `gateClass: high-risk`, critic-required work, explicit gates or stop conditions, protected-area or dangerous-command decisions, and any approved work with `risk_score >= 4`.
 
 ## Tier Policy And Future Workflow Configuration
 
@@ -249,11 +267,13 @@ When the current coding slice is complete, the agent must automatically perform 
 
 For Tier L or high-risk work, the agent should also run the pre-done critic gate after coding and review, then include the result in the slice or final summary.
 
-When the current approved work is a parallel slice group, the agent must stop only after the whole approved group is complete, merged, validated, and reviewed, then wait for explicit user confirmation before the next slice or group.
+When the current approved work is a parallel slice group, the agent must stop only after the whole approved group is complete, merged, validated, and reviewed, then wait for explicit user confirmation before the next slice or group unless the selected gate policy explicitly allows continuation for the next already-approved slice or group and no mandatory stop applies.
 
 If review fails for the current slice or group, the agent may plan the smallest slice-local fix, apply it, and re-run review. Stop for user decision if the same slice or group is still blocked after 3 total review attempts.
 
 When all approved coding slices and groups are complete, the agent must stop with a final validation and review summary.
+
+Even in selected `autonomous`, completing one slice never authorizes unapproved future work. Continuation applies only to the next already-approved slice or approved parallel group that remains eligible under the mandatory-stop rules above.
 
 Validation levels are:
 - slice validation: checks the current slice only
@@ -284,7 +304,7 @@ Humans must confirm blocking business questions, scope tradeoffs, protected-area
 
 The agent must also stop at these Marionettist gates:
 - after the analysis phase is complete, before coding starts
-- after each coding slice or approved parallel group has completed coding and review, before the next slice or group starts
+- after each coding slice or approved parallel group has completed coding and review, before the next slice or group starts, unless the selected gate policy explicitly allows continuation for the next already-approved slice or group and no mandatory stop applies
 
 Do not stop between small analysis steps such as intake, requirement freezing, inspection, slicing, and context-pack creation. Do not stop for temporary implementation substeps inside a coding slice, such as file batches, local test fixes, or slice-local refactoring.
 
@@ -306,7 +326,7 @@ The final line must be exactly:
 
 ## Priority Rule
 
-This Marionettist workflow overrides any general default behavior that would otherwise continue automatically from analysis to coding or from one coding slice to the next. Coding may continue automatically into review only for the currently approved slice or group.
+This Marionettist workflow overrides any general default behavior that would otherwise continue automatically from analysis to coding or from one coding slice to the next. Coding may continue automatically into review only for the currently approved slice or group. Inter-slice continuation depends on the selected task policy and still cannot bypass any mandatory stop.
 
 If instructions conflict, the agent must follow the Marionettist gates unless the user explicitly overrides them.
 
@@ -316,7 +336,7 @@ A task is Tier S only if it is a single low-risk change with clear scope, no bou
 
 ## Agent Automation
 
-Repository agents may inspect files, classify questions, write task docs, build context packs, slice implementation work, apply scoped code changes, run validation commands, and review diffs against allowed scope within the currently confirmed phase. They must not automatically cross from analysis to coding or from one coding slice or group to the next. They may automatically cross from coding into review only for the current approved slice or group.
+Repository agents may inspect files, classify questions, write task docs, build context packs, slice implementation work, apply scoped code changes, run validation commands, and review diffs against allowed scope within the currently confirmed phase. They must not automatically cross from analysis to coding. They must not automatically cross from one coding slice or group to the next unless the selected gate policy explicitly allows continuation and no mandatory stop applies. They may automatically cross from coding into review only for the current approved slice or group.
 
 ## Agent Capability And Parallel Fallback
 

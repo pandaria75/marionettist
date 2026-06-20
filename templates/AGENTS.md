@@ -144,9 +144,11 @@ For non-trivial work, the default Marionettist flow is:
 When `marionettist.config.yaml` defines `gatePolicy`, use it as the local default gate posture:
 - `strict`: stop at the analysis-to-coding gate and after every approved coding slice or approved parallel group
 - `balanced`: preserve the analysis gate and final approval by default; allow continuation only for already-approved slices whose frozen `gateClass` and supplemental `risk_score` do not require a stronger stop, and only when the approved plan and current policy explicitly permit that continuation
-- `autonomous`: preserve the analysis gate and final approval by default; stop mid-task for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, explicitly requested gates, or any slice whose supplemental `risk_score` requires a stronger pause than `gateClass` alone
+- `autonomous`: preserve the analysis gate and final approval by default; allow continuation only for already-approved next slices or approved parallel groups whose frozen `gateClass` is `simple` or `standard`, whose supplemental `risk_score` is `3` or lower, and for which no mandatory stop applies; still stop mid-task for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, explicit gates or stop conditions, protected-area or dangerous-command work, or any slice whose supplemental `risk_score` requires a stronger pause than `gateClass` alone
 
 Template default is `gatePolicy.defaultMode: balanced` for general usability, but Tier L or otherwise high-risk work should recommend `strict` unless the user explicitly chooses a different policy.
+
+When task-local artifacts record `gatePolicy.selected`, that selected mode wins for the current task over `gatePolicy.defaultMode`. Treat `defaultMode` as fallback posture only when no task-local selection exists. Treat `recommended` values from tier hints or task artifacts as advisory only; they must not override an explicit selected mode.
 
 If `.marionettist/tier-policy.yml` provides `gateHint`, treat it as advisory classification context only. It must not replace `gatePolicy.defaultMode`, the selected task-local gate mode, or any required human-confirmation stop.
 
@@ -158,7 +160,7 @@ If a user asks to change Tier policy in natural language, route that through the
 
 If Tier-policy fields use unknown or unsupported ordered-field values, explain the uncertainty conservatively and keep safer workflow behavior. Stricter rejection for those cases is deferred future hardening, not current MVP behavior.
 
-If `gatePolicy.allowTaskOverride` is true, task-local artifacts may select a different mode than `gatePolicy.defaultMode` for that task; this changes the default posture for the task, not the higher-priority requirement for explicit user confirmation where this workflow already requires it.
+If `gatePolicy.allowTaskOverride` is true, task-local artifacts may select a different mode than `gatePolicy.defaultMode` for that task; when they do, `gatePolicy.selected` becomes the active mode for that task. This changes the task's default posture, not the higher-priority requirement for explicit user confirmation where this workflow already requires it.
 
 For this workflow, the `gateClass` vocabulary is intentionally frozen to `simple`, `standard`, `boundary-sensitive`, and `high-risk`.
 
@@ -171,7 +173,7 @@ For bug fixes, the analysis phase is complete once a failing test case or clear 
 After the analysis phase is complete, the agent must stop and wait for explicit user confirmation before entering coding, except for Tier S.
 During slice execution, the agent may proceed directly from coding into review for the same approved slice or group without a separate user confirmation.
 If review fails for the current slice or group, the agent may plan and apply the smallest slice-local fix and re-run review up to 3 total review attempts before pausing for user decision.
-After each implementation-plan slice or approved parallel group passes review or exhausts the allowed retry attempts, the agent must stop and wait for explicit user confirmation before starting the next slice or group.
+After each implementation-plan slice or approved parallel group passes review or exhausts the allowed retry attempts, the agent must stop and wait for explicit user confirmation before starting the next slice or group, unless the selected gate policy explicitly allows continuation for the next already-approved slice or group and no mandatory stop applies.
 Having task-scoped `.task/<task-id>/context-pack.md` means the agent may skip repeated intake or analysis work when appropriate; it does not authorize automatic entry into coding.
 
 ## Marionettist Gates
@@ -183,6 +185,20 @@ The agent MUST NOT cross these gates without explicit user confirmation:
 - after each coding slice or approved parallel group has completed coding and review, before the next slice or group starts, unless the selected gate policy explicitly allows continuation for the next already-approved slice and that slice's frozen `gateClass`, supplemental `risk_score`, critic requirements, and explicit gate reasons do not require a stronger pause
 
 By default, final approval remains required even when the selected gate policy is `balanced` or `autonomous`.
+
+For continuation decisions, apply policy precedence in this order:
+1. explicit user instruction and task-local `gatePolicy.selected` for the current task
+2. repository `gatePolicy.defaultMode` as fallback when no task-local selection exists
+3. `recommended` values from tier hints or task artifacts as advisory context only
+
+Under selected `autonomous`, the agent may continue to the next already-approved slice or approved parallel group without extra slice confirmation only when all of the following are true:
+- the next approved work has frozen `gateClass: simple` or `gateClass: standard`
+- the next approved work has `risk_score <= 3`
+- no critic is required for that next approved work
+- no explicit gate reason, stop condition, protected-area decision, or dangerous command requires a pause
+- the analysis-to-coding gate has already been crossed with explicit approval
+
+Selected `autonomous` never removes mandatory stops for the analysis-to-coding gate, final approval when required, `gateClass: boundary-sensitive`, `gateClass: high-risk`, critic-required work, explicit gates or stop conditions, protected-area or dangerous-command decisions, or any approved work with `risk_score >= 4`.
 
 At every Marionettist gate, the agent must stop and report:
 - current phase

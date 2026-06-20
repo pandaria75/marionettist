@@ -38,8 +38,10 @@ Use the local task date for `<yyyy-MM-dd>`, for example `.task/2026-04-28/`.
 For fast-path tasks:
 1. Summarize the current task state.
 2. Identify the next required Marionettist step.
-3. Route directly to that step.
-4. Ask only blocking questions needed for routing.
+3. Check and report existing gate policy state, including any visible `gatePolicy.selected`, config default, or effective task policy, instead of skipping policy state entirely.
+4. If the task is resuming non-trivial work and policy selection is missing or ambiguous, ask only the blocking question needed to confirm the effective task policy when override is allowed.
+5. Route directly to that step.
+6. Ask only blocking questions needed for routing.
 
 ## Steps
 
@@ -53,16 +55,19 @@ For fast-path tasks:
    - review
    - investigation
    - build/deployment
-4. Recommend an initial gate policy for the task:
-   - `strict` for existing Marionettist Tier L, high-risk, workflow-sensitive, or boundary-sensitive work
-   - `balanced` for most existing Marionettist Tier M work with clear approved slices
+4. Read `marionettist.config.yaml` gate policy defaults when present, especially `gatePolicy.defaultMode` and whether task-local override is allowed.
+5. Explain the available gate policy choices for the task:
+   - `strict` for the most pause-heavy posture, especially for existing Marionettist Tier L, high-risk, workflow-sensitive, or boundary-sensitive work
+   - `balanced` for the normal middle posture for many non-trivial tasks with clear approved slices
    - `autonomous` only when the task is already well-bounded, validation is clear, and fewer mid-task pauses are acceptable
-5. Explain that a task-local policy override changes the task's default gate posture only. It does not bypass required analysis gates, final approval by default, or any other explicit stop condition.
-6. Ask only the minimum blocking questions required to choose the next workflow.
-7. Do not implement code.
-8. Do not create large documents unless the task requires them.
-9. For non-trivial new tasks, create a dated task directory and point `.task/active.json` to it.
-10. Route to the correct next skill or workflow.
+6. Recommend an initial gate policy for the task based on risk and workflow sensitivity, but make clear the recommendation is advisory rather than controlling.
+7. Explain that a task-local gate policy selection changes only the task's gate posture. It does not bypass required analysis gates, critic-required routing, final approval by default, explicit stops, protected or dangerous command stops, or `risk_score >= 4` stops.
+8. For non-trivial new tasks, ask for and capture the selected task gate policy when task-local override is allowed. If no explicit selection is provided, record the default or effective task policy instead of leaving policy state implicit.
+9. Ask only the minimum blocking questions required to choose the next workflow.
+10. Do not implement code.
+11. Do not create large documents unless the task requires them.
+12. For non-trivial new tasks, create a dated task directory and point `.task/active.json` to it.
+13. Route to the correct next skill or workflow.
 
 ## Questions To Ask
 
@@ -146,7 +151,7 @@ Use:
 
 ## Output Artifact
 
-- A compact intake result that captures task type, current understanding, gate policy recommendation, blocking questions, assumptions, and the recommended next step
+- A compact intake result that captures task type, current understanding, gate policy recommendation, gate policy selection or effective default, blocking questions, assumptions, and the recommended next step
 - Task artifacts only when the task requires initialization or the caller asks for them
 
 ## Output Format
@@ -158,7 +163,15 @@ Use:
 
 ## Current Understanding
 
-## Recommended Gate Policy
+## Gate Policy
+
+- config/default:
+- allowTaskOverride:
+- recommended:
+- selected:
+- reason or override reason:
+- effective:
+- finalApprovalRequired:
 
 ## Blocking Questions
 
@@ -176,10 +189,13 @@ Use:
 - Do not generate full implementation plans directly.
 - Keep the intake lightweight.
 - Prefer repository evidence over asking the user when possible.
-- Recommend a gate policy at task start for non-trivial work.
+- Recommend a gate policy at task start for non-trivial work, but keep the recommendation advisory.
+- Record gate policy state for non-trivial work even on fast path; do not leave selected/default/effective policy implicit when the evidence is available.
 - Treat Tier L / Tier M references here as existing Marionettist task classification guidance only, not as a configurable tier-policy mapping.
 - Preserve final approval by default unless higher-priority instructions explicitly change it.
 - Treat task override as policy selection, not as permission to bypass required gates.
+- Keep Marionettist gate policy separate from OpenCode permission settings.
+- Do not imply that autonomous bypasses analysis, critic-required review, final approval, explicit stops, protected or dangerous command handling, or `risk_score >= 4` pauses.
 
 ## Gate / Stop Condition
 
@@ -198,8 +214,9 @@ Use:
 - The next Marionettist step is identified
 - Blocking questions are minimized and explicit
 - Recommended gate policy is stated for non-trivial work
+- Selected/default/effective gate policy state is captured for non-trivial work
 - The task is routed without implementing code
 
 ## Handoff
 
-- Send the task to the next skill with the intake result, task type, known scope, open blocking questions, and any task-local gate policy selection
+- Send the task to the next skill with the intake result, task type, known scope, open blocking questions, and the recorded gate policy state, including recommended, selected, reason or override reason, and effective policy when available

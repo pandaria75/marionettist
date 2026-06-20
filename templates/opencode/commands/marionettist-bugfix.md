@@ -23,6 +23,8 @@ $5
 Requirements:
 - First decide whether `workflow-inspector` or `module-inspector` is needed.
 - Create a dated task directory for non-trivial work and point `.task/active.json` to it.
+- When intaking non-trivial work, surface Marionettist gate policy choices `strict`, `balanced`, and `autonomous`, including config `gatePolicy.defaultMode` when available, the recommended policy, and any allowed task-local selection.
+- If task-local override is allowed, capture `gatePolicy.selected` distinctly from the default and recommendation instead of silently defaulting.
 - Use `marionettist-indexer` for repository, docs, rules, knowledge, boundary, or call-path exploration when evidence is incomplete.
 - Use `marionettist-planner` only when the bugfix needs an implementation slice, validation strategy, or context-pack planning.
 - Do not use `requirement-freezer` by default.

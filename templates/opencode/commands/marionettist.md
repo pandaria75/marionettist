@@ -14,5 +14,7 @@ Requirements:
 - Explain the selected workflow in one concise sentence, including any required gate before acting or delegating.
 - Ask only minimal clarifying questions when ambiguity blocks safe progress.
 - Keep the command project-neutral and preserve normal Marionettist gates.
+- When starting or intaking non-trivial work, surface Marionettist gate policy choices separately from OpenCode permissions: report config `gatePolicy.defaultMode` when available, the recommended policy for the task, and the available choices `strict`, `balanced`, and `autonomous`.
+- If task-local gate-policy override is allowed, capture the user's selected policy for the task instead of silently defaulting; record recommended versus selected distinctly.
 
 Supported intent examples include development, bugfix, incident, docs, config, review, validation, status, continuation, and context-pack requests.

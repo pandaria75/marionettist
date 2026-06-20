@@ -9,6 +9,8 @@ $ARGUMENTS
 
 Follow the current repository Marionettist workflow.
 Analyze boundaries and workflow impact first.
+When intaking non-trivial work, surface Marionettist gate policy choices `strict`, `balanced`, and `autonomous`, including config `gatePolicy.defaultMode` when available, the recommended policy, and any allowed task-local selection.
+If task-local override is allowed, capture `gatePolicy.selected` distinctly from the default and recommendation instead of silently defaulting.
 Use `marionettist-indexer` for ownership, docs, rules, and call-path exploration.
 Use `marionettist-planner` to create small implementation slices and validation strategy after scope is clear.
 Do not code directly.
