@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  // Auto-enabled by harness --with-opencode so repositories can install a
+  // Auto-enabled by marionettist --with-opencode so repositories can install a
   // local OpenCode pathway plugin prototype without requiring global user config.
   "plugin": {{OPENCODE_PLUGIN_ARRAY}}
 }

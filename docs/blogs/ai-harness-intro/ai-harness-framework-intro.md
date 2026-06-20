@@ -2,6 +2,8 @@
 
 > 不是新工具，是一套让 AI agent 老实干活的方法论。
 
+> 历史说明：本文保留了发布当时的 harness-era 命名（如 `harness`、`harness-builder`、`/harness-*`）作为历史记录。当前产品命名已迁移到 `marionettist` / `mari`。
+
 ---
 
 ![封面图](images/cover_image.png)

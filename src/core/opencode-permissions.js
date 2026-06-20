@@ -16,216 +16,216 @@ const permissionModeWarnings = {
 
 const permissionPolicies = {
   default: {
-    "harness-builder": {
+    "marionettist-builder": {
       edit: "allow",
       bash: "allow",
       webfetch: "allow",
       task: {
         "*": "deny",
-        "harness-indexer": "allow",
-        "harness-planner": "allow",
-        "harness-critic": "allow",
-        "harness-coder": "allow",
-        "harness-reviewer": "allow",
-        "harness-validator": "allow"
+        "marionettist-indexer": "allow",
+        "marionettist-planner": "allow",
+        "marionettist-critic": "allow",
+        "marionettist-coder": "allow",
+        "marionettist-reviewer": "allow",
+        "marionettist-validator": "allow"
       }
     },
-    "harness-planner": {
+    "marionettist-planner": {
       edit: "allow",
       bash: "allow",
       webfetch: "ask",
       task: "deny"
     },
-    "harness-coder": {
+    "marionettist-coder": {
       edit: "allow",
       bash: "allow",
       webfetch: "ask",
       task: {
         "*": "deny",
-        "harness-indexer": "allow",
-        "harness-validator": "allow"
+        "marionettist-indexer": "allow",
+        "marionettist-validator": "allow"
       }
     },
-    "harness-reviewer": {
+    "marionettist-reviewer": {
       edit: "deny",
       bash: "allow",
       webfetch: "ask",
       task: {
         "*": "deny",
-        "harness-indexer": "allow",
-        "harness-validator": "allow"
+        "marionettist-indexer": "allow",
+        "marionettist-validator": "allow"
       }
     },
-    "harness-critic": {
+    "marionettist-critic": {
       edit: "deny",
       bash: "allow",
       webfetch: "ask",
       task: {
         "*": "deny",
-        "harness-indexer": "allow",
-        "harness-validator": "allow"
+        "marionettist-indexer": "allow",
+        "marionettist-validator": "allow"
       }
     },
-    "harness-indexer": {
+    "marionettist-indexer": {
       edit: "deny",
       bash: "allow",
       webfetch: "ask",
       task: "deny"
     },
-    "harness-validator": {
+    "marionettist-validator": {
       edit: "deny",
       bash: "allow",
       webfetch: "deny",
       task: {
         "*": "deny",
-        "harness-indexer": "allow"
+        "marionettist-indexer": "allow"
       }
     }
   },
   moderate: {
-    "harness-builder": {
+    "marionettist-builder": {
       edit: "allow",
       bash: "allow",
       webfetch: "allow",
       task: {
         "*": "deny",
-        "harness-indexer": "allow",
-        "harness-planner": "allow",
-        "harness-critic": "allow",
-        "harness-coder": "allow",
-        "harness-reviewer": "allow",
-        "harness-validator": "allow"
+        "marionettist-indexer": "allow",
+        "marionettist-planner": "allow",
+        "marionettist-critic": "allow",
+        "marionettist-coder": "allow",
+        "marionettist-reviewer": "allow",
+        "marionettist-validator": "allow"
       }
     },
-    "harness-planner": {
+    "marionettist-planner": {
       edit: "allow",
       bash: "allow",
       webfetch: "allow",
       task: "deny"
     },
-    "harness-coder": {
+    "marionettist-coder": {
       edit: "allow",
       bash: "allow",
       webfetch: "allow",
       task: {
         "*": "deny",
-        "harness-indexer": "allow",
-        "harness-validator": "allow"
+        "marionettist-indexer": "allow",
+        "marionettist-validator": "allow"
       }
     },
-    "harness-reviewer": {
+    "marionettist-reviewer": {
       edit: "deny",
       bash: "allow",
       webfetch: "allow",
       task: {
         "*": "deny",
-        "harness-indexer": "allow",
-        "harness-validator": "allow"
+        "marionettist-indexer": "allow",
+        "marionettist-validator": "allow"
       }
     },
-    "harness-critic": {
+    "marionettist-critic": {
       edit: "deny",
       bash: "allow",
       webfetch: "allow",
       task: {
         "*": "deny",
-        "harness-indexer": "allow",
-        "harness-validator": "allow"
+        "marionettist-indexer": "allow",
+        "marionettist-validator": "allow"
       }
     },
-    "harness-indexer": {
+    "marionettist-indexer": {
       edit: "deny",
       bash: "allow",
       webfetch: "allow",
       task: "deny"
     },
-    "harness-validator": {
+    "marionettist-validator": {
       edit: "deny",
       bash: "allow",
       webfetch: "deny",
       task: {
         "*": "deny",
-        "harness-indexer": "allow"
+        "marionettist-indexer": "allow"
       }
     }
   },
   loose: {
-    "harness-builder": {
+    "marionettist-builder": {
       edit: "allow",
       bash: "allow",
       webfetch: "allow",
       task: {
         "*": "deny",
-        "harness-indexer": "allow",
-        "harness-planner": "allow",
-        "harness-critic": "allow",
-        "harness-coder": "allow",
-        "harness-reviewer": "allow",
-        "harness-validator": "allow"
+        "marionettist-indexer": "allow",
+        "marionettist-planner": "allow",
+        "marionettist-critic": "allow",
+        "marionettist-coder": "allow",
+        "marionettist-reviewer": "allow",
+        "marionettist-validator": "allow"
       }
     },
-    "harness-planner": {
+    "marionettist-planner": {
       edit: "allow",
       bash: "allow",
       webfetch: "allow",
       task: "deny"
     },
-    "harness-coder": {
+    "marionettist-coder": {
       edit: "allow",
       bash: "allow",
       webfetch: "allow",
       task: {
         "*": "deny",
-        "harness-indexer": "allow",
-        "harness-validator": "allow"
+        "marionettist-indexer": "allow",
+        "marionettist-validator": "allow"
       }
     },
-    "harness-reviewer": {
+    "marionettist-reviewer": {
       edit: "deny",
       bash: "allow",
       webfetch: "allow",
       task: {
         "*": "deny",
-        "harness-indexer": "allow",
-        "harness-validator": "allow"
+        "marionettist-indexer": "allow",
+        "marionettist-validator": "allow"
       }
     },
-    "harness-critic": {
+    "marionettist-critic": {
       edit: "deny",
       bash: "allow",
       webfetch: "allow",
       task: {
         "*": "deny",
-        "harness-indexer": "allow",
-        "harness-validator": "allow"
+        "marionettist-indexer": "allow",
+        "marionettist-validator": "allow"
       }
     },
-    "harness-indexer": {
+    "marionettist-indexer": {
       edit: "deny",
       bash: "allow",
       webfetch: "allow",
       task: "deny"
     },
-    "harness-validator": {
+    "marionettist-validator": {
       edit: "deny",
       bash: "allow",
       webfetch: "ask",
       task: {
         "*": "deny",
-        "harness-indexer": "allow"
+        "marionettist-indexer": "allow"
       }
     }
   }
 };
 
 const renderVariableNames = new Map([
-  ["harness-builder", "opencodePermissionBlockHarnessBuilder"],
-  ["harness-planner", "opencodePermissionBlockHarnessPlanner"],
-  ["harness-coder", "opencodePermissionBlockHarnessCoder"],
-  ["harness-reviewer", "opencodePermissionBlockHarnessReviewer"],
-  ["harness-critic", "opencodePermissionBlockHarnessCritic"],
-  ["harness-indexer", "opencodePermissionBlockHarnessIndexer"],
-  ["harness-validator", "opencodePermissionBlockHarnessValidator"]
+  ["marionettist-builder", "opencodePermissionBlockHarnessBuilder"],
+  ["marionettist-planner", "opencodePermissionBlockHarnessPlanner"],
+  ["marionettist-coder", "opencodePermissionBlockHarnessCoder"],
+  ["marionettist-reviewer", "opencodePermissionBlockHarnessReviewer"],
+  ["marionettist-critic", "opencodePermissionBlockHarnessCritic"],
+  ["marionettist-indexer", "opencodePermissionBlockHarnessIndexer"],
+  ["marionettist-validator", "opencodePermissionBlockHarnessValidator"]
 ]);
 
 export const opencodePermissionPolicyModes = Object.freeze(Object.keys(permissionPolicies));

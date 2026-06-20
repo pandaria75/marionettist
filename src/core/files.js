@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-export const backupsRootRelative = ".harness/backups";
+export const backupsRootRelative = ".marionettist/backups";
 
 export async function pathExists(filePath) {
   try {

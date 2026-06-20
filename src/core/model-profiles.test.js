@@ -12,7 +12,7 @@ import {
 } from "./model-profiles.js";
 
 async function withTempProject(testContext, callback) {
-  const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), "harness-model-profiles-test-"));
+  const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), "marionettist-model-profiles-test-"));
   testContext.after(async () => {
     await fs.rm(projectPath, { recursive: true, force: true });
   });
@@ -21,8 +21,8 @@ async function withTempProject(testContext, callback) {
 
 test("loadModelProfilesState resolves profile defaults and agent overrides deterministically", async (t) => {
   await withTempProject(t, async (projectPath) => {
-    await fs.mkdir(path.join(projectPath, ".harness"), { recursive: true });
-    await fs.writeFile(path.join(projectPath, ".harness", "model-profiles.yml"), [
+    await fs.mkdir(path.join(projectPath, ".marionettist"), { recursive: true });
+    await fs.writeFile(path.join(projectPath, ".marionettist", "model-profiles.yml"), [
       "profiles:",
       "  think:",
       "    default: \"project/think\"",
@@ -68,7 +68,7 @@ test("loadModelProfilesState resolves profile defaults and agent overrides deter
   });
 });
 
-test("loadModelProfilesState preserves legacy harness.config model profile defaults while ignoring fallback keys", async (t) => {
+test("loadModelProfilesState does not fall back to legacy harness.config model profiles", async (t) => {
   await withTempProject(t, async (projectPath) => {
     await fs.writeFile(path.join(projectPath, "harness.config.yaml"), [
       "models:",
@@ -85,14 +85,10 @@ test("loadModelProfilesState preserves legacy harness.config model profile defau
 
     const state = await loadModelProfilesState(projectPath);
 
-    assert.equal(state.source, "legacy");
-    assert.equal(state.effectiveProfiles.build.default, "legacy/build");
-    assert.equal(state.effectiveProfiles.build.temperature, 0.6);
-    assert.deepEqual(resolveAgentModelConfig(state.effectiveProfiles, "build", "harness-coder"), {
-      model: "legacy/build",
-      temperature: 0.2
-    });
-    assert.equal(resolveAgentModelConfig(state.effectiveProfiles, "build", "harness-builder").model, "legacy/build");
+    assert.equal(state.source, "framework");
+    assert.equal(state.legacyProfiles, null);
+    assert.notEqual(state.effectiveProfiles.build.default, "legacy/build");
+    assert.notEqual(resolveAgentModelConfig(state.effectiveProfiles, "build", "harness-coder").model, "legacy/build");
   });
 });
 

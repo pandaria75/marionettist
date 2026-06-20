@@ -1,6 +1,6 @@
 # Project Agent Guide
 
-<!-- harness-kit:start -->
+<!-- marionettist-kit:start -->
 
 ## Purpose
 
@@ -35,7 +35,7 @@ Do not silently upgrade `observed` or `target` rules into stronger constraints.
 
 - `docs/**/*.md` contains project knowledge, architecture explanations, workflow notes, and boundary context.
 - `docs/project/knowledge-map.md` routes agents to relevant project knowledge.
-- `harness.config.yaml` may define `knowledge.mode` and `knowledge.maturity` for local documentation posture.
+- `marionettist.config.yaml` may define `knowledge.mode` and `knowledge.maturity` for local documentation posture.
 
 Do not treat knowledge sources as stronger than constraint sources.
 
@@ -45,7 +45,7 @@ Docs are read on demand. Do not load all docs by default.
 
 Use `docs/project/knowledge-map.md` as a routing guide, not as a code index or a reason to load all docs.
 
-When `harness.config.yaml` exists, read `knowledge.mode` and `knowledge.maturity` early and scale documentation depth, routing strictness, and governance expectations accordingly.
+When `marionettist.config.yaml` exists, read `knowledge.mode` and `knowledge.maturity` early and scale documentation depth, routing strictness, and governance expectations accordingly.
 
 Knowledge maturity guidance:
 
@@ -98,14 +98,14 @@ Use available IDE tools, MCP tools, local search, or direct source inspection fo
 
 Use `task-intake` as the default entrypoint for non-trivial repository tasks. Use it to classify the task into one of the following tiers:
 
-When `.harness/tier-policy.yml` exists, use it as project-local guidance for Tier descriptions, match-rule language, workflow hints, review hints, and model-profile hints. Keep the executable workflow and all gate behavior anchored to `docs/project/harness-workflow.md` and `harness.config.yaml` `gatePolicy`.
+When `.marionettist/tier-policy.yml` exists, use it as project-local guidance for Tier descriptions, match-rule language, workflow hints, review hints, and model-profile hints. Keep the executable workflow and all gate behavior anchored to `docs/project/marionettist-workflow.md` and `marionettist.config.yaml` `gatePolicy`.
 
 - **Tier S (Minor)**: Extremely limited scope such as a typo, comment tweak, or one-file low-risk fix.
   - *Flow*: Skip `.task/` documents and analysis skills. Proceed directly to coding, followed by review.
 - **Tier M (Standard)**: Small features, bugfixes, refactors, or documentation tasks with clear scope but more than trivial risk.
   - *Flow*: Analysis plus task-scoped `.task/<task-id>/context-pack.md`. `requirement-freezer` is optional and only used when behavior or business rules are unclear.
 - **Tier L (Complex)**: Large features, sensitive refactors, multi-module work, workflow-sensitive changes, or tasks with boundary ambiguity.
-  - *Flow*: Full harness flow (intake -> freezer when needed -> inspection -> slicer -> context-pack).
+  - *Flow*: Full Marionettist flow (intake -> freezer when needed -> inspection -> slicer -> context-pack).
 
 Use `task-intake` when:
 - a new feature starts
@@ -115,7 +115,7 @@ Use `task-intake` when:
 - a documentation task starts
 - the task type or scope is unclear
 - the user provides only natural-language requirements
-- the harness flow has not started yet for the current task
+- the Marionettist flow has not started yet for the current task
 - the user does not already provide a current approved slice or task artifact
 
 Skip `task-intake` when:
@@ -132,29 +132,29 @@ After `task-intake`, route by task type:
 - refactor -> module/workflow inspection -> implementation-slicer -> context-pack-builder -> coding -> boundary-reviewer
 - documentation -> workspace-knowledge-manager or direct docs update flow
 
-## Harness Workflow
+## Marionettist Workflow
 
-Read `docs/project/harness-workflow.md` for the detailed workflow.
+Read `docs/project/marionettist-workflow.md` for the detailed workflow.
 
-For non-trivial work, the default harness flow is:
+For non-trivial work, the default Marionettist flow is:
 1. analysis: classify the task, inspect knowledge when needed, freeze requirements when needed, slice the work when needed, and create or update `.task/<task-id>/context-pack.md`
 2. slice execution: implement only the current approved slice or approved parallel group, then automatically review that same slice or group
 3. finalization: report validation status, remaining risks, and any required knowledge or rules sync
 
-When `harness.config.yaml` defines `gatePolicy`, use it as the local default gate posture:
+When `marionettist.config.yaml` defines `gatePolicy`, use it as the local default gate posture:
 - `strict`: stop at the analysis-to-coding gate and after every approved coding slice or approved parallel group
 - `balanced`: preserve the analysis gate and final approval by default; allow continuation only for already-approved slices whose frozen `gateClass` and supplemental `risk_score` do not require a stronger stop, and only when the approved plan and current policy explicitly permit that continuation
 - `autonomous`: preserve the analysis gate and final approval by default; stop mid-task for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, explicitly requested gates, or any slice whose supplemental `risk_score` requires a stronger pause than `gateClass` alone
 
 Template default is `gatePolicy.defaultMode: balanced` for general usability, but Tier L or otherwise high-risk work should recommend `strict` unless the user explicitly chooses a different policy.
 
-If `.harness/tier-policy.yml` provides `gateHint`, treat it as advisory classification context only. It must not replace `gatePolicy.defaultMode`, the selected task-local gate mode, or any required human-confirmation stop.
+If `.marionettist/tier-policy.yml` provides `gateHint`, treat it as advisory classification context only. It must not replace `gatePolicy.defaultMode`, the selected task-local gate mode, or any required human-confirmation stop.
 
-If `.harness/tier-policy.yml` provides `modelProfileHint`, resolve it through existing profile roles or names from `.harness/model-profiles.yml`. Do not treat Tier policy as a place to embed raw provider or model identifiers.
+If `.marionettist/tier-policy.yml` provides `modelProfileHint`, resolve it through existing profile roles or names from `.marionettist/model-profiles.yml`. Do not treat Tier policy as a place to embed raw provider or model identifiers.
 
-For the current MVP, treat `modelProfileHint` as an advisory profile reference with a documented authoring constraint. Full automatic cross-validation against `.harness/model-profiles.yml` is deferred future hardening.
+For the current MVP, treat `modelProfileHint` as an advisory profile reference with a documented authoring constraint. Full automatic cross-validation against `.marionettist/model-profiles.yml` is deferred future hardening.
 
-If a user asks to change Tier policy in natural language, route that through the normal builder/config workflow as candidate authoring: draft candidate `.harness/tier-policy.yml`, show a diff against the current file or framework defaults, surface any available conflict/override explanation, and require explicit confirmation before writing.
+If a user asks to change Tier policy in natural language, route that through the normal builder/config workflow as candidate authoring: draft candidate `.marionettist/tier-policy.yml`, show a diff against the current file or framework defaults, surface any available conflict/override explanation, and require explicit confirmation before writing.
 
 If Tier-policy fields use unknown or unsupported ordered-field values, explain the uncertainty conservatively and keep safer workflow behavior. Stricter rejection for those cases is deferred future hardening, not current MVP behavior.
 
@@ -174,9 +174,9 @@ If review fails for the current slice or group, the agent may plan and apply the
 After each implementation-plan slice or approved parallel group passes review or exhausts the allowed retry attempts, the agent must stop and wait for explicit user confirmation before starting the next slice or group.
 Having task-scoped `.task/<task-id>/context-pack.md` means the agent may skip repeated intake or analysis work when appropriate; it does not authorize automatic entry into coding.
 
-## Harness Gates
+## Marionettist Gates
 
-For all non-trivial tasks, repository harness gates are mandatory.
+For all non-trivial tasks, repository Marionettist gates are mandatory.
 
 The agent MUST NOT cross these gates without explicit user confirmation:
 - after analysis is complete, before coding starts
@@ -184,7 +184,7 @@ The agent MUST NOT cross these gates without explicit user confirmation:
 
 By default, final approval remains required even when the selected gate policy is `balanced` or `autonomous`.
 
-At every harness gate, the agent must stop and report:
+At every Marionettist gate, the agent must stop and report:
 - current phase
 - completed work
 - files created or changed
@@ -216,13 +216,13 @@ The primary agent remains responsible for:
 - merging results from parallel work when used
 - resolving file or behavior conflicts
 - running validation
-- producing harness gate reports
+- producing Marionettist gate reports
 
 ## Task Context Policy
 
 For non-trivial implementation tasks, create or update `.task/<task-id>/context-pack.md` before coding. Here `<task-id>` means the active task selected by `.task/active.json`. The context pack should stay compact and reference requirement or implementation documents instead of duplicating them when possible.
 
-The full task state contract is defined in `docs/project/harness-workflow.md`.
+The full task state contract is defined in `docs/project/marionettist-workflow.md`.
 
 The current task is selected by `.task/active.json`. A non-trivial task should use this structure:
 - `.task/active.json`
@@ -301,20 +301,20 @@ Do not use maturity as a reason to turn docs into source-code indexes.
 
 ## Project Knowledge
 
-Use `docs/project/harness-workflow.md` as the task-process reference.
+Use `docs/project/marionettist-workflow.md` as the task-process reference.
 Use `docs/project/knowledge-map.md` as the routing reference for docs and rules.
 
 Docs explain context; rules define constraints with possible strength metadata.
 Read detailed docs only on demand through `module-inspector`, `workflow-inspector`, or `workspace-knowledge-manager` when appropriate.
 When adding, moving, renaming, or deleting docs or rules, update `docs/project/knowledge-map.md`.
 
-## Harness Sync Policy
+## Marionettist Sync Policy
 
-Framework-managed sections may be updated by `harness sync`.
+Framework-managed sections may be updated by `marionettist sync`.
 
 Project-local docs, rules, skills, and task files must be preserved unless the user explicitly requests replacement.
 
-<!-- harness-kit:end -->
+<!-- marionettist-kit:end -->
 
 <!-- project-local:start -->
 

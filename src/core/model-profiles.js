@@ -3,8 +3,8 @@ import { pathExists, readText } from "./files.js";
 import { resolveCoreTemplateSource, templatesRoot } from "./framework-paths.js";
 import { parseSimpleYaml } from "./yaml.js";
 
-export const modelProfilesSourceRelative = ".harness/model-profiles.yml";
-export const legacyHarnessConfigRelative = "harness.config.yaml";
+export const modelProfilesProjectRelative = ".marionettist/model-profiles.yml";
+const modelProfilesTemplateSourceRelative = ".marionettist/model-profiles.yml";
 export const requiredModelProfiles = ["think", "build", "review", "run"];
 
 const opencodeAgentProfileBindings = [
@@ -52,11 +52,11 @@ export async function loadModelProfilesState(projectPath) {
   const frameworkDefaults = await loadFrameworkDefaultProfiles();
 
   if (!frameworkDefaults) {
-    throw new Error(`Framework model profile defaults not found: ${path.join(templatesRoot, modelProfilesSourceRelative)}`);
+    throw new Error(`Framework model profile defaults not found: ${path.join(templatesRoot, modelProfilesTemplateSourceRelative)}`);
   }
 
   const canonicalProfiles = await readModelProfilesFromPath(
-    path.join(projectPath, modelProfilesSourceRelative),
+    path.join(projectPath, modelProfilesProjectRelative),
     "canonical"
   );
   if (canonicalProfiles) {
@@ -67,21 +67,6 @@ export async function loadModelProfilesState(projectPath) {
       legacyProfiles: null,
       effectiveProfiles: mergeModelProfiles(frameworkDefaults, normalizedCanonicalProfiles),
       source: "canonical"
-    };
-  }
-
-  const legacyProfiles = await readModelProfilesFromPath(
-    path.join(projectPath, legacyHarnessConfigRelative),
-    "legacy"
-  );
-  if (legacyProfiles) {
-    const normalizedLegacyProfiles = normalizeModelProfiles(legacyProfiles);
-    return {
-      frameworkDefaults,
-      canonicalProfiles: null,
-      legacyProfiles: normalizedLegacyProfiles,
-      effectiveProfiles: mergeModelProfiles(frameworkDefaults, normalizedLegacyProfiles),
-      source: "legacy"
     };
   }
 
@@ -98,11 +83,11 @@ export async function loadCanonicalOrFrameworkModelProfiles(projectPath) {
   const frameworkDefaults = await loadFrameworkDefaultProfiles();
 
   if (!frameworkDefaults) {
-    throw new Error(`Framework model profile defaults not found: ${path.join(templatesRoot, modelProfilesSourceRelative)}`);
+    throw new Error(`Framework model profile defaults not found: ${path.join(templatesRoot, modelProfilesTemplateSourceRelative)}`);
   }
 
   const canonicalProfiles = await readModelProfilesFromPath(
-    path.join(projectPath, modelProfilesSourceRelative),
+    path.join(projectPath, modelProfilesProjectRelative),
     "canonical"
   );
 
@@ -182,7 +167,7 @@ export function renderCanonicalModelProfiles(profiles) {
 }
 
 async function loadFrameworkDefaultProfiles() {
-  const resolvedSource = await resolveCoreTemplateSource(modelProfilesSourceRelative);
+  const resolvedSource = await resolveCoreTemplateSource(modelProfilesTemplateSourceRelative);
   const frameworkDefaultSource = resolvedSource
     ? await readModelProfilesFromPath(resolvedSource.sourcePath, "canonical")
     : null;
@@ -197,9 +182,7 @@ async function readModelProfilesFromPath(filePath, sourceType) {
   }
 
   const parsed = parseSimpleYaml(await readText(filePath));
-  const rawProfiles = sourceType === "legacy"
-    ? parsed?.models?.profiles
-    : parsed?.profiles;
+  const rawProfiles = parsed?.profiles;
 
   if (!rawProfiles || typeof rawProfiles !== "object") {
     return null;

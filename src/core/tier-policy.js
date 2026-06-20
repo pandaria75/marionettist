@@ -3,7 +3,8 @@ import { pathExists, readText } from "./files.js";
 import { templatesRoot } from "./framework-paths.js";
 import { parseSimpleYaml } from "./yaml.js";
 
-export const tierPolicySourceRelative = ".harness/tier-policy.yml";
+export const tierPolicySourceRelative = ".marionettist/tier-policy.yml";
+const tierPolicyTemplateSourceRelative = ".marionettist/tier-policy.yml";
 export const tierValues = ["S", "M", "L"];
 
 const tierIndex = new Map(tierValues.map((tier, index) => [tier, index]));
@@ -50,7 +51,7 @@ export async function loadTierPolicyState(projectPath) {
   const frameworkDefaults = await loadFrameworkTierPolicy();
 
   if (!frameworkDefaults) {
-    throw new Error(`Framework tier policy defaults not found: ${path.join(templatesRoot, tierPolicySourceRelative)}`);
+    throw new Error(`Framework tier policy defaults not found: ${path.join(templatesRoot, tierPolicyTemplateSourceRelative)}`);
   }
 
   const projectSource = await readTierPolicySource(path.join(projectPath, tierPolicySourceRelative));
@@ -73,7 +74,7 @@ export function explainTierPolicyState(state) {
 }
 
 async function loadFrameworkTierPolicy() {
-  const source = await readTierPolicySource(path.join(templatesRoot, tierPolicySourceRelative));
+  const source = await readTierPolicySource(path.join(templatesRoot, tierPolicyTemplateSourceRelative));
   if (!source.exists) {
     return null;
   }

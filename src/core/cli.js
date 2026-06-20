@@ -6,19 +6,19 @@ import { selfCommand } from "../commands/self.js";
 import { clearCommand } from "../commands/clear.js";
 import { fileURLToPath } from "node:url";
 
-const help = `Universal AI Harness Framework
+const help = `Marionettist
 
 Usage:
-  harness init [--project <path>] [--dry-run] [--force] [--auto] [--distribution-mode <embedded|hybrid|adapter>] [--with-opencode] [--opencode-command-surface <minimal|standard|advanced|full>]
-  harness sync [--project <path>] [--dry-run] [--force]
-  harness diff [--project <path>]
-  harness doctor [--project <path>]
-  harness clear [--project <path>] [--scope <all|opencode>] [--apply]
-  harness uninstall [--project <path>] [--scope <all|opencode>] [--apply]
-  harness self init [--apply] [--with-opencode]
-  harness self doctor
-  harness self test
-  harness --help
+  marionettist init [--project <path>] [--dry-run] [--force] [--auto] [--distribution-mode <embedded|hybrid|adapter>] [--with-opencode] [--opencode-command-surface <minimal|standard|advanced|full>]
+  marionettist sync [--project <path>] [--dry-run] [--force]
+  marionettist diff [--project <path>]
+  marionettist doctor [--project <path>]
+  marionettist clear [--project <path>] [--scope <all|opencode>] [--apply]
+  marionettist uninstall [--project <path>] [--scope <all|opencode>] [--apply]
+  marionettist self init [--apply] [--with-opencode]
+  marionettist self doctor
+  marionettist self test
+  marionettist --help
 `;
 
 export async function runCli(args) {

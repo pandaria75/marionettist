@@ -1,0 +1,27 @@
+---
+description: Show current Marionettist task state without modifying files
+agent: marionettist-builder
+---
+
+Read `.task/active.json` first, then read `.task/<task-id>/state.json` if an active task exists. Here `<task-id>` is selected by `.task/active.json`.
+
+Output only the current task status. Do not modify files and do not code.
+
+If no active task exists, tell the user to start with one of:
+- `/marionettist`
+- `/marionettist-dev`
+- `/marionettist-incident`
+- `/marionettist-docs`
+
+Report:
+- Task
+- Type
+- Phase
+- Allowed To Code
+- Current Slice
+- Last Gate
+- Next Command
+- Required files and whether each exists
+- Warnings
+
+Do not guess missing state. If state is incomplete, name the missing field and suggest the smallest repair.

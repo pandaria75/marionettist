@@ -1,10 +1,10 @@
-# OpenCode With The Harness
+# OpenCode With Marionettist
 
 [中文版](./OPENCODE.zh-CN.md)
 
-This guide is for teams that use the optional OpenCode scaffolding installed by `harness init --with-opencode`.
+This guide is for teams that use the optional OpenCode scaffolding installed by `marionettist init --with-opencode`.
 
-OpenCode improves ergonomics. It does not replace the harness workflow. The repository files, task artifacts, and gates remain the source of truth.
+OpenCode improves ergonomics. It does not replace the Marionettist workflow. The repository files, task artifacts, and gates remain the source of truth.
 
 Navigation note:
 
@@ -14,27 +14,27 @@ Navigation note:
 
 ## 1. What OpenCode Adds
 
-- **Slash commands** such as `/harness`, `/harness-dev`, and `/harness-docs`.
+- **Slash commands** such as `/marionettist`, `/marionettist-dev`, and `/marionettist-docs`.
 - **Role agents** for builder, planner, coder, reviewer, critic, indexer, and validator work.
 - **Model profiles** so each role can use an appropriate model tier.
 - **Validator guidance** for build, test, lint, and smoke-check workflows.
 - **Local permission posture** through generated OpenCode agent files.
 
-The core harness still works without OpenCode.
+The core Marionettist workflow still works without OpenCode.
 
 ## 2. Install
 
 ```powershell
 # Preview first
-harness init --dry-run --with-opencode
+marionettist init --dry-run --with-opencode
 
 # Install OpenCode scaffolding
-harness init --with-opencode
+marionettist init --with-opencode
 
 # Optional command surfaces
-harness init --with-opencode --opencode-command-surface minimal
-harness init --with-opencode --opencode-command-surface standard
-harness init --with-opencode --opencode-command-surface advanced
+marionettist init --with-opencode --opencode-command-surface minimal
+marionettist init --with-opencode --opencode-command-surface standard
+marionettist init --with-opencode --opencode-command-surface advanced
 ```
 
 You can also set the command surface in project config:
@@ -53,8 +53,8 @@ Typical OpenCode assets:
 - `opencode.jsonc`
 - `.opencode/README.md`
 - `.opencode/plugin/opencode-tasks.js`
-- `.opencode/commands/harness*.md`
-- `.opencode/agents/harness-*.md`
+- `.opencode/commands/marionettist*.md`
+- `.opencode/agents/marionettist-*.md`
 - `.opencode/agents/validators/**`
 
 These are managed defaults. Teams may choose what to commit and what to keep local.
@@ -66,47 +66,47 @@ Current MVP posture:
 - generated `.opencode/agents/**` and `.opencode/commands/**` files remain supported fallback assets
 - framework source stays split on purpose: plugin prototype assets come from `templates/pathways/opencode/**`, while generated fallback assets come from `templates/opencode/**`
 
-Use `harness diff`, `harness sync`, and `harness doctor` to inspect drift and safe updates. After regenerating `opencode.jsonc` or `.opencode/plugin/**`, restart OpenCode if the current session does not reload configuration automatically.
+Use `marionettist diff`, `marionettist sync`, and `marionettist doctor` to inspect drift and safe updates. After regenerating `opencode.jsonc` or `.opencode/plugin/**`, restart OpenCode if the current session does not reload configuration automatically.
 
 ## 4. Command Surfaces
 
 | Surface | Commands | Use When |
 | --- | --- | --- |
-| `minimal` | `/harness`, `/harness-dev`, `/harness-incident`, `/harness-docs`, `/harness-config` | Default builder-first workflow |
-| `standard` | minimal plus `/harness-context`, `/harness-status`, `/harness-continue` | Teams want explicit status and continuation commands |
-| `advanced` | standard plus `/harness-feature`, `/harness-bugfix`, `/harness-refactor` | Teams want dedicated wrappers by task type |
+| `minimal` | `/marionettist`, `/marionettist-dev`, `/marionettist-incident`, `/marionettist-docs`, `/marionettist-config` | Default builder-first workflow |
+| `standard` | minimal plus `/marionettist-context`, `/marionettist-status`, `/marionettist-continue` | Teams want explicit status and continuation commands |
+| `advanced` | standard plus `/marionettist-feature`, `/marionettist-bugfix`, `/marionettist-refactor` | Teams want dedicated wrappers by task type |
 
-Most teams should start with `minimal`. The builder can route natural-language requests from `/harness`.
+Most teams should start with `minimal`. The builder can route natural-language requests from `/marionettist`.
 
 ## 5. Key Commands
 
 | Command | Purpose |
 | --- | --- |
-| `/harness` | Default entrypoint. Classifies the request and routes the workflow. |
-| `/harness-dev` | Feature or implementation work. |
-| `/harness-incident` | Urgent incident or mitigation work. |
-| `/harness-docs` | Documentation, rules, or knowledge work. |
-| `/harness-config` | Harness, workflow, tooling, or agent configuration work. |
-| `/harness-status` | Show current task state without modifying files. |
-| `/harness-continue` | Continue the active task according to recorded state. |
+| `/marionettist` | Default entrypoint. Classifies the request and routes the workflow. |
+| `/marionettist-dev` | Feature or implementation work. |
+| `/marionettist-incident` | Urgent incident or mitigation work. |
+| `/marionettist-docs` | Documentation, rules, or knowledge work. |
+| `/marionettist-config` | Marionettist, workflow, tooling, or agent configuration work. |
+| `/marionettist-status` | Show current task state without modifying files. |
+| `/marionettist-continue` | Continue the active task according to recorded state. |
 
 ## 6. Agent Roles
 
 | Agent | Responsibility | Profile |
 | --- | --- | --- |
-| `harness-builder` | Orchestrates the workflow, reads state, enforces gates, delegates bounded work. | `think` |
-| `harness-planner` | Plans requirements, slices, validation, and dependency order. | `think` |
-| `harness-coder` | Implements only the approved slice or group. | `build` |
-| `harness-reviewer` | Reviews the diff for scope, boundaries, validation, and docs sync. | `review` |
-| `harness-critic` | Audits risk gates before coding or before done for high-risk work. | `review` |
-| `harness-indexer` | Performs read-only repository exploration. | `run` |
-| `harness-validator` | Runs or interprets validation commands. | `run` |
+| `marionettist-builder` | Orchestrates the workflow, reads state, enforces gates, delegates bounded work. | `think` |
+| `marionettist-planner` | Plans requirements, slices, validation, and dependency order. | `think` |
+| `marionettist-coder` | Implements only the approved slice or group. | `build` |
+| `marionettist-reviewer` | Reviews the diff for scope, boundaries, validation, and docs sync. | `review` |
+| `marionettist-critic` | Audits risk gates before coding or before done for high-risk work. | `review` |
+| `marionettist-indexer` | Performs read-only repository exploration. | `run` |
+| `marionettist-validator` | Runs or interprets validation commands. | `run` |
 
 The builder owns orchestration. Subagents should receive bounded inputs and return compact evidence.
 
 ## 7. Model Profiles
 
-OpenCode agent model values are rendered from `.harness/model-profiles.yml` when it exists. Legacy `harness.config.yaml` model profiles are fallback only.
+OpenCode agent model values are rendered from `.marionettist/model-profiles.yml` when it exists. Legacy `harness.config.yaml` references are migration-only context, not the current path.
 
 Default profile intent:
 
@@ -126,14 +126,14 @@ Skill-to-profile mapping:
 
 To change models:
 
-1. Edit `.harness/model-profiles.yml`.
-2. Run `harness diff` to preview generated changes.
-3. Run `harness sync` when the preview is safe.
+1. Edit `.marionettist/model-profiles.yml`.
+2. Run `marionettist diff` to preview generated changes.
+3. Run `marionettist sync` when the preview is safe.
 4. Avoid duplicating model choices in `opencode.jsonc`.
 
 ## 8. Gate Behavior
 
-OpenCode follows the same harness gates as the file-based workflow.
+OpenCode follows the same Marionettist gates as the file-based workflow.
 
 - Stop after analysis before coding for non-trivial work.
 - Implement only the approved slice or group.
@@ -142,11 +142,11 @@ OpenCode follows the same harness gates as the file-based workflow.
 
 Gate policy is configured separately from OpenCode permission mode. `balanced` or `autonomous` gates do not grant broader tool permissions and do not bypass dangerous-command handling.
 
-For exact gate rules, use the installed `docs/project/harness-workflow.md` in the target project.
+For exact gate rules, use the installed `docs/project/marionettist-workflow.md` in the target project.
 
 ## 9. Permission Modes
 
-OpenCode permission mode controls tool and command friction. It is configured through `harness.config.yaml`:
+OpenCode permission mode controls tool and command friction. It is configured through `marionettist.config.yaml`:
 
 ```yaml
 opencode:
@@ -161,7 +161,7 @@ Mode summary:
 
 Permission mode does not remove the dangerous-command baseline. Agents must still treat force pushes, history rewrites, destructive deletes, release/publish/deploy actions, global config mutation, project-external writes, and risky shell chains as high-risk.
 
-OpenCode schema cannot express every dangerous shell pattern. Where schema rules are not enough, the harness relies on prompt text, warnings, and review guidance.
+OpenCode schema cannot express every dangerous shell pattern. Where schema rules are not enough, Marionettist relies on prompt text, warnings, and review guidance.
 
 ## 10. Validator Behavior
 
@@ -178,7 +178,7 @@ Validation may include build, compile, unit tests, lint, type checks, smoke chec
 
 ## 11. Managed Ownership And Sync
 
-Generated OpenCode files are tracked through `.harness/manifest.json` when installed by the harness.
+Generated OpenCode files are tracked through `.marionettist/manifest.json` when installed by Marionettist.
 
 For this MVP, manifest ownership and generated-file fallback still apply even though the default posture is plugin-first.
 
@@ -193,14 +193,14 @@ Operational notes:
 
 - if a plugin entry and a file entry share the same name, the plugin entry may win
 - if both an explicit plugin entry and `.opencode/plugin/` auto-discovery load the same plugin, the current prototype remains acceptable because its config hook is idempotent
-- command smoke may report `NOT_RUN` with evidence when the local OpenCode CLI is unavailable or lacks `--command` support; at least one capable environment should still run `opencode run --command harness-pathway-prototype` before closing MVP runtime validation work
+- command smoke may report `NOT_RUN` with evidence when the local OpenCode CLI is unavailable or lacks `--command` support; at least one capable environment should still run `opencode run --command marionettist-pathway-prototype` before closing MVP runtime validation work
 
 Use this flow:
 
 ```powershell
-harness diff
-harness sync
-harness doctor
+marionettist diff
+marionettist sync
+marionettist doctor
 ```
 
 For general upgrade guidance, see [docs/GUIDELINES.md](./GUIDELINES.md#11-upgrade-and-sync).

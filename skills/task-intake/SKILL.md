@@ -1,6 +1,6 @@
 ---
 name: task-intake
-description: Default lightweight entrypoint for non-trivial repository tasks, including feature development, bug fixing, refactoring, documentation updates, investigations, reviews, and workflow-sensitive work. Use when a new task starts and the harness flow has not started yet; use fast path when structured task artifacts or a clearly scoped ongoing slice are already provided.
+description: Default lightweight entrypoint for non-trivial repository tasks, including feature development, bug fixing, refactoring, documentation updates, investigations, reviews, and workflow-sensitive work. Use when a new task starts and the Marionettist flow has not started yet; use fast path when structured task artifacts or a clearly scoped ongoing slice are already provided.
 phase: analysis
 model_requirement: reasoning
 can_edit: true
@@ -9,11 +9,11 @@ risk_level: low
 
 # Task Intake
 
-Use this skill to collect task information and route the task into the lightweight file-based harness.
+Use this skill to collect task information and route the task into the lightweight file-based Marionettist workflow.
 
 ## When To Use
 
-- Use when a new non-trivial repository task starts and the harness flow has not started yet.
+- Use when a new non-trivial repository task starts and the Marionettist flow has not started yet.
 - Use the fast path when structured task artifacts or a clearly scoped ongoing slice already exist.
 
 ## Inputs Required
@@ -37,14 +37,14 @@ Use the local task date for `<yyyy-MM-dd>`, for example `.task/2026-04-28/`.
 
 For fast-path tasks:
 1. Summarize the current task state.
-2. Identify the next required harness step.
+2. Identify the next required Marionettist step.
 3. Route directly to that step.
 4. Ask only blocking questions needed for routing.
 
 ## Steps
 
 1. Read `AGENTS.md`.
-2. Read `harness.config.yaml` if present.
+2. Read `marionettist.config.yaml` if present.
 3. Classify the task type:
    - feature
    - bugfix
@@ -54,8 +54,8 @@ For fast-path tasks:
    - investigation
    - build/deployment
 4. Recommend an initial gate policy for the task:
-   - `strict` for existing harness Tier L, high-risk, workflow-sensitive, or boundary-sensitive work
-   - `balanced` for most existing harness Tier M work with clear approved slices
+   - `strict` for existing Marionettist Tier L, high-risk, workflow-sensitive, or boundary-sensitive work
+   - `balanced` for most existing Marionettist Tier M work with clear approved slices
    - `autonomous` only when the task is already well-bounded, validation is clear, and fewer mid-task pauses are acceptable
 5. Explain that a task-local policy override changes the task's default gate posture only. It does not bypass required analysis gates, final approval by default, or any other explicit stop condition.
 6. Ask only the minimum blocking questions required to choose the next workflow.
@@ -177,7 +177,7 @@ Use:
 - Keep the intake lightweight.
 - Prefer repository evidence over asking the user when possible.
 - Recommend a gate policy at task start for non-trivial work.
-- Treat Tier L / Tier M references here as existing harness task classification guidance only, not as a configurable tier-policy mapping.
+- Treat Tier L / Tier M references here as existing Marionettist task classification guidance only, not as a configurable tier-policy mapping.
 - Preserve final approval by default unless higher-priority instructions explicitly change it.
 - Treat task override as policy selection, not as permission to bypass required gates.
 
@@ -191,11 +191,11 @@ Use:
 - Missing task goal, scope, or validation expectation
 - Conflicting instructions about allowed or forbidden areas
 - Fast-path artifacts that disagree about current slice or gate status
-- Requests that implicitly skip required harness steps
+- Requests that implicitly skip required Marionettist steps
 
 ## Exit Criteria
 
-- The next harness step is identified
+- The next Marionettist step is identified
 - Blocking questions are minimized and explicit
 - Recommended gate policy is stated for non-trivial work
 - The task is routed without implementing code

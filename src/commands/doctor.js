@@ -1,65 +1,66 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { parseCommonArgs } from "../core/args.js";
+import { projectConfigRelative } from "../core/framework-paths.js";
 import { validateOptionalGatePolicyDefaultMode } from "../core/gate-policy.js";
 import { validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface, validateOptionalOpencodePermissionMode } from "../core/manifest.js";
 import { loadTierPolicyState, tierPolicySourceRelative } from "../core/tier-policy.js";
 import { parseSimpleYaml } from "../core/yaml.js";
 
-const managedBlockStart = "<!-- harness-kit:start -->";
-const managedBlockEnd = "<!-- harness-kit:end -->";
+const managedBlockStart = "<!-- marionettist-kit:start -->";
+const managedBlockEnd = "<!-- marionettist-kit:end -->";
 const requiredModelProfiles = ["think", "build", "review", "run"];
 const codingPhases = new Set(["coding", "review", "validation", "finalization"]);
 const opencodeAgentRoleMap = new Map([
-  ["harness-builder", "think"],
-  ["harness-planner", "think"],
-  ["harness-coder", "build"],
-  ["harness-reviewer", "review"],
-  ["harness-critic", "review"],
-  ["harness-validator", "run"],
-  ["harness-indexer", "run"]
+  ["marionettist-builder", "think"],
+  ["marionettist-planner", "think"],
+  ["marionettist-coder", "build"],
+  ["marionettist-reviewer", "review"],
+  ["marionettist-critic", "review"],
+  ["marionettist-validator", "run"],
+  ["marionettist-indexer", "run"]
 ]);
 const opencodeAdapterConfigRelatives = [
-  ".harness/adapters/opencode.yml",
-  ".harness/adapters/opencode.yaml"
+  ".marionettist/adapters/opencode.yml",
+  ".marionettist/adapters/opencode.yaml"
 ];
 const requiredNormalOpencodeCommands = [
-  ".opencode/commands/harness.md",
-  ".opencode/commands/harness-dev.md",
-  ".opencode/commands/harness-incident.md",
-  ".opencode/commands/harness-docs.md",
-  ".opencode/commands/harness-config.md"
+  ".opencode/commands/marionettist.md",
+  ".opencode/commands/marionettist-dev.md",
+  ".opencode/commands/marionettist-incident.md",
+  ".opencode/commands/marionettist-docs.md",
+  ".opencode/commands/marionettist-config.md"
 ];
 const standardOpencodeCommands = [
-  ".opencode/commands/harness-context.md",
-  ".opencode/commands/harness-status.md",
-  ".opencode/commands/harness-continue.md"
+  ".opencode/commands/marionettist-context.md",
+  ".opencode/commands/marionettist-status.md",
+  ".opencode/commands/marionettist-continue.md"
 ];
 const advancedOnlyOpencodeCommands = [
-  ".opencode/commands/harness-feature.md",
-  ".opencode/commands/harness-bugfix.md",
-  ".opencode/commands/harness-refactor.md"
+  ".opencode/commands/marionettist-feature.md",
+  ".opencode/commands/marionettist-bugfix.md",
+  ".opencode/commands/marionettist-refactor.md"
 ];
-const modelDriftRemediation = "Reconcile the local model sources, then run `harness diff --project <path>` or `harness sync --project <path> --with-opencode` to preview or apply the safe regeneration.";
+const modelDriftRemediation = "Reconcile the local model sources, then run `marionettist diff --project <path>` or `marionettist sync --project <path> --with-opencode` to preview or apply the safe regeneration.";
 
 export async function doctorCommand(args) {
   const options = parseCommonArgs(args);
   const results = [];
 
-  const harnessConfig = await checkHarnessConfig(options.project, results);
+  const projectConfig = await checkProjectConfig(options.project, results);
   await checkTierPolicy(options.project, results);
   await checkAgents(options.project, results);
   const manifest = await checkManifest(options.project, results);
-  checkDistributionMode(manifest, harnessConfig, results);
-  checkGatePolicyDefaultMode(harnessConfig, results);
+  checkDistributionMode(manifest, projectConfig, results);
+  checkGatePolicyDefaultMode(projectConfig, results);
   await checkPath(options.project, ".aiassistant/rules", "directory", ".aiassistant/rules exists", results);
   await checkPath(options.project, "docs/project/knowledge-map.md", "file", "docs/project/knowledge-map.md exists", results);
-  await checkPath(options.project, "docs/project/harness-workflow.md", "file", "docs/project/harness-workflow.md exists", results);
+  await checkPath(options.project, "docs/project/marionettist-workflow.md", "file", "docs/project/marionettist-workflow.md exists", results);
   await checkPath(options.project, ".task", "directory", ".task directory exists", results);
   const opencodeConfig = await checkOpencode(options.project, results);
-  checkOpenCodePermissionMode(manifest, harnessConfig, opencodeConfig, results);
-  await checkOpenCodeCommandSurface(options.project, harnessConfig, opencodeConfig, results);
-  await checkOpenCodeModelDrift(options.project, harnessConfig, opencodeConfig, results);
+  checkOpenCodePermissionMode(manifest, projectConfig, opencodeConfig, results);
+  await checkOpenCodeCommandSurface(options.project, projectConfig, opencodeConfig, results);
+  await checkOpenCodeModelDrift(options.project, projectConfig, opencodeConfig, results);
   await checkSkills(options.project, results);
   await checkActiveTask(options.project, results);
 
@@ -70,8 +71,8 @@ export async function doctorCommand(args) {
   }
 }
 
-async function checkHarnessConfig(projectPath, results) {
-  const relative = "harness.config.yaml";
+async function checkProjectConfig(projectPath, results) {
+  const relative = projectConfigRelative;
   const absolute = path.join(projectPath, relative);
   if (!(await exists(absolute))) {
     results.push(fail(`${relative} missing`));
@@ -86,14 +87,6 @@ async function checkHarnessConfig(projectPath, results) {
     results.push(fail(`${relative} parse failed: ${error.message}`));
     return null;
   }
-
-  const profiles = parsed.models?.profiles ?? {};
-  const missing = requiredModelProfiles.filter((profile) => !profiles[profile]);
-  if (missing.length > 0) {
-    results.push(warn(`model profiles missing: ${missing.join(", ")}`));
-    return parsed;
-  }
-  results.push(pass("model profiles found: think, build, review, run"));
   return parsed;
 }
 
@@ -153,7 +146,7 @@ async function checkTierPolicy(projectPath, results) {
 }
 
 async function checkManifest(projectPath, results) {
-  const relative = ".harness/manifest.json";
+  const relative = ".marionettist/manifest.json";
   const absolute = path.join(projectPath, relative);
   if (!(await exists(absolute))) {
     results.push(fail(`${relative} missing`));
@@ -208,8 +201,8 @@ function checkDistributionMode(manifest, harnessConfig, results) {
     return;
   }
 
-  const manifestMode = readConfiguredDistributionModeValue(manifest.distributionMode, ".harness/manifest.json distributionMode");
-  const configMode = readConfiguredDistributionModeValue(harnessConfig?.distribution?.mode, "harness.config.yaml distribution.mode");
+  const manifestMode = readConfiguredDistributionModeValue(manifest.distributionMode, ".marionettist/manifest.json distributionMode");
+  const configMode = readConfiguredDistributionModeValue(harnessConfig?.distribution?.mode, `${projectConfigRelative} distribution.mode`);
 
   if (manifestMode.error) {
     results.push(fail(manifestMode.error));
@@ -224,13 +217,13 @@ function checkDistributionMode(manifest, harnessConfig, results) {
   if (manifestMode.value) {
     results.push(pass(`distribution mode: ${manifestMode.value} (manifest)`));
     if (configMode.value && configMode.value !== manifestMode.value) {
-      results.push(warn(`distribution mode config mismatch: manifest=${manifestMode.value}, harness.config.yaml=${configMode.value}`));
+      results.push(warn(`distribution mode config mismatch: manifest=${manifestMode.value}, ${projectConfigRelative}=${configMode.value}`));
     }
     return;
   }
 
   if (configMode.value) {
-    results.push(warn(`distribution mode: ${configMode.value} (inferred from harness.config.yaml; manifest missing distributionMode)`));
+    results.push(warn(`distribution mode: ${configMode.value} (inferred from ${projectConfigRelative}; manifest missing distributionMode)`));
     return;
   }
 
@@ -249,7 +242,7 @@ function checkGatePolicyDefaultMode(harnessConfig, results) {
     return;
   }
 
-  results.push(pass(`gate policy default mode: ${configuredMode.value} (harness.config.yaml)`));
+  results.push(pass(`gate policy default mode: ${configuredMode.value} (${projectConfigRelative})`));
 }
 
 async function checkPath(projectPath, relative, expectedType, label, results) {
@@ -290,15 +283,12 @@ async function checkOpenCodeModelDrift(projectPath, harnessConfig, opencodeConfi
 
   await checkOpenCodePlaceholderDrift(projectPath, results);
 
-  const canonicalSource = await readModelProfileSource(path.join(projectPath, ".harness", "model-profiles.yml"), "canonical");
-  const legacySource = harnessConfig
-    ? { label: "harness.config.yaml", exists: true, profiles: normalizeProfileDefaults(harnessConfig.models?.profiles), parseError: null }
-    : { label: "harness.config.yaml", exists: false, profiles: null, parseError: null };
+  const canonicalSource = await readModelProfileSource(path.join(projectPath, ".marionettist", "model-profiles.yml"), "canonical");
   const adapterSource = await readAdapterModelSource(projectPath);
   const opencodeAssignments = extractOpencodeModelAssignments(opencodeConfig);
 
   if (canonicalSource.parseError) {
-    results.push(fail(`.harness/model-profiles.yml parse failed: ${canonicalSource.parseError.message}`));
+    results.push(fail(`.marionettist/model-profiles.yml parse failed: ${canonicalSource.parseError.message}`));
     return;
   }
   if (adapterSource.parseError) {
@@ -315,7 +305,6 @@ async function checkOpenCodeModelDrift(projectPath, harnessConfig, opencodeConfi
       role,
       agentName,
       canonicalSource,
-      legacySource,
       adapterSource,
       opencodeAssignments,
       agentExists,
@@ -333,7 +322,7 @@ function checkOpenCodePermissionMode(manifest, harnessConfig, opencodeConfig, re
   const hasOpenCodeScaffold = Boolean(opencodeConfig) || hasManagedOpencodeFiles(manifest);
 
   if (hasPermissionModeConfig && configMode.error) {
-    results.push(fail(`harness.config.yaml opencode.permissionMode invalid: ${configMode.error}`));
+    results.push(fail(`${projectConfigRelative} opencode.permissionMode invalid: ${configMode.error}`));
     return;
   }
 
@@ -349,13 +338,13 @@ function checkOpenCodePermissionMode(manifest, harnessConfig, opencodeConfig, re
   if (manifestMode.value) {
     results.push(pass(`OpenCode permission mode: ${manifestMode.value} (${manifestMode.source})`));
     if (configMode.value && configMode.value !== manifestMode.value) {
-      results.push(warn(`OpenCode permission mode config mismatch: manifest=${manifestMode.value}, harness.config.yaml=${configMode.value}`));
+      results.push(warn(`OpenCode permission mode config mismatch: manifest=${manifestMode.value}, ${projectConfigRelative}=${configMode.value}`));
     }
     return;
   }
 
   if (configMode.value) {
-    results.push(warn(`OpenCode permission mode: ${configMode.value} (inferred from harness.config.yaml; manifest missing opencodePermissionMode)`));
+    results.push(warn(`OpenCode permission mode: ${configMode.value} (inferred from ${projectConfigRelative}; manifest missing opencodePermissionMode)`));
     return;
   }
 
@@ -370,7 +359,7 @@ async function checkOpenCodeCommandSurface(projectPath, harnessConfig, opencodeC
   const hasCommandSurfaceConfig = Object.prototype.hasOwnProperty.call(harnessConfig?.opencode ?? {}, "commandSurface");
 
   if (hasCommandSurfaceConfig && configuredSurface.error) {
-    results.push(fail(`harness.config.yaml opencode.commandSurface invalid: ${configuredSurface.error}`));
+    results.push(fail(`${projectConfigRelative} opencode.commandSurface invalid: ${configuredSurface.error}`));
   }
 
   const installedCommands = new Set();
@@ -448,7 +437,7 @@ async function checkOpenCodePlaceholderDrift(projectPath, results) {
       continue;
     }
 
-    results.push(fail(`OpenCode placeholder [UNRESOLVED] ${relative} still contains MODEL_PROFILE placeholders. Run \`harness diff --project <path> --with-opencode\` or \`harness sync --project <path> --with-opencode\` to regenerate runtime OpenCode files.`));
+    results.push(fail(`OpenCode placeholder [UNRESOLVED] ${relative} still contains MODEL_PROFILE placeholders. Run \`marionettist diff --project <path> --with-opencode\` or \`marionettist sync --project <path> --with-opencode\` to regenerate runtime OpenCode files.`));
   }
 }
 
@@ -457,7 +446,6 @@ function evaluateAgentModelStatus(context) {
     role,
     agentName,
     canonicalSource,
-    legacySource,
     adapterSource,
     opencodeAssignments,
     agentExists,
@@ -466,28 +454,21 @@ function evaluateAgentModelStatus(context) {
   } = context;
 
   const canonicalValue = readProfileDefault(canonicalSource.profiles, role);
-  const legacyValue = readProfileDefault(legacySource.profiles, role);
   const adapterValue = readAdapterExpectedModel(adapterSource, role, agentName);
   const opencodeValue = readOpencodeExpectedModel(opencodeAssignments, role, agentName);
 
   if (canonicalSource.exists) {
     if (!canonicalValue) {
-      return buildModelStatus("MISSING", `${agentRelative} expected profile ${role}.default is missing from .harness/model-profiles.yml. ${modelDriftRemediation}`);
+      return buildModelStatus("MISSING", `${agentRelative} expected profile ${role}.default is missing from .marionettist/model-profiles.yml. ${modelDriftRemediation}`);
     }
   }
 
-  if (!canonicalSource.exists && legacySource.exists) {
-    if (!legacyValue) {
-      return buildModelStatus("MISSING", `${agentRelative} expected legacy profile ${role}.default is missing from harness.config.yaml. ${modelDriftRemediation}`);
-    }
+  if (!canonicalSource.exists) {
+    return buildModelStatus("MISSING", `${agentRelative} cannot determine expected model because .marionettist/model-profiles.yml is missing for profile ${role}. ${modelDriftRemediation}`);
   }
 
-  if (!canonicalSource.exists && !legacySource.exists) {
-    return buildModelStatus("MISSING", `${agentRelative} cannot determine expected model because neither .harness/model-profiles.yml nor harness.config.yaml provides profile ${role}. ${modelDriftRemediation}`);
-  }
-
-  const expectedModel = canonicalValue ?? legacyValue;
-  const expectedSourceLabel = canonicalValue ? ".harness/model-profiles.yml" : "harness.config.yaml";
+  const expectedModel = canonicalValue;
+  const expectedSourceLabel = ".marionettist/model-profiles.yml";
 
   if (adapterValue && adapterValue !== expectedModel) {
     return buildModelStatus("CONFLICT", `${agentRelative} adapter config ${adapterSource.label} expects ${adapterValue} for ${agentName}, but ${expectedSourceLabel} profile ${role}.default expects ${expectedModel}. ${modelDriftRemediation}`);
@@ -522,7 +503,7 @@ function evaluateAgentModelStatus(context) {
 }
 
 async function readModelProfileSource(filePath, sourceType) {
-  const label = sourceType === "canonical" ? ".harness/model-profiles.yml" : path.basename(filePath);
+  const label = sourceType === "canonical" ? ".marionettist/model-profiles.yml" : path.basename(filePath);
   if (!(await exists(filePath))) {
     return { label, exists: false, profiles: null, parseError: null };
   }
@@ -532,7 +513,7 @@ async function readModelProfileSource(filePath, sourceType) {
     return {
       label,
       exists: true,
-      profiles: normalizeProfileDefaults(sourceType === "legacy" ? parsed.models?.profiles : parsed.profiles),
+      profiles: normalizeProfileDefaults(parsed.profiles),
       parseError: null
     };
   } catch (error) {
@@ -888,7 +869,7 @@ async function listOpenCodeHarnessFiles(projectPath) {
     for (const file of markdownFiles) {
       const relative = toPosix(path.relative(projectPath, file));
       const basename = path.basename(relative);
-      if (!basename.startsWith("harness-")) {
+      if (!basename.startsWith("marionettist-")) {
         continue;
       }
       files.push(relative);
@@ -905,11 +886,12 @@ function containsUnresolvedModelProfilePlaceholder(content) {
 
 function readConfiguredCommandSurface(harnessConfig) {
   const value = harnessConfig?.opencode?.commandSurface;
-  const result = validateOptionalOpencodeCommandSurface(value, "harness.config.yaml opencode.commandSurface");
+  const label = `${projectConfigRelative} opencode.commandSurface`;
+  const result = validateOptionalOpencodeCommandSurface(value, label);
   return {
     value: result.value,
     error: typeof result.error === "string"
-      ? result.error.replace(/^harness\.config\.yaml opencode\.commandSurface invalid: /u, "")
+      ? stripValidationErrorPrefix(result.error, label)
       : result.error,
     isLegacyAlias: result.isLegacyAlias
   };
@@ -917,17 +899,23 @@ function readConfiguredCommandSurface(harnessConfig) {
 
 function readConfiguredPermissionMode(harnessConfig) {
   const value = harnessConfig?.opencode?.permissionMode;
-  const result = validateOptionalOpencodePermissionMode(value, "harness.config.yaml opencode.permissionMode");
+  const label = `${projectConfigRelative} opencode.permissionMode`;
+  const result = validateOptionalOpencodePermissionMode(value, label);
   return {
     value: result.value,
     error: typeof result.error === "string"
-      ? result.error.replace(/^harness\.config\.yaml opencode\.permissionMode invalid: /u, "")
+      ? stripValidationErrorPrefix(result.error, label)
       : result.error
   };
 }
 
+function stripValidationErrorPrefix(error, label) {
+  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return error.replace(new RegExp(`^${escapedLabel} invalid: `, "u"), "");
+}
+
 function readRecordedPermissionMode(manifest) {
-  const topLevel = validateOptionalOpencodePermissionMode(manifest?.opencodePermissionMode, ".harness/manifest.json opencodePermissionMode");
+  const topLevel = validateOptionalOpencodePermissionMode(manifest?.opencodePermissionMode, ".marionettist/manifest.json opencodePermissionMode");
   if (topLevel.error) {
     return { value: null, error: topLevel.error, source: null };
   }
@@ -941,7 +929,7 @@ function readRecordedPermissionMode(manifest) {
 
   const recordedValues = (manifest?.managedFiles ?? [])
     .filter((file) => file.adapter === "opencode" && file.permissionMode !== undefined)
-    .map((file) => validateOptionalOpencodePermissionMode(file.permissionMode, `.harness/manifest.json managedFiles[${file.path}] permissionMode`));
+    .map((file) => validateOptionalOpencodePermissionMode(file.permissionMode, `.marionettist/manifest.json managedFiles[${file.path}] permissionMode`));
   const invalid = recordedValues.find((result) => result.error);
   if (invalid) {
     return { value: null, error: invalid.error, source: null };
@@ -967,7 +955,7 @@ function readConfiguredDistributionModeValue(value, label) {
 
 function readConfiguredGatePolicyDefaultMode(harnessConfig) {
   const value = harnessConfig?.gatePolicy?.defaultMode;
-  const result = validateOptionalGatePolicyDefaultMode(value, "harness.config.yaml gatePolicy.defaultMode");
+  const result = validateOptionalGatePolicyDefaultMode(value, `${projectConfigRelative} gatePolicy.defaultMode`);
   return {
     value: result.value,
     error: result.error
@@ -1012,7 +1000,7 @@ function fail(message) {
 }
 
 function printResults(results) {
-  console.log("Harness Doctor");
+  console.log("Marionettist Doctor");
   console.log("");
   for (const result of results) {
     console.log(`${result.level.padEnd(5)} ${result.message}`);

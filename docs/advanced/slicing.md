@@ -1,6 +1,6 @@
 # Slicing
 
-Slicing is how the harness turns larger work into smaller approved units.
+Slicing is how Marionettist turns larger work into smaller approved units.
 
 ## A good slice should define
 

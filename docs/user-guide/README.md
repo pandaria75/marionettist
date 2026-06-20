@@ -10,13 +10,13 @@ Use this section when you want the fastest route to getting value from the frame
 
 ## Current naming note
 
-This repository still uses **harness** naming today:
+This repository now uses **Marionettist** naming for current user-facing surfaces:
 
-- CLI commands such as `harness init`
-- config such as `harness.config.yaml`
-- task files such as `.task/active.json`
+- CLI commands such as `marionettist init`
+- config such as `marionettist.config.yaml`
+- managed state such as `.marionettist/manifest.json`
 
-Some internal development docs discuss **Marionettist** as a future direction. Those references are planning material and do not change the current user-facing commands or file names.
+Some development and migration docs still mention legacy **harness** names when they describe historical behavior or migration steps.
 
 ## Need more detail?
 

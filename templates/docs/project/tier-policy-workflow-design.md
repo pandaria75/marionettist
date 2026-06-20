@@ -8,22 +8,22 @@ It defines an MVP boundary for configurable Tier policy without implementing a g
 
 - keep Tier policy focused on task classification and workflow hints
 - preserve current gate vocabulary and gate-policy semantics
-- record where future workflow configurability would interact with existing harness flow
-- give target projects a stable place to record future workflow questions without rewriting current harness behavior docs
+- record where future workflow configurability would interact with existing Marionettist flow
+- give target projects a stable place to record future workflow questions without rewriting current Marionettist behavior docs
 
 ## Why This Document Is Installed
 
 This file stays in the core installed docs set for now because it serves a project-neutral documentation role:
 
-- it explains why `.harness/tier-policy.yml` exists without implying that Tier policy can already rewire execution
+- it explains why `.marionettist/tier-policy.yml` exists without implying that Tier policy can already rewire execution
 - it separates current implemented workflow rules from deferred workflow-engine ideas
 - it gives target projects a safe reference when they want to discuss future extensibility or roadmap questions
 
-Projects should treat this file as a target/future-facing design note, not as executable current-state behavior. The current source of truth for actual harness execution remains `docs/project/harness-workflow.md` plus `harness.config.yaml` `gatePolicy`.
+Projects should treat this file as a target/future-facing design note, not as executable current-state behavior. The current source of truth for actual Marionettist execution remains `docs/project/marionettist-workflow.md` plus `marionettist.config.yaml` `gatePolicy`.
 
 ## Current Workflow Nodes
 
-The current harness workflow is a mostly fixed directed flow with a few policy-driven branches:
+The current Marionettist workflow is a mostly fixed directed flow with a few policy-driven branches:
 
 1. task intake and Tier classification
 2. analysis helpers as needed
@@ -41,7 +41,7 @@ The existing Tier split is coarse-grained:
 
 - Tier S: direct coding and review
 - Tier M: analysis plus context pack before coding
-- Tier L: full harness flow with stricter gating and critic expectations
+- Tier L: full Marionettist flow with stricter gating and critic expectations
 
 ## Conceptual Agent And Skill I/O
 
@@ -49,7 +49,7 @@ Current workflow behavior can be described as node contracts rather than a confi
 
 | Node | Inputs | Outputs |
 | --- | --- | --- |
-| Task intake | user request, repo rules, local config | Tier suggestion, task type, next harness step |
+| Task intake | user request, repo rules, local config | Tier suggestion, task type, next Marionettist step |
 | Requirement freeze | unclear behavior or scope | requirement artifact or clarified stop condition |
 | Inspection | selected files, docs, rules | workflow/module findings and risk notes |
 | Implementation slicing | requirements, findings | approved slices or groups with gate hints |
@@ -89,7 +89,7 @@ Because these concerns are intertwined, a full DAG engine would be a separate de
 
 For the configurable Tier policy MVP:
 
-- keep the executable workflow fixed as documented in `docs/project/harness-workflow.md`
+- keep the executable workflow fixed as documented in `docs/project/marionettist-workflow.md`
 - allow Tier policy to provide **workflow hints**, not executable graph rewrites
 - keep gate behavior under `gatePolicy` and existing workflow rules
 - keep critic requirements expressed as current workflow expectations, not arbitrary user-defined nodes
@@ -98,7 +98,7 @@ For the configurable Tier policy MVP:
 
 Recommended hint categories for later implementation work:
 
-- `workflowHint`: labels such as direct, analysis-context, or full-harness
+- `workflowHint`: labels such as direct, analysis-context, or full-marionettist
 - `reviewLevel`: labels such as standard or critic-required
 - `modelProfileHint`: existing model profile role/name only
 - `gateHint`: advisory only; must not replace `gatePolicy`
@@ -107,7 +107,7 @@ Recommended hint categories for later implementation work:
 
 Implemented MVP behavior today:
 
-- `.harness/tier-policy.yml` is the installed project-local Tier-policy file
+- `.marionettist/tier-policy.yml` is the installed project-local Tier-policy file
 - framework defaults remain available when the project file is missing
 - parse and validation problems fall back to safer framework behavior with explanation
 - conflict handling distinguishes refinements, explicit overrides, soft conflicts, and unsafe downgrades
@@ -115,13 +115,13 @@ Implemented MVP behavior today:
 
 Deferred future hardening beyond the MVP:
 
-- cross-validating every `modelProfileHint` against `.harness/model-profiles.yml`
+- cross-validating every `modelProfileHint` against `.marionettist/model-profiles.yml`
 - stricter automatic rejection of unknown ordered-field values instead of the current conservative explanation/fallback posture
 - a full configurable workflow DAG or workflow-engine state model
 
 ## Concrete MVP Schema Freeze
 
-The current MVP freezes the project-local Tier policy file as `.harness/tier-policy.yml` with this shape:
+The current MVP freezes the project-local Tier policy file as `.marionettist/tier-policy.yml` with this shape:
 
 ```yaml
 schemaVersion: "1"
@@ -152,7 +152,7 @@ tiers:
       - "..."
     minTier: "L"
     maxTier: null
-    workflowHint: "full-harness"
+    workflowHint: "full-marionettist"
     gateHint: "prefer-strict"
     reviewLevel: "critic-required"
     modelProfileHint: "think"
@@ -180,7 +180,7 @@ Precedence and boundary notes:
 The MVP natural-language authoring path is intentionally narrow:
 
 1. user describes desired Tier-policy changes in prose
-2. builder/config workflow drafts candidate `.harness/tier-policy.yml` content
+2. builder/config workflow drafts candidate `.marionettist/tier-policy.yml` content
 3. builder shows the candidate and a diff against the current file or framework defaults
 4. builder includes any already-available conflict or override explanation relevant to the candidate
 5. builder stops for explicit confirmation before writing
@@ -200,7 +200,7 @@ The following remain out of scope for the MVP and should be deferred beyond Tier
 
 - user-defined workflow nodes
 - arbitrary edge rewiring between existing nodes
-- per-project replacement of mandatory harness gates
+- per-project replacement of mandatory Marionettist gates
 - new gate vocabulary or numeric workflow scoring
 - a standalone workflow-DAG execution engine
 - automatic persistence of natural-language workflow changes without explicit confirmation

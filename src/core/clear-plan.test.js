@@ -7,8 +7,8 @@ import { buildClearPlan } from "./clear-plan.js";
 
 async function createProject(managedFiles = [], filesToWrite = []) {
   const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), "harness-clear-plan-test-"));
-  await fs.mkdir(path.join(projectPath, ".harness"), { recursive: true });
-  await fs.writeFile(path.join(projectPath, ".harness", "manifest.json"), `${JSON.stringify({
+  await fs.mkdir(path.join(projectPath, ".marionettist"), { recursive: true });
+  await fs.writeFile(path.join(projectPath, ".marionettist", "manifest.json"), `${JSON.stringify({
     schemaVersion: 1,
     frameworkVersion: "0.0.0-test",
     installedAt: "2026-06-16T00:00:00.000Z",
@@ -81,7 +81,7 @@ test("buildClearPlan previews removable and preserved AGENTS sections when manag
   const projectPath = await createProject([
     { path: "AGENTS.md", source: "templates/AGENTS.md", kind: "managed-block", hash: "agents-hash" }
   ]);
-  await fs.writeFile(path.join(projectPath, "AGENTS.md"), `# Existing Managed Block Target\n\n<!-- harness-kit:start -->\n\n## Purpose\n\nOld managed section.\n\n<!-- harness-kit:end -->\n\n<!-- project-local:start -->\n\nKeep this local section.\n\n<!-- project-local:end -->\n`);
+  await fs.writeFile(path.join(projectPath, "AGENTS.md"), `# Existing Managed Block Target\n\n<!-- marionettist-kit:start -->\n\n## Purpose\n\nOld managed section.\n\n<!-- marionettist-kit:end -->\n\n<!-- project-local:start -->\n\nKeep this local section.\n\n<!-- project-local:end -->\n`);
 
   const plan = await buildClearPlan(projectPath, { scope: "all" });
   const agentsTarget = plan.targets[0];
@@ -97,7 +97,7 @@ test("buildClearPlan previews managed-only AGENTS cleanup without preserved cont
     { path: "AGENTS.md", source: "templates/AGENTS.md", kind: "managed-block", hash: "agents-hash" }
   ], ["AGENTS.md"]);
 
-  await fs.writeFile(path.join(projectPath, "AGENTS.md"), `<!-- harness-kit:start -->\n\nOnly managed content.\n\n<!-- harness-kit:end -->\n`);
+  await fs.writeFile(path.join(projectPath, "AGENTS.md"), `<!-- marionettist-kit:start -->\n\nOnly managed content.\n\n<!-- marionettist-kit:end -->\n`);
 
   const plan = await buildClearPlan(projectPath, { scope: "all" });
   const agentsTarget = plan.targets[0];

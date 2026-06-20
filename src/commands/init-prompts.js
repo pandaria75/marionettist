@@ -110,7 +110,7 @@ export async function promptDistributionMode(defaultMode = "embedded") {
     default: defaultMode,
     choices: [
       {
-        name: "embedded - default all-in-one harness install",
+        name: "embedded - default all-in-one Marionettist install",
         value: "embedded",
       },
       {
@@ -131,11 +131,11 @@ export async function promptOpencodeCommandSurface() {
     default: "minimal",
     choices: [
       {
-        name: "minimal - only /harness, /harness-dev, /harness-incident, /harness-docs, /harness-config",
+        name: "minimal - only /marionettist, /marionettist-dev, /marionettist-incident, /marionettist-docs, /marionettist-config",
         value: "minimal",
       },
       {
-        name: "standard - minimal plus /harness-context, /harness-status, /harness-continue",
+        name: "standard - minimal plus /marionettist-context, /marionettist-status, /marionettist-continue",
         value: "standard",
       },
       {

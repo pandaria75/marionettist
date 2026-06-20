@@ -1,20 +1,20 @@
 import path from "node:path";
 import { listFiles, pathExists, readText, toPosixPath } from "./files.js";
-import { listResolvedOpencodeTemplateRelatives, resolveCoreTemplateSource, resolveOpencodeTemplateSource, skillsRoot, templatesRoot, versionFile } from "./framework-paths.js";
+import { listResolvedOpencodeTemplateRelatives, projectConfigRelative, resolveCoreTemplateSource, resolveOpencodeTemplateSource, skillsRoot, templatesRoot, versionFile } from "./framework-paths.js";
 import { extractManagedBlock, replaceManagedBlock } from "./managed-block.js";
 import { sha256 } from "./hash.js";
 import { buildManifest, getManagedFileHash, manifestFileMap, manifestRelative, normalizeDistributionMode, normalizeOpencodeCommandSurface, normalizeOpencodePermissionMode, opencodeArtifactAdapter, readManifest, validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface, validateOptionalOpencodePermissionMode } from "./manifest.js";
-import { buildOpencodeAgentTemplateVariables, buildResolvedOpencodeAgentModelConfigs, loadModelProfiles, loadModelProfilesState, modelProfilesSourceRelative, renderCanonicalModelProfiles } from "./model-profiles.js";
+import { buildOpencodeAgentTemplateVariables, buildResolvedOpencodeAgentModelConfigs, loadModelProfiles, loadModelProfilesState } from "./model-profiles.js";
 import { getOpencodePermissionPolicy } from "./opencode-permissions.js";
 import { renderWithMetadata, stableJsonStringify } from "./render.js";
 import { parseSimpleYaml } from "./yaml.js";
 
 const coreTemplateTargets = new Map([
   ["AGENTS.md", "AGENTS.md"],
-  [".harness/model-profiles.yml", ".harness/model-profiles.yml"],
-  [".harness/tier-policy.yml", ".harness/tier-policy.yml"],
-  ["harness.config.yaml", "harness.config.yaml"],
-  ["docs/project/harness-workflow.md", "docs/project/harness-workflow.md"],
+  [".marionettist/model-profiles.yml", ".marionettist/model-profiles.yml"],
+  [".marionettist/tier-policy.yml", ".marionettist/tier-policy.yml"],
+  ["marionettist.config.yaml", projectConfigRelative],
+  ["docs/project/marionettist-workflow.md", "docs/project/marionettist-workflow.md"],
   ["docs/project/knowledge-map.md", "docs/project/knowledge-map.md"],
   ["docs/project/tier-policy-workflow-design.md", "docs/project/tier-policy-workflow-design.md"],
   ["docs/current/system-map.md", "docs/current/system-map.md"],
@@ -27,21 +27,21 @@ const opencodeManagedPrefix = ".opencode/";
 const opencodeValidatorTemplatePrefix = "agents/validators/";
 const opencodeProjectConfigSource = "opencode.jsonc";
 const minimalOpencodeCommandRelatives = new Set([
-  "commands/harness.md",
-  "commands/harness-dev.md",
-  "commands/harness-incident.md",
-  "commands/harness-docs.md",
-  "commands/harness-config.md"
+  "commands/marionettist.md",
+  "commands/marionettist-dev.md",
+  "commands/marionettist-incident.md",
+  "commands/marionettist-docs.md",
+  "commands/marionettist-config.md"
 ]);
 const standardOnlyOpencodeCommandRelatives = new Set([
-  "commands/harness-context.md",
-  "commands/harness-status.md",
-  "commands/harness-continue.md"
+  "commands/marionettist-context.md",
+  "commands/marionettist-status.md",
+  "commands/marionettist-continue.md"
 ]);
 const advancedOnlyOpencodeCommandRelatives = new Set([
-  "commands/harness-feature.md",
-  "commands/harness-bugfix.md",
-  "commands/harness-refactor.md"
+  "commands/marionettist-feature.md",
+  "commands/marionettist-bugfix.md",
+  "commands/marionettist-refactor.md"
 ]);
 const knowledgeModeValues = new Set(["standard", "mudball"]);
 const knowledgeMaturityValues = new Set(["L0", "L1", "L2", "L3", "L4"]);
@@ -73,7 +73,7 @@ async function buildFrameworkAssets(projectPath, options = {}) {
     const kind = targetRelative === "AGENTS.md" ? "managed-block" : "file";
     const managedContent = kind === "managed-block" ? extractManagedBlock(content) : content;
     if (!managedContent) {
-      throw new Error(`Template is missing harness managed block markers: ${sourceRelative}`);
+      throw new Error(`Template is missing marionettist managed block markers: ${sourceRelative}`);
     }
 
     assets.push({
@@ -145,7 +145,7 @@ async function buildOpencodeAssets(projectPath, variables = {}, states = {}) {
     const templateContent = await readText(resolvedSource.sourcePath);
     const rendered = renderWithMetadata({
       templateContent,
-      variables: sourceRelative === "agents/harness-validator.md"
+      variables: sourceRelative === "agents/marionettist-validator.md"
         ? {
           ...opencodeVariables,
           validatorProjectGuidance
@@ -444,7 +444,7 @@ async function resolveDistributionModeState(projectPath, previousManifest, optio
     reportedValue,
     reportedSource,
     legacyInference,
-    persistToHarnessConfig: value !== null && (
+    persistToConfig: value !== null && (
       mode === "init"
       || source === "cli"
       || source === "manifest"
@@ -517,12 +517,12 @@ async function resolveOpencodeSurfaceAndPermissionState(projectPath, previousMan
     source,
     permissionMode,
     permissionModeSource,
-    persistToHarnessConfig: value !== null && (
+    persistToConfig: value !== null && (
       source === "cli"
       || source === "config"
       || options.withOpencode === true
     ),
-    persistPermissionModeToHarnessConfig: permissionMode !== null && (
+    persistPermissionModeToConfig: permissionMode !== null && (
       permissionModeSource === "cli"
       || permissionModeSource === "config"
       || options.withOpencode === true
@@ -531,30 +531,30 @@ async function resolveOpencodeSurfaceAndPermissionState(projectPath, previousMan
 }
 
 async function readConfiguredOpencodeCommandSurface(projectPath) {
-  const harnessConfigPath = path.join(projectPath, "harness.config.yaml");
-  if (!(await pathExists(harnessConfigPath))) {
+  const configPath = path.join(projectPath, projectConfigRelative);
+  if (!(await pathExists(configPath))) {
     return { value: null, error: null, rawValue: null, isLegacyAlias: false };
   }
 
   try {
-    const parsed = parseSimpleYaml(await readText(harnessConfigPath));
+    const parsed = parseSimpleYaml(await readText(configPath));
     const value = parsed?.opencode?.commandSurface;
-    return validateOptionalOpencodeCommandSurface(value, "harness.config.yaml opencode.commandSurface");
+    return validateOptionalOpencodeCommandSurface(value, `${projectConfigRelative} opencode.commandSurface`);
   } catch {
     return { value: null, error: null, rawValue: null, isLegacyAlias: false };
   }
 }
 
 async function readConfiguredOpencodePermissionMode(projectPath) {
-  const harnessConfigPath = path.join(projectPath, "harness.config.yaml");
-  if (!(await pathExists(harnessConfigPath))) {
+  const configPath = path.join(projectPath, projectConfigRelative);
+  if (!(await pathExists(configPath))) {
     return { value: null, error: null, rawValue: null };
   }
 
   try {
-    const parsed = parseSimpleYaml(await readText(harnessConfigPath));
+    const parsed = parseSimpleYaml(await readText(configPath));
     const value = parsed?.opencode?.permissionMode;
-    return validateOptionalOpencodePermissionMode(value, "harness.config.yaml opencode.permissionMode");
+    return validateOptionalOpencodePermissionMode(value, `${projectConfigRelative} opencode.permissionMode`);
   } catch {
     return { value: null, error: null, rawValue: null };
   }
@@ -624,15 +624,15 @@ function inferManagedOpencodePermissionMode(previousManifest) {
 }
 
 async function readConfiguredDistributionMode(projectPath) {
-  const harnessConfigPath = path.join(projectPath, "harness.config.yaml");
-  if (!(await pathExists(harnessConfigPath))) {
+  const configPath = path.join(projectPath, projectConfigRelative);
+  if (!(await pathExists(configPath))) {
     return { value: null, error: null, rawValue: null };
   }
 
   try {
-    const parsed = parseSimpleYaml(await readText(harnessConfigPath));
+    const parsed = parseSimpleYaml(await readText(configPath));
     const value = parsed?.distribution?.mode;
-    return validateOptionalDistributionMode(value, "harness.config.yaml distribution.mode");
+    return validateOptionalDistributionMode(value, `${projectConfigRelative} distribution.mode`);
   } catch {
     return { value: null, error: null, rawValue: null };
   }
@@ -644,10 +644,10 @@ function assertValidDistributionModeSource(result, mode, sourceKind) {
   }
 
   const subject = sourceKind === "manifest"
-    ? ".harness/manifest.json distributionMode"
-    : "harness.config.yaml distribution.mode";
+    ? ".marionettist/manifest.json distributionMode"
+    : `${projectConfigRelative} distribution.mode`;
   throw new Error(
-    `Cannot continue because ${subject} is invalid for harness ${mode}. ${result.error} Fix the recorded distribution mode or remove it before rerunning. Use \`harness doctor --project <path>\` for a detailed report.`
+    `Cannot continue because ${subject} is invalid for marionettist ${mode}. ${result.error} Fix the recorded distribution mode or remove it before rerunning. Use \`marionettist doctor --project <path>\` for a detailed report.`
   );
 }
 
@@ -657,10 +657,10 @@ function assertValidOpencodeCommandSurfaceSource(result, sourceKind) {
   }
 
   const subject = sourceKind === "manifest"
-    ? ".harness/manifest.json managedFiles[*].commandSurface"
-    : "harness.config.yaml opencode.commandSurface";
+    ? ".marionettist/manifest.json managedFiles[*].commandSurface"
+    : `${projectConfigRelative} opencode.commandSurface`;
   throw new Error(
-    `Cannot continue because ${subject} is invalid. ${result.error} Fix the recorded OpenCode command surface or remove it before rerunning. Use \`harness doctor --project <path>\` for a detailed report.`
+    `Cannot continue because ${subject} is invalid. ${result.error} Fix the recorded OpenCode command surface or remove it before rerunning. Use \`marionettist doctor --project <path>\` for a detailed report.`
   );
 }
 
@@ -670,25 +670,25 @@ function assertValidOpencodePermissionModeSource(result, sourceKind) {
   }
 
   const subject = sourceKind === "manifest"
-    ? ".harness/manifest.json opencodePermissionMode"
-    : "harness.config.yaml opencode.permissionMode";
+    ? ".marionettist/manifest.json opencodePermissionMode"
+    : `${projectConfigRelative} opencode.permissionMode`;
   throw new Error(
-    `Cannot continue because ${subject} is invalid. ${result.error} Fix the recorded OpenCode permission mode or remove it before rerunning. Use \`harness doctor --project <path>\` for a detailed report.`
+    `Cannot continue because ${subject} is invalid. ${result.error} Fix the recorded OpenCode permission mode or remove it before rerunning. Use \`marionettist doctor --project <path>\` for a detailed report.`
   );
 }
 
-function renderHarnessConfigWithSelections(content, states = {}) {
+function renderProjectConfigWithSelections(content, states = {}) {
   const sections = [];
 
-  if (states.distributionModeState?.persistToHarnessConfig && states.distributionModeState.value) {
+  if (states.distributionModeState?.persistToConfig && states.distributionModeState.value) {
     sections.push(`distribution:\n  mode: "${states.distributionModeState.value}"`);
   }
 
   const opencodeLines = [];
-  if (states.opencodeCommandSurfaceState?.persistToHarnessConfig && states.opencodeCommandSurfaceState.value) {
+  if (states.opencodeCommandSurfaceState?.persistToConfig && states.opencodeCommandSurfaceState.value) {
     opencodeLines.push(`  commandSurface: "${states.opencodeCommandSurfaceState.value}"`);
   }
-  if (states.opencodePermissionModeState?.persistPermissionModeToHarnessConfig && states.opencodePermissionModeState.permissionMode) {
+  if (states.opencodePermissionModeState?.persistPermissionModeToConfig && states.opencodePermissionModeState.permissionMode) {
     opencodeLines.push(`  permissionMode: "${states.opencodePermissionModeState.permissionMode}"`);
   }
   if (opencodeLines.length > 0) {
@@ -704,19 +704,7 @@ function renderHarnessConfigWithSelections(content, states = {}) {
 }
 
 function buildFrameworkAssetRenderState(sourceRelative, variables, states = {}) {
-  if (sourceRelative === modelProfilesSourceRelative && states.modelProfilesState?.source === "legacy") {
-    return {
-      variables: {},
-      renderContext: {
-        modelProfilesState: {
-          source: states.modelProfilesState.source,
-          effectiveProfiles: states.modelProfilesState.effectiveProfiles
-        }
-      }
-    };
-  }
-
-  if (sourceRelative === "harness.config.yaml") {
+  if (sourceRelative === "marionettist.config.yaml") {
     return {
       variables,
       renderContext: {
@@ -733,43 +721,39 @@ function buildFrameworkAssetRenderState(sourceRelative, variables, states = {}) 
 
 function buildHarnessConfigRenderSelections(states = {}) {
   return {
-    distributionModeState: states.distributionModeState?.persistToHarnessConfig
+    distributionModeState: states.distributionModeState?.persistToConfig
       ? {
         value: states.distributionModeState.value,
-        persistToHarnessConfig: true
+        persistToConfig: true
       }
       : {
         value: null,
-        persistToHarnessConfig: false
+        persistToConfig: false
       },
-    opencodeCommandSurfaceState: states.opencodeCommandSurfaceState?.persistToHarnessConfig
+    opencodeCommandSurfaceState: states.opencodeCommandSurfaceState?.persistToConfig
       ? {
         value: states.opencodeCommandSurfaceState.value,
-        persistToHarnessConfig: true
+        persistToConfig: true
       }
       : {
         value: null,
-        persistToHarnessConfig: false
+        persistToConfig: false
       },
-    opencodePermissionModeState: states.opencodePermissionModeState?.persistPermissionModeToHarnessConfig
+    opencodePermissionModeState: states.opencodePermissionModeState?.persistPermissionModeToConfig
       ? {
         permissionMode: states.opencodePermissionModeState.permissionMode,
-        persistPermissionModeToHarnessConfig: true
+        persistPermissionModeToConfig: true
       }
       : {
         permissionMode: null,
-        persistPermissionModeToHarnessConfig: false
+        persistPermissionModeToConfig: false
       }
   };
 }
 
 function finalizeFrameworkAssetRender({ content, renderContext }) {
-  if (renderContext?.modelProfilesState?.source === "legacy") {
-    return renderCanonicalModelProfiles(renderContext.modelProfilesState.effectiveProfiles);
-  }
-
   if (renderContext?.harnessConfigSelections) {
-    return renderHarnessConfigWithSelections(content, renderContext.harnessConfigSelections);
+    return renderProjectConfigWithSelections(content, renderContext.harnessConfigSelections);
   }
 
   return content;
@@ -960,7 +944,7 @@ export async function buildPlan(projectPath, mode, options = {}) {
   const previousManifest = await readManifest(projectPath);
 
   if (mode !== "init" && !previousManifest) {
-    throw new Error(`Harness manifest not found: ${path.join(projectPath, manifestRelative)}. Run harness init first.`);
+    throw new Error(`Marionettist manifest not found: ${path.join(projectPath, manifestRelative)}. Run marionettist init first.`);
   }
 
   const previousByPath = manifestFileMap(previousManifest);
@@ -970,7 +954,7 @@ export async function buildPlan(projectPath, mode, options = {}) {
   const opencodePermissionModeState = {
     permissionMode: opencodeCommandSurfaceState.permissionMode,
     permissionModeSource: opencodeCommandSurfaceState.permissionModeSource,
-    persistPermissionModeToHarnessConfig: opencodeCommandSurfaceState.persistPermissionModeToHarnessConfig
+    persistPermissionModeToConfig: opencodeCommandSurfaceState.persistPermissionModeToConfig
   };
   const assets = await buildFrameworkAssets(projectPath, {
     ...options,

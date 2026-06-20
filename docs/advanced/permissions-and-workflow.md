@@ -1,6 +1,6 @@
 # Permissions and Workflow Depth
 
-OpenCode permissions and harness workflow depth are related, but they are not the same control.
+OpenCode permissions and Marionettist workflow depth are related, but they are not the same control.
 
 ## Two separate ideas
 

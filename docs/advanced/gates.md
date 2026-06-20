@@ -1,6 +1,6 @@
 # Gates
 
-Gates are the main pause points in the harness workflow.
+Gates are the main pause points in the Marionettist workflow.
 
 ## Core rule
 
@@ -23,4 +23,4 @@ This keeps human approval attached to the same unit of work that the agent is ab
 - [Design overview: Gates Matter More Than Autonomy](../DESIGN.md#32-gates-matter-more-than-autonomy)
 - [OpenCode guide: Gate Behavior](../OPENCODE.md#8-gate-behavior)
 
-For exact project execution rules, use the installed `docs/project/harness-workflow.md` in a target project.
+For exact project execution rules, use the installed `docs/project/marionettist-workflow.md` in a target project.

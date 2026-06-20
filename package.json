@@ -1,9 +1,10 @@
 {
-  "name": "universal-ai-harness-framework",
+  "name": "marionettist",
   "version": "0.2.10",
   "type": "module",
   "bin": {
-    "harness": "./bin/harness.js"
+    "marionettist": "./bin/marionettist.js",
+    "mari": "./bin/marionettist.js"
   },
   "scripts": {
     "smoke": "node ./scripts/smoke.mjs",

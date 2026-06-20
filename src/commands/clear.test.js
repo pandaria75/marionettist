@@ -23,11 +23,11 @@ async function captureLogs(callback) {
 
 async function createProject() {
   const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), "harness-clear-command-test-"));
-  await fs.mkdir(path.join(projectPath, ".harness"), { recursive: true });
+  await fs.mkdir(path.join(projectPath, ".marionettist"), { recursive: true });
   await fs.mkdir(path.join(projectPath, ".opencode", "agents"), { recursive: true });
   await fs.writeFile(path.join(projectPath, ".opencode", "agents", "harness.md"), "agent\n");
-  await fs.writeFile(path.join(projectPath, "AGENTS.md"), `# Project Agent Guide\n\n<!-- harness-kit:start -->\n\nManaged guidance.\n\n<!-- harness-kit:end -->\n\n## Local Notes\n\nKeep these notes.\n`);
-  await fs.writeFile(path.join(projectPath, ".harness", "manifest.json"), `${JSON.stringify({
+  await fs.writeFile(path.join(projectPath, "AGENTS.md"), `# Project Agent Guide\n\n<!-- marionettist-kit:start -->\n\nManaged guidance.\n\n<!-- marionettist-kit:end -->\n\n## Local Notes\n\nKeep these notes.\n`);
+  await fs.writeFile(path.join(projectPath, ".marionettist", "manifest.json"), `${JSON.stringify({
     schemaVersion: 1,
     frameworkVersion: "0.0.0-test",
     installedAt: "2026-06-16T00:00:00.000Z",
@@ -58,8 +58,8 @@ test("clearCommand preview prints planned removals for manifest-managed targets"
     await clearCommand(["--project", projectPath, "--scope", "all"]);
   });
 
-  assert.equal(lines[0], "harness clear (preview)");
-  assert(lines.some((line) => line === "manifest: .harness/manifest.json"));
+  assert.equal(lines[0], "marionettist clear (preview)");
+  assert(lines.some((line) => line === "manifest: .marionettist/manifest.json"));
   assert(lines.some((line) => line === "planned actions: 2"));
   assert(lines.some((line) => line === "remove: .opencode/agents/harness.md"));
   assert(lines.some((line) => line === "edit: AGENTS.md"));
@@ -81,9 +81,9 @@ test("clearCommand opencode scope only prints adapter-managed preview targets", 
 
 test("clearCommand preview explains when AGENTS has no managed block", async () => {
   const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), "harness-clear-command-no-managed-"));
-  await fs.mkdir(path.join(projectPath, ".harness"), { recursive: true });
+  await fs.mkdir(path.join(projectPath, ".marionettist"), { recursive: true });
   await fs.writeFile(path.join(projectPath, "AGENTS.md"), "# Local guide\n\nOnly project-local content.\n");
-  await fs.writeFile(path.join(projectPath, ".harness", "manifest.json"), `${JSON.stringify({
+  await fs.writeFile(path.join(projectPath, ".marionettist", "manifest.json"), `${JSON.stringify({
     schemaVersion: 1,
     frameworkVersion: "0.0.0-test",
     installedAt: "2026-06-16T00:00:00.000Z",
@@ -113,7 +113,7 @@ test("clearCommand apply executes after plan build and reports backups", async (
     await clearCommand(["--project", projectPath, "--scope", "all", "--apply"]);
   });
 
-  assert(lines.some((line) => line.startsWith("backup root: .harness/backups/")));
+  assert(lines.some((line) => line.startsWith("backup root: .marionettist/backups/")));
   assert(lines.some((line) => line === "applied remove: .opencode/agents/harness.md"));
   assert(lines.some((line) => line === "applied edit: AGENTS.md"));
   await assert.rejects(fs.access(path.join(projectPath, ".opencode", "agents", "harness.md")));

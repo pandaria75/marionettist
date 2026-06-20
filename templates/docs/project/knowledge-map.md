@@ -8,7 +8,7 @@ Docs explain context. Rules enforce constraints. Keep them separate and update t
 
 Rule files may also record rule metadata such as `type`, `confidence`, and `source`. Read those semantics from `AGENTS.md` and the rule files themselves; do not treat every rule entry as equally strong by default.
 
-When `harness.config.yaml` exists, read `knowledge.mode` and `knowledge.maturity` before deciding how much knowledge to load or create.
+When `marionettist.config.yaml` exists, read `knowledge.mode` and `knowledge.maturity` before deciding how much knowledge to load or create.
 
 ## Project Overview
 
@@ -47,15 +47,15 @@ If the current state is unclear, document the uncertainty as an unknown instead 
 
 ## Project Workflow Design
 
-- Areas: harness task flow, Tier-based routing, gate boundaries, future workflow configurability
+- Areas: Marionettist task flow, Tier-based routing, gate boundaries, future workflow configurability
 - Tags: workflow, tier, gate-policy, task-state, research
 - Docs:
-  - Current: `docs/project/harness-workflow.md`
+  - Current: `docs/project/marionettist-workflow.md`
   - Target: `docs/project/tier-policy-workflow-design.md`
 - Rules:
   - `AGENTS.md`
 - Read When:
-  - working on harness execution flow, Tier policy, gate behavior, or future workflow design boundaries
+  - working on Marionettist execution flow, Tier policy, gate behavior, or future workflow design boundaries
 - Boundaries:
   - keep `gatePolicy` semantics unchanged
   - treat Tier policy as classification/workflow-hint logic until a later approved design says otherwise

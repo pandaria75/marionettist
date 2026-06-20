@@ -1,8 +1,8 @@
-# Universal AI Harness Framework Usage Guide
+# Marionettist Usage Guide
 
 [中文版](./GUIDELINES.zh-CN.md)
 
-This guide is for tech leads and developers who want to install and use the harness in a target project.
+This guide is for tech leads and developers who want to install and use Marionettist in a target project.
 
 For design rationale, see [docs/DESIGN.md](./DESIGN.md). For OpenCode usage, see [docs/OPENCODE.md](./OPENCODE.md).
 
@@ -23,13 +23,13 @@ Then run it inside a target project:
 
 ```powershell
 # Preview first
-harness init --dry-run
+marionettist init --dry-run
 
 # Install interactively
-harness init
+marionettist init
 
 # Optional: include OpenCode commands and agents
-harness init --with-opencode
+marionettist init --with-opencode
 ```
 
 During interactive init, existing files are not overwritten silently. The CLI asks whether to back up, overwrite, or skip. Use `--auto` to skip existing files. Use `--force` only when you intentionally want replacement.
@@ -39,28 +39,28 @@ During interactive init, existing files are not overwritten silently. The CLI as
 Typical installed files:
 
 - `AGENTS.md` — repository-level agent behavior
-- `harness.config.yaml` — local harness settings
-- `docs/project/harness-workflow.md` — task workflow and state contract
+- `marionettist.config.yaml` — local Marionettist settings
+- `docs/project/marionettist-workflow.md` — task workflow and state contract
 - `docs/project/knowledge-map.md` — routing map for project knowledge
 - `.aiassistant/rules/*.md` — enforceable constraints
 - `.agents/skills/*/SKILL.md` — portable workflow skills
-- `.harness/manifest.json` — managed-file ownership record
+- `.marionettist/manifest.json` — managed-file ownership record
 - optional `.opencode/*` files when installed with OpenCode
 
 After init, a tech lead should usually:
 
 1. Fill the project-local section in `AGENTS.md`.
-2. Adjust `harness.config.yaml` for the project.
+2. Adjust `marionettist.config.yaml` for the project.
 3. Update `docs/project/knowledge-map.md` to point to real project docs.
 4. Add or refine local rules under `.aiassistant/rules/`.
-5. If OpenCode is used, review `.harness/model-profiles.yml`.
+5. If OpenCode is used, review `.marionettist/model-profiles.yml`.
 
 ### Optional: `riskZones`
 
-`riskZones` is an optional config field in `harness.config.yaml` for marking higher-risk project areas.
+`riskZones` is an optional config field in `marionettist.config.yaml` for marking higher-risk project areas.
 
 - Use it to highlight areas such as auth, billing, schema changes, production config, or external API contracts.
-- If it is not configured, the harness still works normally.
+- If it is not configured, Marionettist still works normally.
 - Treat it as a lightweight project hint for analysis, documentation, and review. Do not treat it as a fully enforced policy system.
 
 Example:
@@ -77,17 +77,17 @@ riskZones:
 
 ## 3. Install Modes
 
-`harness init` supports three distribution modes:
+`marionettist init` supports three distribution modes:
 
-- `embedded` — default; the harness is installed locally in the target repo
+- `embedded` — default; Marionettist is installed locally in the target repo
 - `hybrid` — local install plus adapter-aware metadata
 - `adapter` — adapter-oriented install while still tracking local generated files
 
-The selected mode is recorded in `.harness/manifest.json` when applicable. Most teams can start with the default `embedded` mode.
+The selected mode is recorded in `.marionettist/manifest.json` when applicable. Most teams can start with the default `embedded` mode.
 
 ## 4. Daily Workflow
 
-The harness is a controlled sequence:
+Marionettist is a controlled sequence:
 
 ```text
 intake -> analysis/context -> coding -> review -> gate
@@ -98,7 +98,7 @@ For non-trivial work, the agent should prepare task context before coding. For l
 Useful starting prompt:
 
 ```text
-Follow this repository's harness workflow.
+Follow this repository's Marionettist workflow.
 
 Task: <describe the work>.
 
@@ -109,7 +109,7 @@ Do not start coding until the analysis gate is approved.
 With OpenCode:
 
 ```text
-/harness <describe the work>
+/marionettist <describe the work>
 ```
 
 ## 5. Task Tiers
@@ -170,7 +170,7 @@ User confirmation required to continue.
 
 ### Gate policy modes
 
-Projects can configure gate posture in `harness.config.yaml`:
+Projects can configure gate posture in `marionettist.config.yaml`:
 
 ```yaml
 gatePolicy:
@@ -185,7 +185,7 @@ gatePolicy:
 
 Gate policy is not OpenCode permission mode. It does not relax dangerous-command rules, forbidden scope, or final approval unless explicitly configured.
 
-For exact gate semantics, use the installed `docs/project/harness-workflow.md` in the target project.
+For exact gate semantics, use the installed `docs/project/marionettist-workflow.md` in the target project.
 
 ## 7. Task Artifacts
 
@@ -210,7 +210,7 @@ I want to build a feature:
 
 <requirement>
 
-Follow the current repository harness workflow.
+Follow the current repository Marionettist workflow.
 Start with task intake.
 Do not start coding yet.
 ```
@@ -224,7 +224,7 @@ Observed: <actual behavior>
 Expected: <expected behavior>
 Reproduction: <steps or evidence>
 
-Follow the current repository harness workflow.
+Follow the current repository Marionettist workflow.
 Confirm the reproduction path or failing test before coding.
 ```
 
@@ -238,7 +238,7 @@ Behavior that must stay unchanged: <constraints>
 Allowed scope: <files or areas>
 Forbidden scope: <files or areas>
 
-Follow the current repository harness workflow.
+Follow the current repository Marionettist workflow.
 Analyze boundary impact first.
 Do not start coding yet.
 ```
@@ -269,11 +269,11 @@ When docs or rules are added, moved, renamed, or deleted, update `docs/project/k
 
 ## 10. OpenCode
 
-OpenCode is optional. The harness still works through files, prompts, and skills without it.
+OpenCode is optional. Marionettist still works through files, prompts, and skills without it.
 
 Use OpenCode when you want:
 
-- `/harness` and focused slash commands
+- `/marionettist` and focused slash commands
 - local role agents such as builder, coder, reviewer, validator
 - model profiles by role
 - generated validator guidance
@@ -285,47 +285,47 @@ See [docs/OPENCODE.md](./OPENCODE.md) for setup and usage.
 Preview changes before applying them:
 
 ```powershell
-harness diff
+marionettist diff
 ```
 
 Apply safe managed updates:
 
 ```powershell
-harness sync
-harness sync --dry-run
+marionettist sync
+marionettist sync --dry-run
 ```
 
 Check the install:
 
 ```powershell
-harness doctor
+marionettist doctor
 ```
 
 Local task artifacts, local docs, local rules, and local skills are preserved by default. `AGENTS.md` updates only the managed block. Conflicts are reported instead of being overwritten silently.
 
 ## 12. Clear And Re-Init
 
-Use `harness clear` when you want to remove framework-managed files before a clean reinstall or migration. `harness uninstall` is an alias.
+Use `marionettist clear` when you want to remove framework-managed files before a clean reinstall or migration. `marionettist uninstall` is an alias.
 
 Preview first:
 
 ```powershell
-harness clear
-harness clear --scope opencode
+marionettist clear
+marionettist clear --scope opencode
 ```
 
 Apply only when you are ready to remove managed assets:
 
 ```powershell
-harness clear --apply
-harness uninstall --scope all --apply
+marionettist clear --apply
+marionettist uninstall --scope all --apply
 ```
 
 - Default mode is preview only. No files change unless `--apply` is present.
-- `--scope all` removes all manifest-managed harness assets that still exist.
+- `--scope all` removes all manifest-managed Marionettist assets that still exist.
 - `--scope opencode` removes only manifest-managed files recorded with the OpenCode adapter; it does not infer ownership from `.opencode/` paths alone.
-- Apply mode writes backups under `.harness/backups/<timestamp>/` before each file removal or `AGENTS.md` managed-block edit.
-- `AGENTS.md` is not deleted wholesale. Clear removes only the harness-managed block and preserves project-local sections.
+- Apply mode writes backups under `.marionettist/backups/<timestamp>/` before each file removal or `AGENTS.md` managed-block edit.
+- `AGENTS.md` is not deleted wholesale. Clear removes only the `marionettist-kit` managed block and preserves project-local sections.
 - If `AGENTS.md` contains only the managed block, clear keeps a safe `# AGENTS` placeholder file instead of deleting it.
 - Apply is not atomic across all targets. If a later backup or delete step fails, earlier targets may already be backed up and removed. Use the backup folder to restore as needed.
 - Current apply failures surface the underlying filesystem error directly. Treat that output as the immediate recovery clue.
@@ -334,20 +334,20 @@ Typical migration flow:
 
 ```powershell
 # 1) Preview what clear would remove
-harness clear --scope all
+marionettist clear --scope all
 
 # 2) Apply clear after reviewing the preview
-harness clear --scope all --apply
+marionettist clear --scope all --apply
 
-# 3) Reinstall the harness cleanly
-harness init --with-opencode
+# 3) Reinstall Marionettist cleanly
+marionettist init --with-opencode
 ```
 
 Run apply only in the target project you intend to clean. The command refuses manifest targets that escape the project root, including symlink targets that resolve outside the workspace.
 
 ## 13. Common Pitfalls
 
-- Do not treat `harness init` as safe to run blindly in this framework source repo. Use self commands here.
+- Do not treat `marionettist init` as safe to run blindly in this framework source repo. Use self commands here.
 - Do not start coding for non-trivial work before the analysis gate is approved.
 - Do not use docs as a source-code index.
 - Do not confuse gate policy with OpenCode permission mode.

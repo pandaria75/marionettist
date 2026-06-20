@@ -1,20 +1,93 @@
-# Migration
+# Marionettist migration guide
 
-This section prepares future migration work. It does **not** mean the harness has already been renamed to Marionettist.
+This guide documents the migration path for the strict rename from legacy `harness` naming to current `marionettist` naming.
 
-## Current state
+## Current-state summary
 
-- user-facing commands still use `harness`
-- current config still uses files such as `harness.config.yaml` and `.harness/`
-- current docs should stay honest about present naming and behavior
+Issue #42 has implemented the public rename:
 
-## What this section is for
+- the current CLI commands are `marionettist` and `mari`
+- current config uses `marionettist.config.yaml`
+- managed runtime state uses `.marionettist/`
+- current OpenCode assets use `marionettist-*` names
 
-- preparing teams for a future harness-to-Marionettist rename
-- linking the roadmap material that explains why the rename is planned
-- giving future migration work a stable documentation home before the rename is implemented
+Legacy `harness` names in this document exist only to help older installs migrate.
 
-## Current planning references
+## Breaking-change statement
+
+The rename implemented in issue #42 is a **strict breaking rename**.
+
+- do not assume long-lived compatibility aliases
+- do not assume old `harness` commands or file names will keep working after the rename
+- do not assume automatic in-place migration
+
+Teams should plan for a deliberate migration window rather than a mixed-name transition period.
+
+## Legacy-to-current mapping
+
+| Legacy surface | Current Marionettist surface |
+| --- | --- |
+| project/package `universal-ai-harness-framework` | `marionettist` |
+| CLI `harness` | `marionettist` |
+| short CLI | `mari` |
+| `harness.config.yaml` | `marionettist.config.yaml` |
+| `.harness/` | `.marionettist/` |
+| `.harness/manifest.json` | `.marionettist/manifest.json` |
+| `harness-kit` | `marionettist-kit` |
+| OpenCode assets named `harness-*` | `marionettist-*` |
+| future pathway OpenCode package naming | `marionettist-pathway-opencode` |
+
+## Recommended migration path
+
+The recommended migration path is:
+
+1. **Backup**
+   - save project-local configuration, task state, local docs, and any repo-specific customizations before changing naming surfaces
+2. **Clear/uninstall**
+   - use the current `marionettist clear` or `marionettist uninstall` workflow for removing old harness-managed installation state
+   - review the preview carefully before apply, especially when local customizations exist
+3. **Re-init**
+   - re-initialize using the current `marionettist` command surface
+   - `mari` is available as the short alias when preferred
+4. **Reconfigure**
+   - move project settings from `harness.config.yaml` expectations to `marionettist.config.yaml` expectations
+   - update scripts, docs, CI references, local automation, and any OpenCode references to the new names
+5. **Verify**
+   - confirm the new installation state, manifest location, command references, and OpenCode asset names all match Marionettist naming
+
+## Explicit non-compatibility note
+
+This migration guidance assumes **no default compatibility layer** between old and new names.
+
+That means teams should expect to update:
+
+- command invocations
+- config file references
+- managed directory references
+- manifest path references
+- package names
+- OpenCode agent, command, and related asset references
+- internal documentation and onboarding instructions
+
+If a later release introduces any temporary compatibility help, treat that as narrow implementation detail rather than a durable guarantee unless that release's documentation says otherwise.
+
+## Troubleshooting and rollback
+
+If migration work fails or produces unclear state:
+
+- stop and keep the backup as the recovery source of truth
+- verify whether old `harness` state was fully cleared before re-init
+- verify that renamed config, manifest, and OpenCode references were updated consistently
+- verify that local scripts and CI are not still invoking old names
+- check the latest roadmap and issue #42 follow-up guidance for final naming details
+
+For rollback, prefer:
+
+1. remove the incomplete Marionettist installation state
+2. restore the backup of the pre-migration project state
+3. return to the pre-migration harness-era state until the migration can be retried cleanly
+
+## Planning references
 
 - [Future roadmap](../develop/marionettist-future-roadmap.md)
 - [Recommended development order](../develop/marionettist-recommended-development-order.md)
@@ -22,4 +95,4 @@ This section prepares future migration work. It does **not** mean the harness ha
 
 ## Boundary note
 
-Issue #40 only creates the information-architecture slot for migration docs. It does not perform the rename, add compatibility guarantees, or change current commands.
+This document does not add compatibility guarantees. It establishes the canonical migration guidance for moving older harness-era installs onto the current Marionettist surface.

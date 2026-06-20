@@ -1,13 +1,12 @@
 # Documentation
 
-This documentation set helps teams use and extend the Universal AI Harness Framework.
-
-The current project still uses **harness** naming in commands, file paths, and configuration. References to **Marionettist** in development docs describe a future direction, not a completed rename.
+This documentation set helps teams use and extend Marionettist.
 
 ## Start here
 
 - [User guide](./user-guide/README.md) — practical entrypoint for installation, daily use, config, and troubleshooting
-- [Usage guide](./GUIDELINES.md) — current end-to-end harness guide
+- [Usage guide](./GUIDELINES.md) — current end-to-end Marionettist guide
+- [Migration guide](./migration/README.md) — rename status and legacy migration guidance
 - [OpenCode guide](./OPENCODE.md) — optional OpenCode integration
 - [Design overview](./DESIGN.md) — architecture and rationale
 
@@ -30,7 +29,7 @@ The current project still uses **harness** naming in commands, file paths, and c
 
 - [Pathways](./pathways/README.md)
 - [Advanced](./advanced/README.md)
-- [Migration](./migration/README.md)
+- [Migration](./migration/README.md) — rename and transition guidance for legacy harness-era installs
 - [Reference](./reference/README.md)
 - `docs/develop/` — internal roadmap and development planning material
 - `docs/blogs/` — blog-style explanatory content

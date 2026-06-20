@@ -5,13 +5,13 @@ Start with the smallest set of files that control local behavior.
 ## Core files
 
 - `AGENTS.md` — repository-level agent instructions
-- `harness.config.yaml` — local harness behavior and policy
-- `.harness/model-profiles.yml` — model profile mapping when OpenCode is used
+- `marionettist.config.yaml` — local Marionettist behavior and policy
+- `.marionettist/model-profiles.yml` — model profile mapping when OpenCode is used
 - `docs/project/knowledge-map.md` — project-specific doc routing after installation into a target repo
 
 ## High-value settings to review first
 
-In `harness.config.yaml`, teams usually review:
+In `marionettist.config.yaml`, teams usually review:
 
 - gate policy defaults
 - any local workflow adjustments
@@ -35,14 +35,14 @@ If you install with OpenCode, also review:
 
 - command surface choices
 - permission mode choices
-- model profiles in `.harness/model-profiles.yml`
+- model profiles in `.marionettist/model-profiles.yml`
 
 OpenCode also has two different config-oriented command surfaces to keep distinct:
 
-- `harness-config` remains the general or legacy OpenCode config wrapper
-- `harness-pathway-config` is the OpenCode Pathway MVP workflow for Pathway-scoped config authoring
+- `marionettist-config` remains the general OpenCode config wrapper
+- `marionettist-pathway-config` is the OpenCode Pathway MVP workflow for Pathway-scoped config authoring
 
-`harness-pathway-config` is not a new core CLI config command. It is a Pathway-scoped workflow that should:
+`marionettist-pathway-config` is not a new core CLI config command. It is a Pathway-scoped workflow that should:
 
 - draft candidate YAML or config edits first
 - show a diff or diff-like preview before writing
@@ -52,9 +52,7 @@ If config changes also update OpenCode-visible plugin, command, or skill assets,
 
 See [../OPENCODE.md](../OPENCODE.md) for the current supported options.
 
-## Important naming note
-
-Current configuration still uses **harness** naming. Do not rename commands, files, or keys based on future Marionettist planning docs unless a later migration explicitly instructs you to do so. Marionettist references in pathway docs are future framing, not a current rename instruction.
+Migration note: legacy `harness` config or OpenCode names should not be treated as a long-lived compatibility surface unless a future release explicitly says otherwise. Use the [migration guide](../migration/README.md) when reconciling older installs.
 
 ## Need the full reference?
 

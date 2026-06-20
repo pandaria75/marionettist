@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { frameworkRoot, listResolvedOpencodeTemplateRelatives, resolveCoreTemplateSource, resolveOpencodeTemplateSource } from "../core/framework-paths.js";
-import { buildOpencodeAgentTemplateVariables, loadCanonicalOrFrameworkModelProfiles, modelProfilesSourceRelative } from "../core/model-profiles.js";
+import { buildOpencodeAgentTemplateVariables, loadCanonicalOrFrameworkModelProfiles } from "../core/model-profiles.js";
 import { getOpencodePermissionPolicy } from "../core/opencode-permissions.js";
 import { renderWithMetadata } from "../core/render.js";
 import { initCommand } from "./init.js";
@@ -9,63 +9,65 @@ import { diffCommand } from "./diff.js";
 import { syncCommand } from "./sync.js";
 import { doctorCommand } from "./doctor.js";
 
-const selfProfileRelative = ".harness/self/README.md";
-const selfRuntimeRelative = ".harness-self/";
+const selfProfileRelative = ".marionettist/self/README.md";
+const selfRuntimeRelative = ".marionettist-self/";
+const selfModelProfilesRelative = ".marionettist/model-profiles.yml";
 const templatesAgentsRelative = "templates/AGENTS.md";
 const templatesOpencodeRelative = "templates/opencode";
+const selfModelProfilesTemplateSourceRelative = ".marionettist/model-profiles.yml";
 const selfOpencodeMirrorRoots = ["agents", "commands"];
 const selfOpencodeRequiredFiles = [
   "opencode.jsonc",
   ".opencode/README.md",
-  ".opencode/commands/harness-self-init.md",
-  ".opencode/commands/harness-self-review.md",
-  ".opencode/commands/harness-self-test.md",
-  ".opencode/agents/harness-framework-planner.md",
-  ".opencode/agents/harness-framework-reviewer.md"
+  ".opencode/commands/marionettist-self-init.md",
+  ".opencode/commands/marionettist-self-review.md",
+  ".opencode/commands/marionettist-self-test.md",
+  ".opencode/agents/marionettist-framework-planner.md",
+  ".opencode/agents/marionettist-framework-reviewer.md"
 ];
 const selfOpencodeBoundaryTerms = [
-  "Do not run regular harness init against this framework repository",
+  "Do not run regular marionettist init against this framework repository",
   "templates/ and skills/ are product source assets, not self runtime output",
-  ".harness-self/ is local runtime sandbox state",
+  ".marionettist-self/ is local runtime sandbox state",
   "self-only rules must not be written into target-project templates"
 ];
 const selfGeneratedMirrorIgnoreLines = [
-  ".opencode/commands/harness.md"
+  ".opencode/commands/marionettist.md"
 ];
 const selfPolicyStart = "<!-- HARNESS_SELF_POLICY_BEGIN -->";
 const selfPolicyEnd = "<!-- HARNESS_SELF_POLICY_END -->";
-const selfHelp = `Harness self-dogfooding commands
+const selfHelp = `Marionettist self-dogfooding commands
 
 Usage:
-  harness self init [--apply] [--with-opencode]
-  harness self doctor
-  harness self test
+  marionettist self init [--apply] [--with-opencode]
+  marionettist self doctor
+  marionettist self test
 `;
 
 const selfProfileContent = [
-  "# Harness Framework Self Profile",
+  "# Marionettist Framework Self Profile",
   "",
   "This profile applies only to this framework repository.",
   "",
   "- The root AGENTS.md remains the highest-priority agent entrypoint.",
-  "- Do not run regular harness init against this repository as if it were a target project.",
+  "- Do not run regular marionettist init against this repository as if it were a target project.",
   "- Keep templates/ as product source templates for target projects.",
   "- Keep skills/ as canonical publishable skill source assets.",
-  "- Use .harness-self/ only for local runtime state, cache, tmp files, and sandbox runs.",
+  "- Use .marionettist-self/ only for local runtime state, cache, tmp files, and sandbox runs.",
   "- Use fixtures/ as versioned sandbox inputs for CLI behavior checks.",
   "- Keep self-dogfooding rules out of templates/AGENTS.md and skills/.",
   "",
   "## Commands",
   "",
-  "- `harness self init` prints the self profile plan without writing by default.",
-  "- `harness self init --apply` creates or updates self profile files and `.gitignore` entries.",
-  "- `harness self doctor` checks self-dogfooding safety boundaries.",
-  "- `harness self test` copies fixtures into `.harness-self/sandbox-runs/` and runs sandbox smoke checks.",
+  "- `marionettist self init` prints the self profile plan without writing by default.",
+  "- `marionettist self init --apply` creates or updates self profile files and `.gitignore` entries.",
+  "- `marionettist self doctor` checks self-dogfooding safety boundaries.",
+  "- `marionettist self test` copies fixtures into `.marionettist-self/sandbox-runs/` and runs sandbox smoke checks.",
   "",
   "## Boundaries",
   "",
-  "- `.harness/self/` is versioned repository policy for maintaining this framework with its own workflow.",
-  "- `.harness-self/` is disposable local runtime state and may be deleted at any time.",
+  "- `.marionettist/self/` is versioned repository policy for maintaining this framework with its own workflow.",
+  "- `.marionettist-self/` is disposable local runtime state and may be deleted at any time.",
   "- `fixtures/` contains versioned test inputs for target-project CLI behavior.",
   "- `templates/` and `skills/` are publishable source assets; self-only rules do not belong there.",
   ""
@@ -73,7 +75,7 @@ const selfProfileContent = [
 
 const forbiddenTemplateTerms = [
   "HARNESS_SELF_POLICY",
-  ".harness-self",
+  ".marionettist-self",
   "self-dogfooding",
   "self dogfooding",
   "framework self profile"
@@ -90,7 +92,7 @@ const selfOpencodeContents = new Map([
   ["opencode.jsonc", [
     "{",
     "  \"$schema\": \"https://opencode.ai/config.json\",",
-    "  \"instructions\": [\"AGENTS.md\", \".harness/self/README.md\"],",
+    "  \"instructions\": [\"AGENTS.md\", \".marionettist/self/README.md\"],",
     "  \"plugin\": [\"opencode-tasks\"]",
     "}",
     ""
@@ -98,30 +100,30 @@ const selfOpencodeContents = new Map([
   [".opencode/README.md", [
     "# Framework Self OpenCode",
     "",
-    "These OpenCode files are for maintaining this harness framework repository itself.",
+    "These OpenCode files are for maintaining this marionettist framework repository itself.",
     "",
     "This directory intentionally contains two kinds of files:",
     "- framework self-only files that may be committed",
     "- generated local runtime mirrors copied from `templates/opencode/**`",
     "",
     "Boundary rules:",
-    "- Do not run regular harness init against this framework repository; use `harness self init --apply --with-opencode` for self setup.",
+    "- Do not run regular marionettist init against this framework repository; use `marionettist self init --apply --with-opencode` for self setup.",
     "- templates/ and skills/ are product source assets, not self runtime output.",
-    "- .harness-self/ is local runtime sandbox state and must stay disposable.",
+    "- .marionettist-self/ is local runtime sandbox state and must stay disposable.",
     "- self-only rules must not be written into target-project templates, including `templates/AGENTS.md`.",
     "- Framework private implementation details must not be copied into target-project templates.",
     "",
     "Source of truth:",
-    "- Self-only files in `.opencode/agents/harness-framework-*.md` and `.opencode/commands/harness-self-*.md` are maintained for this repository.",
+    "- Self-only files in `.opencode/agents/marionettist-framework-*.md` and `.opencode/commands/marionettist-self-*.md` are maintained for this repository.",
     "- Target-project OpenCode agents and commands still come only from `templates/opencode/**`.",
-    "- Mirrored files under `.opencode/agents/harness-*.md`, `.opencode/agents/validators/**`, `.opencode/commands/harness.md`, and `.opencode/commands/harness-*.md` must not be edited directly.",
-    "- Edit `templates/opencode/**` instead, then rerun `harness self init --apply --with-opencode`, then run `harness self doctor`.",
+    "- Mirrored files under `.opencode/agents/marionettist-*.md`, `.opencode/agents/validators/**`, `.opencode/commands/marionettist.md`, and `.opencode/commands/marionettist-*.md` must not be edited directly.",
+    "- Edit `templates/opencode/**` instead, then rerun `marionettist self init --apply --with-opencode`, then run `marionettist self doctor`.",
     "",
     "Commit policy:",
     "- Commit `opencode.jsonc`.",
     "- Commit `.opencode/README.md`.",
-    "- Commit `.opencode/agents/harness-framework-*.md`.",
-    "- Commit `.opencode/commands/harness-self-*.md`.",
+    "- Commit `.opencode/agents/marionettist-framework-*.md`.",
+    "- Commit `.opencode/commands/marionettist-self-*.md`.",
     "- Do not commit generated mirrors from `templates/opencode/**`.",
     "",
     "Before changing `src/commands`, `src/core`, `templates`, or `skills`, inspect the current boundary and run relevant smoke tests.",
@@ -131,28 +133,28 @@ const selfOpencodeContents = new Map([
     "- `npm run self:smoke`",
     ""
   ].join("\n")],
-  [".opencode/commands/harness-self-init.md", [
+  [".opencode/commands/marionettist-self-init.md", [
     "---",
     "description: Initialize or refresh framework self-dogfooding files",
-    "agent: harness-framework-planner",
+    "agent: marionettist-framework-planner",
     "---",
     "",
     "Run framework self setup for this repository only.",
     "",
     "Use:",
-    "- `harness self init --with-opencode` to preview self OpenCode files.",
-    "- `harness self init --apply --with-opencode` to write self OpenCode files.",
+    "- `marionettist self init --with-opencode` to preview self OpenCode files.",
+    "- `marionettist self init --apply --with-opencode` to write self OpenCode files.",
     "",
-    "Do not run regular harness init against this framework repository. templates/ and skills/ are product source assets, not self runtime output. .harness-self/ is local runtime sandbox state. self-only rules must not be written into target-project templates.",
+    "Do not run regular marionettist init against this framework repository. templates/ and skills/ are product source assets, not self runtime output. .marionettist-self/ is local runtime sandbox state. self-only rules must not be written into target-project templates.",
     ""
   ].join("\n")],
-  [".opencode/commands/harness-self-review.md", [
+  [".opencode/commands/marionettist-self-review.md", [
     "---",
     "description: Review framework changes for boundary leaks",
-    "agent: harness-framework-reviewer",
+    "agent: marionettist-framework-reviewer",
     "---",
     "",
-    "Review the current diff for harness framework maintenance risks.",
+    "Review the current diff for marionettist framework maintenance risks.",
     "",
     "Focus on:",
     "- target-project templates staying project-neutral",
@@ -160,13 +162,13 @@ const selfOpencodeContents = new Map([
     "- init/sync/diff/doctor behavior staying safe and reversible",
     "- tests covering template, skill, and self-opencode boundaries",
     "",
-    "Do not run regular harness init against this framework repository. templates/ and skills/ are product source assets, not self runtime output. .harness-self/ is local runtime sandbox state. self-only rules must not be written into target-project templates.",
+    "Do not run regular marionettist init against this framework repository. templates/ and skills/ are product source assets, not self runtime output. .marionettist-self/ is local runtime sandbox state. self-only rules must not be written into target-project templates.",
     ""
   ].join("\n")],
-  [".opencode/commands/harness-self-test.md", [
+  [".opencode/commands/marionettist-self-test.md", [
     "---",
     "description: Run framework smoke tests",
-    "agent: harness-framework-reviewer",
+    "agent: marionettist-framework-reviewer",
     "---",
     "",
     "Run the regression tests for framework changes.",
@@ -177,24 +179,24 @@ const selfOpencodeContents = new Map([
     "",
     "Run these after changing `src/commands`, `src/core`, `templates`, `skills`, sync/init/diff/doctor logic, or self OpenCode files.",
     "",
-    "Do not run regular harness init against this framework repository. templates/ and skills/ are product source assets, not self runtime output. .harness-self/ is local runtime sandbox state. self-only rules must not be written into target-project templates.",
+    "Do not run regular marionettist init against this framework repository. templates/ and skills/ are product source assets, not self runtime output. .marionettist-self/ is local runtime sandbox state. self-only rules must not be written into target-project templates.",
     ""
   ].join("\n")],
-  [".opencode/agents/harness-framework-planner.md", [
+  [".opencode/agents/marionettist-framework-planner.md", [
     "---",
-    "description: Plans changes to the harness framework repository while preserving target/self boundaries.",
+    "description: Plans changes to the marionettist framework repository while preserving target/self boundaries.",
     "model: openai/gpt-5.5",
     "---",
     "",
-    "# Harness Framework Planner",
+    "# Marionettist Framework Planner",
     "",
-    "You plan maintenance work for the universal AI harness framework repository.",
+    "You plan maintenance work for the universal AI marionettist framework repository.",
     "",
     "Rules:",
     "- Read relevant files before proposing or editing changes.",
-    "- Do not run regular harness init against this framework repository.",
+    "- Do not run regular marionettist init against this framework repository.",
     "- templates/ and skills/ are product source assets, not self runtime output.",
-    "- .harness-self/ is local runtime sandbox state.",
+    "- .marionettist-self/ is local runtime sandbox state.",
     "- self-only rules must not be written into target-project templates.",
     "- Do not copy framework-private implementation details into target-project templates.",
     "- Keep changes minimal and update tests when touching init, sync, diff, doctor, templates, or skills.",
@@ -204,25 +206,25 @@ const selfOpencodeContents = new Map([
     "- `npm run self:smoke`",
     ""
   ].join("\n")],
-  [".opencode/agents/harness-framework-reviewer.md", [
+  [".opencode/agents/marionettist-framework-reviewer.md", [
     "---",
-    "description: Reviews harness framework changes for regressions and boundary contamination.",
+    "description: Reviews marionettist framework changes for regressions and boundary contamination.",
     "model: opencode-go/glm-5.1",
     "---",
     "",
-    "# Harness Framework Reviewer",
+    "# Marionettist Framework Reviewer",
     "",
     "Review diffs in this framework repository with findings first.",
     "",
     "Check:",
-    "- regular target-project `harness init --with-opencode` remains separate from `harness self init --apply --with-opencode`",
+    "- regular target-project `marionettist init --with-opencode` remains separate from `marionettist self init --apply --with-opencode`",
     "- self-only rules are not added to `templates/AGENTS.md`, `templates/opencode`, or `skills/`",
     "- templates/ and skills/ remain product source assets, not self runtime output",
-    "- .harness-self/ remains local runtime sandbox state",
+    "- .marionettist-self/ remains local runtime sandbox state",
     "- managed block markers in `templates/AGENTS.md` are present",
     "- changes to templates, skills, sync/init/diff/doctor logic have smoke coverage",
     "",
-    "Do not run regular harness init against this framework repository. self-only rules must not be written into target-project templates.",
+    "Do not run regular marionettist init against this framework repository. self-only rules must not be written into target-project templates.",
     ""
   ].join("\n")]
 ]);
@@ -288,7 +290,7 @@ async function selfDoctor(args) {
 
   await checkPath("AGENTS.md", "file", "root AGENTS.md exists", results);
   await checkPath(selfProfileRelative, "file", `${selfProfileRelative} exists`, results);
-  await checkPath(modelProfilesSourceRelative, "file", `${modelProfilesSourceRelative} exists`, results);
+  await checkPath(selfModelProfilesRelative, "file", `${selfModelProfilesRelative} exists`, results);
   await checkGitignore(results);
   await checkSelfOpencode(results);
   await checkTemplatesClean(results);
@@ -296,7 +298,7 @@ async function selfDoctor(args) {
   await checkSmokeEntrypoint(results);
   await checkSensitiveText(results);
 
-  printResults("Harness Self Doctor", results);
+  printResults("Marionettist Self Doctor", results);
 
   if (results.some((result) => result.level === "FAIL")) {
     process.exitCode = 1;
@@ -307,7 +309,7 @@ async function selfTest(args) {
   const options = parseSelfArgs(args);
   if (options.help) return;
   const runId = `self-test-${new Date().toISOString().replace(/[:.]/g, "-")}`;
-  const runRoot = path.join(frameworkRoot, ".harness-self", "sandbox-runs", runId);
+  const runRoot = path.join(frameworkRoot, ".marionettist-self", "sandbox-runs", runId);
   const results = [];
 
   await fs.mkdir(runRoot, { recursive: true });
@@ -318,7 +320,7 @@ async function selfTest(args) {
   await runTargetOldManifest(runRoot, results);
   await assertSelfAssetsClean(results);
 
-  printResults("Harness Self Test", results);
+  printResults("Marionettist Self Test", results);
   console.log("");
   console.log(`sandbox: ${runRoot}`);
 
@@ -330,12 +332,12 @@ async function selfTest(args) {
 async function runTargetEmpty(runRoot, results) {
   const project = await copyFixture("target-empty", runRoot);
   const initOutput = await harnessCapture("init", "--project", project, "--auto");
-  assertOutputIncludes(initOutput, "write-manifest: .harness/manifest.json", "target-empty init writes manifest", results);
-  await checkPathInProject(project, ".harness/manifest.json", "file", "target-empty manifest exists", results);
+  assertOutputIncludes(initOutput, "write-manifest: .marionettist/manifest.json", "target-empty init writes manifest", results);
+  await checkPathInProject(project, ".marionettist/manifest.json", "file", "target-empty manifest exists", results);
   await checkPathInProject(project, "AGENTS.md", "file", "target-empty AGENTS.md exists", results);
 
   const doctorOutput = await harnessCapture("doctor", "--project", project);
-  assertOutputIncludes(doctorOutput, "PASS  harness.config.yaml parsed", "target-empty doctor passes config check", results);
+  assertOutputIncludes(doctorOutput, "PASS  marionettist.config.yaml parsed", "target-empty doctor passes config check", results);
 }
 
 async function runTargetExistingAgents(runRoot, results) {
@@ -344,7 +346,7 @@ async function runTargetExistingAgents(runRoot, results) {
   await harnessCapture("init", "--project", project, "--auto");
   const after = await fs.readFile(path.join(project, "AGENTS.md"), "utf8");
 
-  results.push(after.includes("<!-- harness-kit:start -->") ? pass("target-existing-agents managed block inserted") : fail("target-existing-agents managed block missing"));
+  results.push(after.includes("<!-- marionettist-kit:start -->") ? pass("target-existing-agents managed block inserted") : fail("target-existing-agents managed block missing"));
   results.push(after.includes(before.trim()) ? pass("target-existing-agents local AGENTS.md content preserved") : fail("target-existing-agents local AGENTS.md content lost"));
   results.push(after.includes("<!-- project-local-imported:start -->") ? pass("target-existing-agents local content imported into local block") : fail("target-existing-agents imported local block missing"));
 }
@@ -379,7 +381,7 @@ async function assertSelfAssetsClean(results) {
   results.push(contaminated.length === 0 ? pass("templates/AGENTS.md remains free of self rules") : fail(`templates/AGENTS.md self contamination: ${contaminated.join(", ")}`));
 
   const gitignoreContent = await fs.readFile(path.join(frameworkRoot, ".gitignore"), "utf8");
-  results.push(gitignoreContent.includes(selfRuntimeRelative) ? pass(".harness-self sandbox runs are git-ignored") : fail(".harness-self sandbox runs are not git-ignored"));
+  results.push(gitignoreContent.includes(selfRuntimeRelative) ? pass(".marionettist-self sandbox runs are git-ignored") : fail(".marionettist-self sandbox runs are not git-ignored"));
 }
 
 async function copyFixture(name, runRoot) {
@@ -434,15 +436,15 @@ async function buildSelfInitOperations(options = {}) {
     note: `root AGENTS.md is not rewritten; any future self policy must use ${selfPolicyStart} / ${selfPolicyEnd}`
   });
 
-  const modelProfilesTemplateSource = await resolveCoreTemplateSource(modelProfilesSourceRelative);
+  const modelProfilesTemplateSource = await resolveCoreTemplateSource(selfModelProfilesTemplateSourceRelative);
   if (!modelProfilesTemplateSource) {
-    throw new Error(`Framework template source not found: templates/${modelProfilesSourceRelative}`);
+    throw new Error(`Framework template source not found: templates/${selfModelProfilesTemplateSourceRelative}`);
   }
   const modelProfilesTemplateContent = await fs.readFile(modelProfilesTemplateSource.sourcePath, "utf8");
-  const modelProfilesAbsolute = path.join(frameworkRoot, modelProfilesSourceRelative);
+  const modelProfilesAbsolute = path.join(frameworkRoot, selfModelProfilesRelative);
   const modelProfilesCurrent = await readOptional(modelProfilesAbsolute);
   operations.push({
-    path: modelProfilesSourceRelative,
+    path: selfModelProfilesRelative,
     action: modelProfilesCurrent === null
       ? "create"
       : textEquals(modelProfilesCurrent, modelProfilesTemplateContent)
@@ -481,7 +483,7 @@ async function buildSelfInitOperations(options = {}) {
 }
 
 function printSelfPlan(operations, mode) {
-  console.log("Harness Self Init");
+  console.log("Marionettist Self Init");
   console.log(`repository: ${frameworkRoot}`);
   console.log(`mode: ${mode}`);
   for (const operation of operations) {
@@ -496,8 +498,8 @@ async function checkGitignore(results) {
     results.push(fail(".gitignore missing"));
     return;
   }
-  const ignored = content.split(/\r?\n/).some((line) => line.trim() === selfRuntimeRelative || line.trim() === ".harness-self");
-  results.push(ignored ? pass(".harness-self/ is ignored") : fail(".harness-self/ is not ignored by .gitignore"));
+  const ignored = content.split(/\r?\n/).some((line) => line.trim() === selfRuntimeRelative || line.trim() === ".marionettist-self");
+  results.push(ignored ? pass(".marionettist-self/ is ignored") : fail(".marionettist-self/ is not ignored by .gitignore"));
   for (const line of selfGeneratedMirrorIgnoreLines) {
     const lineIgnored = content.split(/\r?\n/).some((entry) => entry.trim() === line);
     results.push(lineIgnored ? pass(`${line} is ignored`) : fail(`${line} is not ignored by .gitignore`));
@@ -550,19 +552,19 @@ async function checkSelfOpencodeMirrors(results) {
     const target = path.join(frameworkRoot, mirror.path);
     const current = await readOptional(target);
     if (current === null) {
-      results.push(fail(`${mirror.path} missing; mirror drift from ${mirror.source}. Edit that template source, then rerun harness self init --apply --with-opencode.`));
+      results.push(fail(`${mirror.path} missing; mirror drift from ${mirror.source}. Edit that template source, then rerun marionettist self init --apply --with-opencode.`));
       continue;
     }
     if (containsUnresolvedModelProfilePlaceholder(current)) {
-      results.push(fail(`${mirror.path} still contains unresolved MODEL_PROFILE placeholders. Rerun harness self init --apply --with-opencode after reconciling .harness/model-profiles.yml.`));
+      results.push(fail(`${mirror.path} still contains unresolved MODEL_PROFILE placeholders. Rerun marionettist self init --apply --with-opencode after reconciling .marionettist/model-profiles.yml.`));
       continue;
     }
     if (containsUnresolvedPermissionPlaceholder(current)) {
-      results.push(fail(`${mirror.path} still contains unresolved OPENCODE_PERMISSION placeholders. Rerun harness self init --apply --with-opencode.`));
+      results.push(fail(`${mirror.path} still contains unresolved OPENCODE_PERMISSION placeholders. Rerun marionettist self init --apply --with-opencode.`));
       continue;
     }
     if (!textEquals(current, mirror.content)) {
-      results.push(fail(`${mirror.path} drifted from ${mirror.source}. Edit that template source, then rerun harness self init --apply --with-opencode.`));
+      results.push(fail(`${mirror.path} drifted from ${mirror.source}. Edit that template source, then rerun marionettist self init --apply --with-opencode.`));
       continue;
     }
     results.push(pass(`${mirror.path} matches ${mirror.source}`));
@@ -593,7 +595,7 @@ async function checkFixtures(results) {
   const required = [
     "fixtures/target-empty",
     "fixtures/target-existing-agents/AGENTS.md",
-    "fixtures/target-old-manifest/.harness/manifest.json",
+    "fixtures/target-old-manifest/.marionettist/manifest.json",
     "fixtures/target-conflict-managed-block/AGENTS.md"
   ];
 
@@ -620,7 +622,7 @@ async function checkSmokeEntrypoint(results) {
 }
 
 async function checkSensitiveText(results) {
-  const scanRoots = ["AGENTS.md", ".harness", "fixtures", "src", "scripts", "README.md", "README.zh-CN.md", "docs", "package.json"];
+  const scanRoots = ["AGENTS.md", ".marionettist", "fixtures", "src", "scripts", "README.md", "README.zh-CN.md", "docs", "package.json"];
   const files = [];
   for (const relative of scanRoots) {
     await collectTextFiles(path.join(frameworkRoot, relative), relative, files);
@@ -784,7 +786,7 @@ async function exists(filePath) {
 
 function shouldSkipScan(relative) {
   const normalized = toPosix(relative);
-  return normalized === "scripts/smoke.mjs" || normalized.startsWith("docs/blogs/") || normalized.includes("/node_modules/") || normalized.startsWith(".harness-self/");
+  return normalized === "scripts/smoke.mjs" || normalized.startsWith("docs/blogs/") || normalized.includes("/node_modules/") || normalized.startsWith(".marionettist-self/");
 }
 
 function isBinaryLike(relative) {
@@ -829,10 +831,18 @@ async function harnessCapture(...args) {
   if (command === "doctor") {
     return captureCommand(() => doctorCommand(rest));
   }
-  throw new Error(`Unsupported self test harness command: ${command}`);
+  throw new Error(`Unsupported Marionettist self test command: ${command}`);
 }
 
-async function captureCommand(callback) {
+async function harnessCaptureAllowFailure(...args) {
+  const [command, ...rest] = args;
+  if (command === "doctor") {
+    return captureCommand(() => doctorCommand(rest), { allowFailure: true });
+  }
+  return harnessCapture(...args);
+}
+
+async function captureCommand(callback, { allowFailure = false } = {}) {
   const originalLog = console.log;
   const originalExitCode = process.exitCode;
   const lines = [];
@@ -842,7 +852,7 @@ async function captureCommand(callback) {
   };
   try {
     await callback();
-    if (process.exitCode) {
+    if (process.exitCode && !allowFailure) {
       throw new Error(`Command failed with exitCode=${process.exitCode}\nstdout:\n${lines.join("\n")}`);
     }
     return `${lines.join("\n")}\n`;

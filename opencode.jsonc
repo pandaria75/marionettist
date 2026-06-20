@@ -1,5 +1,5 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "instructions": ["AGENTS.md", ".harness/self/README.md"],
+  "instructions": ["AGENTS.md", ".marionettist/self/README.md"],
   "plugin": ["opencode-tasks"]
 }

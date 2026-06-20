@@ -1,5 +1,5 @@
-const startMarker = "<!-- harness-kit:start -->";
-const endMarker = "<!-- harness-kit:end -->";
+const startMarker = "<!-- marionettist-kit:start -->";
+const endMarker = "<!-- marionettist-kit:end -->";
 
 export function hasManagedBlock(content) {
   return content.includes(startMarker) && content.includes(endMarker);
@@ -48,7 +48,7 @@ export function previewManagedBlockCleanup(content) {
 
 export function replaceManagedBlock(existingContent, templateContent) {
   if (!hasManagedBlock(templateContent)) {
-    throw new Error("Template is missing harness managed block markers");
+    throw new Error("Template is missing marionettist managed block markers");
   }
 
   if (!hasManagedBlock(existingContent)) {

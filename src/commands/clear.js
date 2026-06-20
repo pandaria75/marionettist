@@ -8,7 +8,7 @@ export async function clearCommand(args) {
   const mode = options.apply ? "apply" : "preview";
   const plan = await buildClearPlan(options.project, { scope: options.scope });
 
-  console.log(`harness clear (${mode})`);
+  console.log(`marionettist clear (${mode})`);
   console.log(`project: ${options.project}`);
   console.log(`scope: ${options.scope}`);
   console.log(`manifest: ${plan.manifestFound ? manifestRelative : `${manifestRelative} (missing)`}`);

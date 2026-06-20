@@ -1,12 +1,12 @@
 # Existing Managed Block Target
 
-<!-- harness-kit:start -->
+<!-- marionettist-kit:start -->
 
 ## Purpose
 
 This fixture contains an intentionally old managed block.
 
-<!-- harness-kit:end -->
+<!-- marionettist-kit:end -->
 
 <!-- project-local:start -->
 

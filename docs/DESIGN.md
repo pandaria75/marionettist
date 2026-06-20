@@ -1,8 +1,8 @@
-# Universal AI Harness Framework Design
+# Marionettist Design
 
 [中文版](./DESIGN.zh-CN.md)
 
-This document is for people who want to understand why the harness exists and how its main ideas fit together. It avoids implementation details unless they explain a design choice.
+This document is for people who want to understand why Marionettist exists and how its main ideas fit together. It avoids implementation details unless they explain a design choice.
 
 Navigation note:
 
@@ -12,7 +12,7 @@ Navigation note:
 
 ## 1. Positioning
 
-The harness is a file-based collaboration framework for repositories that use AI agents.
+Marionettist is a file-based collaboration framework for repositories that use AI agents.
 
 It is for teams that want AI work to be:
 
@@ -28,7 +28,7 @@ It is not a business-project template, an IDE replacement, or a vendor-specific 
 
 The main risk in AI-assisted development is usually not a single bad code suggestion. The larger risk is that context disappears, constraints drift, and the agent continues past the point where a human should decide.
 
-The harness answers that by putting the collaboration contract into repository files.
+Marionettist answers that by putting the collaboration contract into repository files.
 
 Important facts are not trapped in chat. They live in files that humans and agents can both inspect.
 
@@ -36,19 +36,19 @@ Important facts are not trapped in chat. They live in files that humans and agen
 
 ### 3.1 Files Are The Contract
 
-The harness uses normal files for durable state:
+Marionettist uses normal files for durable state:
 
 - `AGENTS.md` defines repository-level agent behavior.
 - `.aiassistant/rules/*.md` stores enforceable constraints.
 - `docs/**/*.md` explains design, workflow, ownership, and risk.
 - `.task/` stores task-local requirements, plans, context, and state.
-- `.harness/manifest.json` tracks framework-managed assets.
+- `.marionettist/manifest.json` tracks framework-managed assets.
 
 Plain files are easy to review, version, diff, and sync. They also keep the method portable across agents.
 
 ### 3.2 Gates Matter More Than Autonomy
 
-The harness is intentionally not an “agent keeps going until done” system.
+Marionettist is intentionally not an “agent keeps going until done” system.
 
 For non-trivial work, the workflow stops at key points:
 
@@ -77,7 +77,7 @@ This keeps approval, implementation, review, and validation focused on the same 
 
 Docs should help agents understand the relevant area. They should not become source-code indexes.
 
-The harness separates:
+Marionettist separates:
 
 - **docs**: explain design meaning, workflows, boundaries, risks, and decisions
 - **rules**: define behavioral constraints
@@ -93,13 +93,13 @@ Project-specific knowledge belongs in the target project’s own docs, rules, co
 
 ## 4. Workflow Model
 
-The harness scales process by task complexity.
+Marionettist scales process by task complexity.
 
 - **Tier S**: trivial, low-risk work. Direct coding and review may be enough.
 - **Tier M**: standard scoped work. Prepare task context before coding.
 - **Tier L**: complex or boundary-sensitive work. Freeze requirements, slice the plan, build context, and use stronger gates.
 
-The exact task-state contract is installed into target projects as `docs/project/harness-workflow.md`.
+The exact task-state contract is installed into target projects as `docs/project/marionettist-workflow.md`.
 
 The design intent is simple: do enough analysis to make the next coding step safe, then stop at the right boundary.
 
@@ -109,7 +109,7 @@ The framework separates managed assets from project-local assets.
 
 ### Framework-managed assets
 
-These are installed from this repository and tracked in `.harness/manifest.json`:
+These are installed from this repository and tracked in `.marionettist/manifest.json`:
 
 - core templates
 - standard rules
@@ -117,7 +117,7 @@ These are installed from this repository and tracked in `.harness/manifest.json`
 - reusable skills
 - optional OpenCode scaffolding
 
-They can be previewed with `harness diff` and updated with `harness sync`.
+They can be previewed with `marionettist diff` and updated with `marionettist sync`.
 
 ### Project-local assets
 
@@ -139,7 +139,7 @@ The CLI is a safe installer and synchronizer for text assets.
 
 Its responsibilities are narrow:
 
-- install a harness into a target project
+- install Marionettist into a target project
 - preview managed changes
 - apply safe managed updates
 - preserve local work by default
@@ -151,13 +151,13 @@ The CLI does not own business knowledge, does not resolve every conflict automat
 
 OpenCode is an optional execution layer.
 
-It adds slash commands, role agents, validator guidance, and model-profile rendering. It does not change the core method: the repository files and harness gates remain the source of truth.
+It adds slash commands, role agents, validator guidance, and model-profile rendering. It does not change the core method: the repository files and Marionettist gates remain the source of truth.
 
 See [docs/OPENCODE.md](./OPENCODE.md) for practical OpenCode usage.
 
 ## 8. Safe Evolution
 
-The harness must be upgradeable without taking over a project.
+Marionettist must be upgradeable without taking over a project.
 
 That is why the framework uses:
 
@@ -183,6 +183,6 @@ The framework does not aim to:
 
 ## 10. For Framework Maintainers
 
-This repository is the framework source. Maintain it using the root `AGENTS.md` and the self-profile rules under `.harness/self/`.
+This repository is the framework source. Maintain it using the root `AGENTS.md` and the self-profile rules under `.marionettist/self/`.
 
 Do not copy framework self-maintenance rules into target-project templates.

@@ -1,7 +1,7 @@
 import path from "node:path";
 import { pathExists, readText, writeText } from "./files.js";
 
-export const manifestRelative = ".harness/manifest.json";
+export const manifestRelative = ".marionettist/manifest.json";
 export const distributionModeValues = new Set(["embedded", "hybrid", "adapter"]);
 export const opencodeArtifactAdapter = "opencode";
 export const opencodeCommandSurfaceValues = new Set(["minimal", "standard", "advanced"]);
@@ -20,7 +20,7 @@ export async function readManifest(projectPath) {
 
   const manifest = JSON.parse(await readText(filePath));
   if (manifest.schemaVersion !== 1 || !Array.isArray(manifest.managedFiles)) {
-    throw new Error(`Unsupported harness manifest format: ${filePath}`);
+    throw new Error(`Unsupported marionettist manifest format: ${filePath}`);
   }
   return manifest;
 }

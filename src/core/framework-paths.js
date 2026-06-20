@@ -22,6 +22,8 @@ export const pathwayOpencodeTemplatesRoot = path.join(pathwaysTemplatesRoot, "op
 export const distributionsRoot = path.join(frameworkRoot, "distributions");
 export const skillsRoot = path.join(frameworkRoot, "skills");
 export const versionFile = path.join(frameworkRoot, "VERSION");
+export const projectConfigRelative = "marionettist.config.yaml";
+export const runtimeRootRelative = ".marionettist";
 
 export function getCoreTemplateSourceRelativeCandidates(sourceRelative) {
   const normalizedSourceRelative = normalizeSourceRelative(sourceRelative);
