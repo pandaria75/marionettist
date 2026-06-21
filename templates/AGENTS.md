@@ -247,6 +247,8 @@ The current task is selected by `.task/active.json`. A non-trivial task should u
 - `.task/<task-id>/context-pack.md`
 - `.task/<task-id>/state.json`
 
+`.task/active.json` is a local repository-root or worktree singleton pointer. Use it to identify the current task in the local checkout, not as implicit cross-worktree delegation context.
+
 Generated requirement and implementation plan documents belong under the current task directory.
 
 The context pack should include:
@@ -265,6 +267,8 @@ The context pack should include:
 - assumptions
 - risks
 - stop conditions
+
+When delegating across parallel flows or multiple worktrees, the primary agent should preflight context once and pass explicit delegation context such as `worktreeRoot`, `taskId`, `phase`, `allowedToCode`, the current approved slice or group, and `artifactPaths`. Delegated agents should use bounded reads against those provided artifacts, return `CONTEXT_UNAVAILABLE` for missing, stale, inaccessible, or ambiguous context, and stop after bounded empty or cancelled delegation outcomes instead of looping. This is a delegation-safety boundary, not full runtime git-worktree scheduling support.
 
 ## Implementation Policy
 

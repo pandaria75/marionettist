@@ -1298,6 +1298,14 @@ async function assertP1DocsAndTemplateCoverage() {
   assertIncludes(criticTemplate, "Your model field is rendered from `.marionettist/model-profiles.yml` profile `profiles.review.default` when present, with legacy fallback to `marionettist.config.yaml` `models.profiles.review.default` only when needed.");
   assertIncludes(coderTemplate, "Your responsibility is implementation plus lightweight self-check, not independent review.");
   assertIncludes(coderTemplate, "Do not perform broad `git diff` review, repository-wide search, gate audit, requirement audit, or docs/knowledge-map review");
+  assertIncludes(coderTemplate, "When the caller provides a `taskEnvelope`, it takes precedence over implicit `.task/active.json` lookup.");
+  assertIncludes(coderTemplate, "When `marionettist-builder` provides a preflighted `taskEnvelope`, treat it as the authoritative delegated task-context source");
+  assertIncludes(coderTemplate, "Use `taskEnvelope.artifactPaths` for bounded task-artifact reads.");
+  assertIncludes(coderTemplate, "Read `.task/active.json` only when the caller explicitly included it in `artifactPaths` for a narrow consistency check.");
+  assertIncludes(coderTemplate, "If `taskEnvelope` is missing, inaccessible, stale, or ambiguous, or if the referenced artifacts do not provide enough bounded context to implement safely, stop immediately and return this exact structure instead of continuing:");
+  assertIncludes(coderTemplate, "## Verdict\n\nCONTEXT_UNAVAILABLE\n\n## Reason\n\ndelegated coding context missing, stale, inaccessible, or ambiguous");
+  assertIncludes(coderTemplate, "## Suggested Builder Action\n\nrefresh and resend a complete taskEnvelope with usable artifactPaths");
+  assertIncludes(coderTemplate, "Do not retry on your own and do not loop trying to rediscover context.");
   assertIncludes(reviewerTemplate, "## Diff-First Review Protocol");
   assertIncludes(reviewerTemplate, "Do not re-review requirement freezing, implementation-plan quality, context-pack sufficiency, or Marionettist gate state");
   assertIncludes(reviewerTemplate, "Repository-wide search is an exception, not the default.");
@@ -1311,6 +1319,29 @@ async function assertP1DocsAndTemplateCoverage() {
   assertIncludes(builderTemplate, "For `marionettist-critic`, always state `plan-review` or `pre-done`.");
   assertIncludes(builderTemplate, "frozen `gateClass` and supplemental `risk_score`");
   assertIncludes(builderTemplate, "include both the controlling `gateClass` and any `risk_score` threshold or `gateReasons` evidence");
+  assertIncludes(builderTemplate, "Build and pass an explicit compact `taskEnvelope` with every coding, reviewer, or critic delegation.");
+  assertIncludes(builderTemplate, "Include at minimum: `worktreeRoot`, `taskId`, `phase`, `allowedToCode`, the current approved `currentSlice` or approved parallel group, `artifactPaths`, and allowed/forbidden scope when relevant.");
+  assertIncludes(builderTemplate, "Use `taskEnvelope` terminology literally and consistently in delegation prompts.");
+  assertIncludes(builderTemplate, "stop and report `CONTEXT_UNAVAILABLE` instead of delegating on guessed context");
+  assertIncludes(builderTemplate, "Treat `.task/active.json` as a local repository-root or worktree pointer only, not as implicit cross-worktree delegation context.");
+  assertIncludes(builderTemplate, "Make delegated agents use the provided `taskEnvelope` and bounded artifact reads instead of rediscovering task state from `.task/active.json`.");
+  assertIncludes(builderTemplate, "This prompt contract is a delegation-safety layer only. Do not claim or imply full runtime git-worktree scheduling support.");
+  assertIncludes(builderTemplate, "If a delegation returns empty output or is cancelled, retry at most once");
+  assertIncludes(builderTemplate, "If the retry also returns empty, cancelled, or `CONTEXT_UNAVAILABLE`, stop and report an orchestrator-level failure instead of looping.");
+  assertIncludes(criticTemplate, "The caller must also provide a preflighted `taskEnvelope` for delegated critic work.");
+  assertIncludes(criticTemplate, "`taskEnvelope` with `worktreeRoot`, `taskId`, `phase`, `allowedToCode`, current slice or approved group, and `artifactPaths`");
+  assertIncludes(criticTemplate, "Use bounded reads against the files referenced by `taskEnvelope.artifactPaths`.");
+  assertIncludes(criticTemplate, "Do not start by rediscovering the active task from `.task/active.json`.");
+  assertIncludes(criticTemplate, "If `taskEnvelope` is missing, inaccessible, stale, or ambiguous, or if the referenced task artifacts cannot be read well enough to establish safe review context, stop immediately and return this exact structure instead of continuing:");
+  assertIncludes(criticTemplate, "## Verdict\n\nCONTEXT_UNAVAILABLE\n\n## Reason");
+  assertIncludes(criticTemplate, "Do not retry on your own and do not loop trying to rediscover context.");
+  assertIncludes(reviewerTemplate, "For delegated review work, the caller must provide a preflighted `taskEnvelope`.");
+  assertIncludes(reviewerTemplate, "Start from caller-provided `taskEnvelope`, `changedFiles`, `allowedFiles`, `forbiddenFiles`, validation evidence, and the current slice identifier.");
+  assertIncludes(reviewerTemplate, "Use `taskEnvelope.artifactPaths` for bounded task-artifact reads");
+  assertIncludes(reviewerTemplate, "Do not start with implicit `.task/active.json` lookup.");
+  assertIncludes(reviewerTemplate, "If `taskEnvelope` is missing, inaccessible, stale, or ambiguous, or if the referenced artifacts do not provide enough bounded context to review safely, stop immediately and return this exact structure instead of continuing:");
+  assertIncludes(reviewerTemplate, "## Recommendation\n\nCONTEXT_UNAVAILABLE\n\n## Reason");
+  assertIncludes(reviewerTemplate, "Do not retry on your own and do not loop trying to rediscover context.");
   assertIncludes(continueCommand, "If coding is complete but review has not passed, route to `marionettist-reviewer` for the current slice or group.");
   assertIncludes(continueCommand, "Use the reviewer’s bounded high-risk two-stage mode when the task or current slice/group is Tier L, high-risk, boundary-sensitive, workflow-sensitive, or critic-required.");
   assertIncludes(continueCommand, "Otherwise use the reviewer’s standard bounded diff-review mode by default.");
@@ -1362,6 +1393,9 @@ async function assertP1DocsAndTemplateCoverage() {
   assertIncludes(targetAgentsTemplate, "Do not silently upgrade `observed` or `target` rules into stronger constraints.");
   assertIncludes(targetAgentsTemplate, "supplemental `risk_score`");
   assertIncludes(targetAgentsTemplate, "For this workflow, the `gateClass` vocabulary is intentionally frozen to `simple`, `standard`, `boundary-sensitive`, and `high-risk`.");
+  assertIncludes(targetAgentsTemplate, "When delegating across parallel flows or multiple worktrees, the primary agent should preflight context once and pass explicit delegation context such as `worktreeRoot`, `taskId`, `phase`, `allowedToCode`, the current approved slice or group, and `artifactPaths`.");
+  assertIncludes(targetAgentsTemplate, "Delegated agents should use bounded reads against those provided artifacts, return `CONTEXT_UNAVAILABLE` for missing, stale, inaccessible, or ambiguous context, and stop after bounded empty or cancelled delegation outcomes instead of looping.");
+  assertIncludes(targetAgentsTemplate, "This is a delegation-safety boundary, not full runtime git-worktree scheduling support.");
   assertExcludes(targetAgentsTemplate, "Do not add numeric scoring");
   assertExcludes(targetAgentsTemplate, "without any numeric score field");
 
@@ -1465,6 +1499,14 @@ async function assertTaskStateContractTemplate() {
   assertIncludes(workflowTemplate, '  "gateClass": "boundary-sensitive",');
   assertIncludes(workflowTemplate, '  "risk_score": 4,');
   assertIncludes(workflowTemplate, "Its `taskId` must match `.task/active.json.taskId`.");
+  assertIncludes(workflowTemplate, "### Delegation Boundary For Parallel Or Worktree-Aware Execution");
+  assertIncludes(workflowTemplate, "Cross-worktree delegation should use an explicit compact `taskEnvelope`");
+  assertIncludes(workflowTemplate, "- `worktreeRoot`");
+  assertIncludes(workflowTemplate, "- `artifactPaths`");
+  assertIncludes(workflowTemplate, "- return `CONTEXT_UNAVAILABLE` when context is missing, inaccessible, stale, or ambiguous");
+  assertIncludes(workflowTemplate, "- treat empty or cancelled delegation as a bounded stop condition rather than retrying in a loop");
+  assertIncludes(workflowTemplate, "The primary agent remains responsible for surfacing bounded delegation failure clearly");
+  assertIncludes(workflowTemplate, "this workflow does not by itself implement full runtime git-worktree scheduling");
 }
 
 async function collectTextFiles(absoluteDirectory, relativeDirectory, filesToScan, exclusions) {

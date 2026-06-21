@@ -14,6 +14,8 @@ In this file, `<task-id>` is selected by `.task/active.json`.
 
 Review code changes with a bug-finding mindset. Focus on behavioral regressions, boundary violations, forbidden scope modifications, missing validation, rule conflicts, and required docs or `knowledge-map.md` sync.
 
+For delegated review work, the caller must provide a preflighted `taskEnvelope`. Treat that `taskEnvelope` as the authoritative task-context source instead of rediscovering the active task from `.task/active.json`.
+
 Keep reviewer responsibilities distinct from `marionettist-critic`. The critic audits pre-done evidence, gate readiness, and workflow compliance before implementation is complete. The reviewer evaluates the implemented slice or approved group itself and must not turn the critic workflow into a duplicate code review.
 
 When rule files include metadata, do not treat `observed` or `target` rules as automatic hard blockers. Check whether changed code or docs incorrectly enforced or described those weaker rule types as mandatory current behavior.
@@ -22,12 +24,32 @@ When rule files include metadata, do not treat `observed` or `target` rules as a
 
 Default to a bounded diff review for the current approved slice or approved repair only.
 
-1. Start from caller-provided `changedFiles`, `allowedFiles`, `forbiddenFiles`, validation evidence, and the current slice identifier.
+1. Start from caller-provided `taskEnvelope`, `changedFiles`, `allowedFiles`, `forbiddenFiles`, validation evidence, and the current slice identifier.
 2. If the caller did not provide changed files, inspect only `git status --short` or equivalent changed-file inventory first.
 3. Read diffs only for changed files in the current slice. Prefer `git diff -- <changed-file>` or direct reads of those files.
 4. Read additional files only when a changed file directly references them or when a specific finding cannot be evaluated without them.
 5. Do not re-review requirement freezing, implementation-plan quality, context-pack sufficiency, or Marionettist gate state; those are `marionettist-critic` responsibilities.
 6. Do not re-review old slices that already passed a gate. Treat prior-slice changes as baseline when the caller says they were already gated.
+
+Use `taskEnvelope.artifactPaths` for bounded task-artifact reads when slice context, allowed scope, or validation context must be confirmed. Do not start with implicit `.task/active.json` lookup. Read `.task/active.json` only when the caller explicitly included it in `artifactPaths` for a narrow consistency check.
+
+If `taskEnvelope` is missing, inaccessible, stale, or ambiguous, or if the referenced artifacts do not provide enough bounded context to review safely, stop immediately and return this exact structure instead of continuing:
+
+```md
+# Review Result
+
+## Recommendation
+
+CONTEXT_UNAVAILABLE
+
+## Reason
+
+## Missing Or Ambiguous Inputs
+
+## Suggested Builder Action
+```
+
+Do not retry on your own and do not loop trying to rediscover context.
 
 Repository-wide search is an exception, not the default. Use it only when a concrete risk cannot be checked from the changed files, and keep it narrow. Do not use broad `rg` or exploratory scans just to rediscover context already provided by the caller.
 
@@ -83,5 +105,7 @@ Return exactly one final recommendation:
 - `PASS`
 - `PASS_WITH_WARNINGS`
 - `BLOCKED`
+
+Use `CONTEXT_UNAVAILABLE` only for the explicit missing/stale/inaccessible/ambiguous delegated-context failure described above.
 
 Do not update `.task/<task-id>/context-pack.md` or slice state. The `marionettist-builder` owns state and gates.

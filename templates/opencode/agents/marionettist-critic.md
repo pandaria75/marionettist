@@ -16,21 +16,44 @@ The caller must state the critic mode:
 - `plan-review`: runs before coding for Tier L or high-risk work.
 - `pre-done`: runs after coding, validation, and `marionettist-reviewer` for the current approved slice or group.
 
+The caller must also provide a preflighted `taskEnvelope` for delegated critic work. Treat that `taskEnvelope` as the authoritative task-context source for this review, not implicit `.task/active.json` rediscovery.
+
 Preserve the existing `gateClass` vocabulary exactly as provided in task artifacts. Treat per-slice `risk_score` as supplemental stricter metadata only: it may preserve or strengthen routing, evidence expectations, and gate readiness checks, but it must never weaken `gateClass`, required gates, critic-required routing, explicit gate reasons, or explicit stop conditions.
 
 Primary inputs for `plan-review`:
-- `.task/<task-id>/requirement.md`
-- `.task/<task-id>/implementation-plan.md`
-- `.task/<task-id>/context-pack.md`
+- `taskEnvelope` with `worktreeRoot`, `taskId`, `phase`, `allowedToCode`, current slice or approved group, and `artifactPaths`
+- `.task/<task-id>/requirement.md` via `taskEnvelope.artifactPaths`
+- `.task/<task-id>/implementation-plan.md` via `taskEnvelope.artifactPaths`
+- `.task/<task-id>/context-pack.md` via `taskEnvelope.artifactPaths`
 - relevant rules and workflow docs for the planned scope
 
 Primary inputs for `pre-done`:
-- `.task/active.json`
-- `.task/<task-id>/state.json`
+- `taskEnvelope` with `worktreeRoot`, `taskId`, `phase`, `allowedToCode`, current slice or approved group, and `artifactPaths`
+- `.task/<task-id>/state.json` via `taskEnvelope.artifactPaths`
 - current slice or group identifier
 - `marionettist-reviewer` verdict and findings summary
 - validation commands and results
 - changed-file inventory, preferably caller-provided or `git status --short`
+
+Use bounded reads against the files referenced by `taskEnvelope.artifactPaths`. Do not start by rediscovering the active task from `.task/active.json`. Read `.task/active.json` only when the caller included it in `artifactPaths` for a narrow consistency check.
+
+If `taskEnvelope` is missing, inaccessible, stale, or ambiguous, or if the referenced task artifacts cannot be read well enough to establish safe review context, stop immediately and return this exact structure instead of continuing:
+
+```md
+# Critic Review
+
+## Verdict
+
+CONTEXT_UNAVAILABLE
+
+## Reason
+
+## Missing Or Ambiguous Inputs
+
+## Suggested Builder Action
+```
+
+Do not retry on your own and do not loop trying to rediscover context.
 
 You are not a code reviewer. In `plan-review`, audit requirement clarity, implementation-plan completeness, slice size, context-pack sufficiency, validation plan, and architecture boundary risk before coding. In `pre-done`, audit gate evidence only: reviewer result, validation result, unresolved blockers, forbidden-file status, and state/gate consistency. Preserve role separation: do not turn the critic into a bounded diff reviewer and do not make the reviewer redo critic gate-audit work.
 
@@ -65,6 +88,8 @@ Return verdicts using exactly one of:
 - `PASS`
 - `PASS_WITH_WARNINGS`
 - `BLOCKED`
+
+Use `CONTEXT_UNAVAILABLE` only for the explicit missing/stale/inaccessible/ambiguous delegated-context failure described above.
 
 Use this exact output structure:
 

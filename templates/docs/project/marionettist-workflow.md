@@ -23,6 +23,8 @@ Treat a task as high-risk when it includes sensitive refactors, workflow-sensiti
 
 In this file, `<task-id>` means the active `taskId` value from `.task/active.json`.
 
+`.task/active.json` is a local singleton pointer for one repository root or checked-out worktree. It is safe as a per-root or per-worktree selector, but it must not be treated as implicit cross-worktree delegation context.
+
 ## Gate Policy Defaults
 
 When `marionettist.config.yaml` defines `gatePolicy`, it sets the repository default gate posture for non-trivial work:
@@ -415,6 +417,12 @@ Legacy `.task/context-pack.md` is supported only as a migration fallback. Prefer
 
 `active.json` is a flat pointer to the current task.
 
+Support boundary:
+
+- treat `active.json` as local to the current repository root or checked-out worktree
+- do not rely on implicit active-task lookup as cross-worktree subagent delegation context
+- this workflow does not by itself implement full runtime git-worktree scheduling
+
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `taskId` | string | yes | Active task path. |
@@ -519,6 +527,29 @@ Example:
 ```
 
 Agents may preserve extra project-local fields, but must not change the meaning of the fields above.
+
+### Delegation Boundary For Parallel Or Worktree-Aware Execution
+
+When a builder, orchestrator, or primary agent delegates work across subagents, especially with parallel execution or multiple worktrees, it should preflight task context once before delegation.
+
+Cross-worktree delegation should use an explicit compact `taskEnvelope` instead of asking delegated agents to rediscover context through implicit `.task/active.json` lookup. That `taskEnvelope` should include at least:
+
+- `worktreeRoot`
+- `taskId`
+- `phase`
+- `allowedToCode`
+- `currentSlice` or approved parallel group
+- `artifactPaths`
+- allowed scope and forbidden scope when relevant
+
+Delegated agents should then:
+
+- use the provided `taskEnvelope` as the task-context source
+- read only the referenced artifacts with bounded reads
+- return `CONTEXT_UNAVAILABLE` when context is missing, inaccessible, stale, or ambiguous
+- treat empty or cancelled delegation as a bounded stop condition rather than retrying in a loop
+
+The primary agent remains responsible for surfacing bounded delegation failure clearly and stopping for user or orchestrator handling when safe context cannot be established.
 
 ## Framework-Managed Install And OpenCode Notes
 
