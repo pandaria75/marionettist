@@ -24,7 +24,7 @@ Current default posture:
 
 - new installs default to package-first OpenCode plugin usage through `marionettist-pathway-opencode`
 - the package source in this repository is `distributions/opencode/`
-- that package is currently unpublished/private in this issue; Marionettist does not claim npm publication here
+- package-first installs use the `marionettist-pathway-opencode` package path, while this repository remains the source of the packaged assets
 - repository-local fallback remains available with `opencode.pluginSource: local`
 
 The core Marionettist workflow still works without OpenCode.

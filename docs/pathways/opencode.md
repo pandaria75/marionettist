@@ -6,7 +6,7 @@ Current-state reminder:
 
 - current commands, config files, and repository docs use **Marionettist** naming
 - the package spec is `marionettist-pathway-opencode`, with source rooted at `distributions/opencode/`
-- the default package path currently points at an unpublished/private package; this issue does not publish it
+- the default package path targets `marionettist-pathway-opencode`, while this repository continues to own the package source
 - generated `.opencode/**` assets remain part of the supported MVP story
 
 Related docs:
@@ -67,7 +67,7 @@ Plugin-first does not remove normal Marionettist boundaries:
 
 ## Package And Fallback Shape
 
-The package source now lives in `distributions/opencode/`, but this task does not publish or release that package. Treat it as package source existing in-repo, not as a public npm artifact.
+The package source now lives in `distributions/opencode/`, while the framework still keeps the source-of-truth assets in-repo and preserves generated fallback behavior.
 
 Current source-layout intent:
 

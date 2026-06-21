@@ -64,7 +64,7 @@ Current package facts:
 
 - package spec: `marionettist-pathway-opencode`
 - repository source root: `distributions/opencode/`
-- this issue does not publish the package; treat it as private/unpublished source unless a later release says otherwise
+- package-first installs use `marionettist-pathway-opencode`, while this repository remains the source root for the packaged assets
 - repository-local fallback remains available through `opencode.pluginSource: local`
 
 Recommended migration path for an older generated OpenCode install:
