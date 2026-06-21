@@ -6,6 +6,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { buildPlan } from "./plan.js";
 
+const rawProjectIdentityPlaceholderPattern = /\{\{PROJECT_NAME\}\}|\{\{PROJECT_TYPE\}\}|\{\{ARCHITECTURE\}\}|\{\{PRIMARY_LANGUAGE\}\}/;
+
 function buildPlanOptions(overrides = {}) {
   return {
     project: overrides.project,
@@ -389,6 +391,104 @@ test("buildPlan does not import legacy harness.config selections into marionetti
     assert(!configOperation.content.includes('distribution:\n  mode: "adapter"'));
     assert(!configOperation.content.includes('commandSurface: "standard"'));
     assert(!configOperation.content.includes('permissionMode: "moderate"'));
+  });
+});
+
+test("buildPlan preserves rendered project identity during sync when variables are omitted", async (t) => {
+  await withTempProject(t, async (projectPath) => {
+    const initPlan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath }));
+    await applyManagedOperations(initPlan);
+
+    const initialConfigContent = await fs.readFile(path.join(projectPath, "marionettist.config.yaml"), "utf8");
+    assert(!rawProjectIdentityPlaceholderPattern.test(initialConfigContent), "expected init to render project identity placeholders");
+
+    const syncPlan = await buildPlan(projectPath, "sync", buildPlanOptions({ project: projectPath, variables: undefined }));
+    const configOperation = syncPlan.operations.find((operation) => operation.targetRelative === "marionettist.config.yaml");
+    assert(configOperation, "expected marionettist.config.yaml sync operation");
+    assert.equal(configOperation.status, "unchanged");
+    assert.equal(configOperation.content, initialConfigContent);
+    assert(!rawProjectIdentityPlaceholderPattern.test(configOperation.content), "expected sync preservation path to avoid raw identity placeholders");
+  });
+});
+
+test("buildPlan prefers explicit project identity variables over config-derived values during sync", async (t) => {
+  await withTempProject(t, async (projectPath) => {
+    const initPlan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath }));
+    await applyManagedOperations(initPlan);
+
+    const syncPlan = await buildPlan(projectPath, "sync", buildPlanOptions({
+      project: projectPath,
+      variables: {
+        projectName: "Explicit Project",
+        projectType: "library",
+        architecture: "modular",
+        primaryLanguage: "typescript"
+      }
+    }));
+    const configOperation = syncPlan.operations.find((operation) => operation.targetRelative === "marionettist.config.yaml");
+    assert(configOperation, "expected marionettist.config.yaml sync operation");
+    assert.equal(configOperation.status, "update");
+    assert(configOperation.content.includes('name: "Explicit Project"'));
+    assert(configOperation.content.includes('type: "library"'));
+    assert(configOperation.content.includes('architecture: "modular"'));
+    assert(configOperation.content.includes('primaryLanguage: "typescript"'));
+    assert(!configOperation.content.includes('name: "Smoke Project"'));
+  });
+});
+
+test("buildPlan skips malformed project identity values from config during sync", async (t) => {
+  await withTempProject(t, async (projectPath) => {
+    const initPlan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath }));
+    await applyManagedOperations(initPlan);
+
+    await fs.writeFile(path.join(projectPath, "marionettist.config.yaml"), [
+      "project:",
+      "  name:",
+      "    nested: \"not-a-string\"",
+      "  type: true",
+      "  architecture: \"   \"",
+      ""
+    ].join("\n"), "utf8");
+
+    const syncPlan = await buildPlan(projectPath, "sync", buildPlanOptions({ project: projectPath, variables: undefined }));
+    const configOperation = syncPlan.operations.find((operation) => operation.targetRelative === "marionettist.config.yaml");
+    assert(configOperation, "expected marionettist.config.yaml sync operation");
+    assert.equal(configOperation.status, "conflict");
+    assert(configOperation.content.includes('name: "{{PROJECT_NAME}}"'));
+    assert(configOperation.content.includes('type: "{{PROJECT_TYPE}}"'));
+    assert(configOperation.content.includes('architecture: "{{ARCHITECTURE}}"'));
+    assert(configOperation.content.includes('primaryLanguage: "{{PRIMARY_LANGUAGE}}"'));
+    assert(!configOperation.content.includes('[object Object]'));
+    assert(!configOperation.content.includes('type: "true"'));
+  });
+});
+
+test("buildPlan preserves valid config-derived identity fields while skipping invalid ones during sync", async (t) => {
+  await withTempProject(t, async (projectPath) => {
+    const initPlan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath }));
+    await applyManagedOperations(initPlan);
+
+    await fs.writeFile(path.join(projectPath, "marionettist.config.yaml"), [
+      "project:",
+      '  name: "Kept Project"',
+      "  type:",
+      '    nested: "not-a-string"',
+      '  architecture: "modular"',
+      '  primaryLanguage: "   "',
+      ""
+    ].join("\n"), "utf8");
+
+    const syncPlan = await buildPlan(projectPath, "sync", buildPlanOptions({ project: projectPath, variables: undefined }));
+    const configOperation = syncPlan.operations.find((operation) => operation.targetRelative === "marionettist.config.yaml");
+    assert(configOperation, "expected marionettist.config.yaml sync operation");
+    assert.equal(configOperation.status, "conflict");
+    assert(configOperation.content.includes('name: "Kept Project"'));
+    assert(configOperation.content.includes('architecture: "modular"'));
+    assert(configOperation.content.includes('type: "{{PROJECT_TYPE}}"'));
+    assert(configOperation.content.includes('primaryLanguage: "{{PRIMARY_LANGUAGE}}"'));
+    assert(!configOperation.content.includes('[object Object]'));
+    assert(!configOperation.content.includes('type: "false"'));
+    assert(!configOperation.content.includes('primaryLanguage: "   "'));
   });
 });
 

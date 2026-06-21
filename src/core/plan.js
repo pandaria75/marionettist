@@ -45,9 +45,20 @@ const advancedOnlyOpencodeCommandRelatives = new Set([
 ]);
 const knowledgeModeValues = new Set(["standard", "mudball"]);
 const knowledgeMaturityValues = new Set(["L0", "L1", "L2", "L3", "L4"]);
+const projectIdentityConfigVariableMap = new Map([
+  [["project", "name"], "projectName"],
+  [["project", "type"], "projectType"],
+  [["project", "architecture"], "architecture"],
+  [["project", "primaryLanguage"], "primaryLanguage"]
+]);
 
 async function buildFrameworkAssets(projectPath, options = {}) {
-  const variables = normalizeKnowledgeVariables(options.variables ?? {});
+  const explicitVariables = options.variables ?? {};
+  const resolvedIdentityVariables = await readProjectIdentityFromConfig(projectPath);
+  const variables = normalizeKnowledgeVariables({
+    ...resolvedIdentityVariables,
+    ...explicitVariables
+  });
   const assets = [];
   const modelProfilesState = await loadModelProfilesState(projectPath);
 
@@ -636,6 +647,49 @@ async function readConfiguredDistributionMode(projectPath) {
   } catch {
     return { value: null, error: null, rawValue: null };
   }
+}
+
+async function readProjectIdentityFromConfig(projectPath) {
+  const configPath = path.join(projectPath, projectConfigRelative);
+  if (!(await pathExists(configPath))) {
+    return {};
+  }
+
+  try {
+    const parsed = parseSimpleYaml(await readText(configPath));
+    const identity = {};
+
+    for (const [pathSegments, variableName] of projectIdentityConfigVariableMap.entries()) {
+      const value = normalizeProjectIdentityConfigValue(readNestedProperty(parsed, pathSegments));
+      if (value !== null) {
+        identity[variableName] = value;
+      }
+    }
+
+    return identity;
+  } catch {
+    return {};
+  }
+}
+
+function readNestedProperty(value, pathSegments = []) {
+  let current = value;
+  for (const segment of pathSegments) {
+    if (!current || typeof current !== "object") {
+      return null;
+    }
+    current = current[segment];
+  }
+  return current;
+}
+
+function normalizeProjectIdentityConfigValue(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized ? normalized : null;
 }
 
 function assertValidDistributionModeSource(result, mode, sourceKind) {

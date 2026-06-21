@@ -88,6 +88,7 @@ try {
 
   await assertKnowledgeInitAndManagedDocs(project, { mode: "standard", maturity: "L1" });
   await assertDistributionModeRecorded(project, "embedded");
+  await assertFreshInitIdentityPreservation(project);
   await assertTierPolicyManagedInstallAndPreservation(project);
 
   const distributionOutput = await harness("init", "--project", distributionProject, "--auto", "--distribution-mode", "adapter");
@@ -386,6 +387,35 @@ async function assertSyncPreservesRecordedDistributionMode(projectPath, expected
   await harness("sync", "--project", projectPath);
   const manifest = await readManifest(projectPath);
   assert(manifest.distributionMode === expectedMode, `Expected sync to preserve manifest distributionMode=${expectedMode}, got ${manifest.distributionMode}`);
+}
+
+async function assertFreshInitIdentityPreservation(projectPath) {
+  const configPath = path.join(projectPath, "marionettist.config.yaml");
+  const initialConfig = await fs.readFile(configPath, "utf8");
+
+  for (const placeholder of ["{{PROJECT_NAME}}", "{{PROJECT_TYPE}}", "{{ARCHITECTURE}}", "{{PRIMARY_LANGUAGE}}"] ) {
+    assertExcludes(initialConfig, placeholder);
+  }
+
+  const parsedInitialConfig = parseSimpleYaml(initialConfig);
+  assert(parsedInitialConfig.project?.name?.length > 0, "fresh init must render project.name");
+  assert(parsedInitialConfig.project?.type?.length > 0, "fresh init must render project.type");
+  assert(parsedInitialConfig.project?.architecture?.length > 0, "fresh init must render project.architecture");
+  assert(parsedInitialConfig.project?.primaryLanguage?.length > 0, "fresh init must render project.primaryLanguage");
+
+  const diffOutput = await harness("diff", "--project", projectPath);
+  assertIncludes(diffOutput, "unchanged: marionettist.config.yaml");
+  for (const statusPrefix of ["update:", "modified-local:", "missing:", "conflict:"]) {
+    assertExcludes(diffOutput, `${statusPrefix} marionettist.config.yaml`);
+  }
+
+  const syncOutput = await harness("sync", "--project", projectPath);
+  const syncedConfig = await fs.readFile(configPath, "utf8");
+  assert(syncedConfig === initialConfig, "fresh init -> sync must not rewrite marionettist.config.yaml identity fields");
+  assertIncludes(syncOutput, "unchanged: marionettist.config.yaml");
+  for (const placeholder of ["{{PROJECT_NAME}}", "{{PROJECT_TYPE}}", "{{ARCHITECTURE}}", "{{PRIMARY_LANGUAGE}}"] ) {
+    assertExcludes(syncedConfig, placeholder);
+  }
 }
 
 async function assertLegacyDistributionModeReportingAndNoInjection(projectPath) {
