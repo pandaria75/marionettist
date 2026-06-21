@@ -1,0 +1,16 @@
+{
+  "name": "marionettist-pathway-opencode",
+  "version": "0.2.10",
+  "private": true,
+  "type": "module",
+  "description": "OpenCode Pathway plugin package surface for Marionettist.",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./plugin": "./plugin/opencode-tasks.js",
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

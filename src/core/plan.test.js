@@ -57,7 +57,7 @@ async function applyManagedOperations(plan) {
 
 test("buildPlan rerenders OpenCode agents when only model profile config changes", async (t) => {
   await withTempProject(t, async (projectPath) => {
-    const initPlan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true }));
+    const initPlan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true, opencodePluginSource: "local" }));
     await applyManagedOperations(initPlan);
 
     const initialBuilderOperation = initPlan.operations.find((operation) => operation.targetRelative === ".opencode/agents/marionettist-builder.md");
@@ -73,7 +73,7 @@ test("buildPlan rerenders OpenCode agents when only model profile config changes
       "utf8"
     );
 
-    const syncPlan = await buildPlan(projectPath, "sync", buildPlanOptions({ project: projectPath, withOpencode: true }));
+    const syncPlan = await buildPlan(projectPath, "sync", buildPlanOptions({ project: projectPath, withOpencode: true, opencodePluginSource: "local" }));
     const builderSyncOperation = syncPlan.operations.find((operation) => operation.targetRelative === ".opencode/agents/marionettist-builder.md");
     assert(builderSyncOperation, "expected sync plan OpenCode builder operation");
     assert.equal(builderSyncOperation.status, "update");
@@ -97,7 +97,7 @@ test("buildPlan records future pathway OpenCode sources when present and falls b
   });
 
   await withTempProject(t, async (projectPath) => {
-    let plan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true, opencodeCommandSurface: "advanced" }));
+    let plan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true, opencodeCommandSurface: "advanced", opencodePluginSource: "local" }));
     let operation = plan.operations.find((entry) => entry.targetRelative === ".opencode/commands/slice-38-2-plan-source.md");
     assert(operation, "expected legacy fallback command to be planned");
     assert.equal(operation.sourceRelative, "templates/opencode/commands/slice-38-2-plan-source.md");
@@ -108,7 +108,7 @@ test("buildPlan records future pathway OpenCode sources when present and falls b
     await fs.mkdir(path.dirname(futureSource), { recursive: true });
     await fs.writeFile(futureSource, "future command", "utf8");
 
-    plan = await buildPlan(projectPath, "sync", buildPlanOptions({ project: projectPath, withOpencode: true, opencodeCommandSurface: "advanced" }));
+    plan = await buildPlan(projectPath, "sync", buildPlanOptions({ project: projectPath, withOpencode: true, opencodeCommandSurface: "advanced", opencodePluginSource: "local" }));
     operation = plan.operations.find((entry) => entry.targetRelative === ".opencode/commands/slice-38-2-plan-source.md");
     assert(operation, "expected future pathway command to be planned");
     assert.equal(operation.status, "update");
@@ -126,7 +126,7 @@ test("buildPlan preserves user-owned OpenCode files during init", async (t) => {
     await fs.writeFile(localCommandPath, "local command", "utf8");
     await fs.writeFile(localConfigPath, "{\n  // local config\n}\n", "utf8");
 
-    const plan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true, opencodeCommandSurface: "advanced" }));
+    const plan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true, opencodeCommandSurface: "advanced", opencodePluginSource: "local" }));
     const commandOperation = plan.operations.find((operation) => operation.targetRelative === ".opencode/commands/marionettist.md");
     const configOperation = plan.operations.find((operation) => operation.targetRelative === "opencode.jsonc");
 
@@ -163,7 +163,7 @@ test("buildPlan preserves user-owned OpenCode files during sync when they are no
     await fs.writeFile(localCommandPath, "local command", "utf8");
     await fs.writeFile(localConfigPath, "{\n  // local config\n}\n", "utf8");
 
-    const plan = await buildPlan(projectPath, "sync", buildPlanOptions({ project: projectPath, withOpencode: true, opencodeCommandSurface: "advanced" }));
+    const plan = await buildPlan(projectPath, "sync", buildPlanOptions({ project: projectPath, withOpencode: true, opencodeCommandSurface: "advanced", opencodePluginSource: "local" }));
     const commandOperation = plan.operations.find((operation) => operation.targetRelative === ".opencode/commands/marionettist.md");
     const configOperation = plan.operations.find((operation) => operation.targetRelative === "opencode.jsonc");
 
@@ -179,7 +179,7 @@ test("buildPlan preserves user-owned OpenCode files during sync when they are no
 
 test("buildPlan rerenders OpenCode agents when resolved agent override values change in config only", async (t) => {
   await withTempProject(t, async (projectPath) => {
-    const initPlan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true }));
+    const initPlan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true, opencodePluginSource: "local" }));
     await applyManagedOperations(initPlan);
 
     const initialBuilderRecord = initPlan.manifest.managedFiles.find((file) => file.path === ".opencode/agents/marionettist-builder.md");
@@ -213,7 +213,7 @@ test("buildPlan rerenders OpenCode agents when resolved agent override values ch
       "",
     ].join("\n"), "utf8");
 
-    const syncPlan = await buildPlan(projectPath, "sync", buildPlanOptions({ project: projectPath, withOpencode: true }));
+    const syncPlan = await buildPlan(projectPath, "sync", buildPlanOptions({ project: projectPath, withOpencode: true, opencodePluginSource: "local" }));
     const builderSyncOperation = syncPlan.operations.find((operation) => operation.targetRelative === ".opencode/agents/marionettist-builder.md");
     const reviewerSyncOperation = syncPlan.operations.find((operation) => operation.targetRelative === ".opencode/agents/marionettist-reviewer.md");
     assert(builderSyncOperation, "expected sync plan OpenCode builder operation");
@@ -239,7 +239,7 @@ test("buildPlan tracks plugin-first OpenCode config render metadata through the 
     const initialConfigRecord = initPlan.manifest.managedFiles.find((file) => file.path === "opencode.jsonc");
     assert(initialConfigOperation, "expected initial OpenCode config operation");
     assert(initialConfigRecord, "expected initial OpenCode config manifest record");
-    assert.equal(initialConfigOperation.content.trim(), '{\n  "$schema": "https://opencode.ai/config.json",\n  // Auto-enabled by marionettist --with-opencode so repositories can install a\n  // local OpenCode pathway plugin prototype without requiring global user config.\n  "plugin": ["./.opencode/plugin/opencode-tasks.js"]\n}');
+    assert.equal(initialConfigOperation.content.trim(), '{\n  "$schema": "https://opencode.ai/config.json",\n  // Auto-enabled by marionettist --with-opencode so repositories can install a\n  // local OpenCode pathway plugin prototype without requiring global user config.\n  "plugin": ["marionettist-pathway-opencode"]\n}');
 
     const profilesPath = path.join(projectPath, ".marionettist", "model-profiles.yml");
     const originalProfiles = await fs.readFile(profilesPath, "utf8");
@@ -263,9 +263,36 @@ test("buildPlan tracks plugin-first OpenCode config render metadata through the 
   });
 });
 
-test("buildPlan installs repository-local OpenCode pathway plugin assets and keeps them discoverable during sync", async (t) => {
+test("buildPlan defaults to package-based OpenCode plugin planning for new installs", async (t) => {
   await withTempProject(t, async (projectPath) => {
     const plan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true }));
+
+    const configOperation = plan.operations.find((operation) => operation.targetRelative === "opencode.jsonc");
+    const pluginOperation = plan.operations.find((operation) => operation.targetRelative === ".opencode/plugin/opencode-tasks.js");
+    const agentAssetOperation = plan.operations.find((operation) => operation.targetRelative === ".opencode/pathway/agents/marionettist-pathway-prototype.md");
+    const commandAssetOperation = plan.operations.find((operation) => operation.targetRelative === ".opencode/pathway/commands/marionettist-pathway-prototype.md");
+    const configCommandAssetOperation = plan.operations.find((operation) => operation.targetRelative === ".opencode/pathway/commands/marionettist-pathway-config.md");
+    const skillAssetOperation = plan.operations.find((operation) => operation.targetRelative === ".opencode/pathway-skills/marionettist-pathway-prototype/SKILL.md");
+    const configSkillAssetOperation = plan.operations.find((operation) => operation.targetRelative === ".opencode/pathway-skills/marionettist-pathway-config/SKILL.md");
+    const fallbackCommandOperation = plan.operations.find((operation) => operation.targetRelative === ".opencode/commands/marionettist.md");
+
+    assert(configOperation, "expected OpenCode config operation");
+    assert.equal(plan.opencodePluginSourceState.pluginSource, "package");
+    assert.equal(plan.manifest.opencodePluginSource, "package");
+    assert.match(configOperation.content, /"plugin": \["marionettist-pathway-opencode"\]/);
+    assert.equal(pluginOperation, undefined);
+    assert.equal(agentAssetOperation, undefined);
+    assert.equal(commandAssetOperation, undefined);
+    assert.equal(configCommandAssetOperation, undefined);
+    assert.equal(skillAssetOperation, undefined);
+    assert.equal(configSkillAssetOperation, undefined);
+    assert.equal(fallbackCommandOperation, undefined);
+  });
+});
+
+test("buildPlan preserves repository-local OpenCode fallback planning when pluginSource is local", async (t) => {
+  await withTempProject(t, async (projectPath) => {
+    const plan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true, opencodePluginSource: "local" }));
 
     const configOperation = plan.operations.find((operation) => operation.targetRelative === "opencode.jsonc");
     const pluginOperation = plan.operations.find((operation) => operation.targetRelative === ".opencode/plugin/opencode-tasks.js");
@@ -285,6 +312,8 @@ test("buildPlan installs repository-local OpenCode pathway plugin assets and kee
     assert(configSkillAssetOperation, "expected pathway config skill asset operation");
     assert(fallbackCommandOperation, "expected fallback harness command operation");
 
+    assert.equal(plan.opencodePluginSourceState.pluginSource, "local");
+    assert.equal(plan.manifest.opencodePluginSource, "local");
     assert.equal(pluginOperation.sourceRelative, "templates/pathways/opencode/plugin/opencode-tasks.js");
     assert.equal(agentAssetOperation.sourceRelative, "templates/pathways/opencode/pathway/agents/marionettist-pathway-prototype.md");
     assert.equal(commandAssetOperation.sourceRelative, "templates/pathways/opencode/pathway/commands/marionettist-pathway-prototype.md");
@@ -299,6 +328,7 @@ test("buildPlan installs repository-local OpenCode pathway plugin assets and kee
     const syncPlan = await buildPlan(projectPath, "sync", buildPlanOptions({ project: projectPath, withOpencode: true }));
     const syncConfigCommandAssetOperation = syncPlan.operations.find((operation) => operation.targetRelative === ".opencode/pathway/commands/marionettist-pathway-config.md");
     const syncConfigSkillAssetOperation = syncPlan.operations.find((operation) => operation.targetRelative === ".opencode/pathway-skills/marionettist-pathway-config/SKILL.md");
+    assert.equal(syncPlan.opencodePluginSourceState.pluginSource, "local");
     assert(syncConfigCommandAssetOperation, "expected sync plan pathway config command asset operation");
     assert(syncConfigSkillAssetOperation, "expected sync plan pathway config skill asset operation");
     assert.equal(syncConfigCommandAssetOperation.status, "unchanged");
@@ -322,6 +352,35 @@ test("buildPlan installs repository-local OpenCode pathway plugin assets and kee
   });
 });
 
+test("buildPlan infers legacy local fallback planning from existing managed OpenCode assets", async (t) => {
+  await withTempProject(t, async (projectPath) => {
+    const initPlan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true, opencodePluginSource: "local" }));
+    await applyManagedOperations(initPlan);
+
+    const manifestPath = path.join(projectPath, ".marionettist", "manifest.json");
+    const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+    delete manifest.opencodePluginSource;
+    for (const file of manifest.managedFiles) {
+      delete file.pluginSource;
+    }
+    await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+    const configPath = path.join(projectPath, "marionettist.config.yaml");
+    const configContent = await fs.readFile(configPath, "utf8");
+    await fs.writeFile(configPath, configContent.replace(/\n  pluginSource: "local"\n?/u, "\n"), "utf8");
+
+    const syncPlan = await buildPlan(projectPath, "sync", buildPlanOptions({ project: projectPath, withOpencode: true }));
+    const configOperation = syncPlan.operations.find((operation) => operation.targetRelative === "opencode.jsonc");
+    const pluginOperation = syncPlan.operations.find((operation) => operation.targetRelative === ".opencode/plugin/opencode-tasks.js");
+
+    assert.equal(syncPlan.opencodePluginSourceState.pluginSource, "local");
+    assert.equal(syncPlan.opencodePluginSourceState.pluginSourceSource, "existing-managed-assets");
+    assert(configOperation, "expected OpenCode config operation");
+    assert(pluginOperation, "expected local plugin operation");
+    assert.match(configOperation.content, /"plugin": \["\.\/\.opencode\/plugin\/opencode-tasks\.js"\]/);
+  });
+});
+
 test("buildPlan renders marionettist.config.yaml from persisted plan selections", async (t) => {
   await withTempProject(t, async (projectPath) => {
     const plan = await buildPlan(projectPath, "init", buildPlanOptions({
@@ -335,7 +394,7 @@ test("buildPlan renders marionettist.config.yaml from persisted plan selections"
     const configOperation = plan.operations.find((operation) => operation.targetRelative === "marionettist.config.yaml");
     assert(configOperation, "expected marionettist.config.yaml operation");
     assert(configOperation.content.includes('distribution:\n  mode: "adapter"'));
-    assert(configOperation.content.includes('opencode:\n  commandSurface: "standard"\n  permissionMode: "moderate"'));
+    assert(configOperation.content.includes('opencode:\n  commandSurface: "standard"\n  permissionMode: "moderate"\n  pluginSource: "package"'));
     assert(typeof configOperation.renderInputHash === "string" && configOperation.renderInputHash.length > 0, "expected marionettist.config.yaml renderInputHash metadata");
   });
 });

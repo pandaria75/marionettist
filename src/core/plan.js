@@ -3,7 +3,7 @@ import { listFiles, pathExists, readText, toPosixPath } from "./files.js";
 import { listResolvedOpencodeTemplateRelatives, projectConfigRelative, resolveCoreTemplateSource, resolveOpencodeTemplateSource, skillsRoot, templatesRoot, versionFile } from "./framework-paths.js";
 import { extractManagedBlock, replaceManagedBlock } from "./managed-block.js";
 import { sha256 } from "./hash.js";
-import { buildManifest, getManagedFileHash, manifestFileMap, manifestRelative, normalizeDistributionMode, normalizeOpencodeCommandSurface, normalizeOpencodePermissionMode, opencodeArtifactAdapter, readManifest, validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface, validateOptionalOpencodePermissionMode } from "./manifest.js";
+import { buildManifest, getManagedFileHash, manifestFileMap, manifestRelative, normalizeDistributionMode, normalizeOpencodeCommandSurface, normalizeOpencodePermissionMode, normalizeOpencodePluginSource, opencodeArtifactAdapter, readManifest, validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface, validateOptionalOpencodePermissionMode, validateOptionalOpencodePluginSource } from "./manifest.js";
 import { buildOpencodeAgentTemplateVariables, buildResolvedOpencodeAgentModelConfigs, loadModelProfiles, loadModelProfilesState } from "./model-profiles.js";
 import { getOpencodePermissionPolicy } from "./opencode-permissions.js";
 import { renderWithMetadata, stableJsonStringify } from "./render.js";
@@ -26,6 +26,8 @@ const coreTemplateTargets = new Map([
 const opencodeManagedPrefix = ".opencode/";
 const opencodeValidatorTemplatePrefix = "agents/validators/";
 const opencodeProjectConfigSource = "opencode.jsonc";
+const opencodeLocalPluginPath = "./.opencode/plugin/opencode-tasks.js";
+const opencodePackagePluginSpecifier = "marionettist-pathway-opencode";
 const minimalOpencodeCommandRelatives = new Set([
   "commands/marionettist.md",
   "commands/marionettist-dev.md",
@@ -72,7 +74,8 @@ async function buildFrameworkAssets(projectPath, options = {}) {
       modelProfilesState,
       distributionModeState: options.distributionModeState,
       opencodeCommandSurfaceState: options.opencodeCommandSurfaceState,
-      opencodePermissionModeState: options.opencodePermissionModeState
+      opencodePermissionModeState: options.opencodePermissionModeState,
+      opencodePluginSourceState: options.opencodePluginSourceState
     });
     const rendered = renderWithMetadata({
       templateContent,
@@ -121,7 +124,8 @@ async function buildFrameworkAssets(projectPath, options = {}) {
     assets.push(...await buildOpencodeAssets(projectPath, variables, {
       distributionModeState: options.distributionModeState,
       commandSurfaceState: options.opencodeCommandSurfaceState,
-      permissionModeState: options.opencodePermissionModeState
+      permissionModeState: options.opencodePermissionModeState,
+      pluginSourceState: options.opencodePluginSourceState
     }));
   }
 
@@ -136,6 +140,7 @@ async function buildOpencodeAssets(projectPath, variables = {}, states = {}) {
   const validatorProjectGuidance = await buildValidatorProjectGuidance(projectPath, opencodeVariables);
   const commandSurface = normalizeOpencodeCommandSurface(states.commandSurfaceState?.value ?? "advanced", "effective OpenCode command surface");
   const permissionMode = normalizeOpencodePermissionMode(states.permissionModeState?.permissionMode ?? "default", "effective OpenCode permission mode");
+  const pluginSource = normalizeOpencodePluginSource(states.pluginSourceState?.pluginSource ?? "package", "effective OpenCode plugin source");
 
   for (const sourceRelative of opencodeRelatives) {
     const resolvedSource = await resolveOpencodeTemplateSource(sourceRelative);
@@ -146,6 +151,9 @@ async function buildOpencodeAssets(projectPath, variables = {}, states = {}) {
       continue;
     }
     if (sourceRelative.startsWith("commands/") && !shouldIncludeOpencodeCommand(sourceRelative, commandSurface)) {
+      continue;
+    }
+    if (pluginSource === "package" && sourceRelative !== opencodeProjectConfigSource) {
       continue;
     }
 
@@ -179,6 +187,7 @@ async function buildOpencodeAssets(projectPath, variables = {}, states = {}) {
       renderInputHash: rendered.renderInputHash,
       commandSurface,
       permissionMode,
+      pluginSource,
       content,
       managedContent: content,
       frameworkHash: sha256(content)
@@ -192,16 +201,20 @@ async function resolveOpencodeRenderState(projectPath, variables = {}, states = 
   const profiles = await loadModelProfiles(projectPath);
   const resolvedAgentModels = buildResolvedOpencodeAgentModelConfigs(profiles);
   const permissionPolicy = getOpencodePermissionPolicy(states.permissionModeState?.permissionMode ?? "default");
+  const pluginSource = normalizeOpencodePluginSource(states.pluginSourceState?.pluginSource ?? "package", "effective OpenCode plugin source");
 
   return {
     variables: {
       ...buildOpencodeAgentTemplateVariables(profiles, variables),
       ...permissionPolicy.renderVariables,
-      opencodePluginArray: stableJsonStringify(buildDefaultOpencodePluginEntries())
+      opencodePluginArray: stableJsonStringify(buildDefaultOpencodePluginEntries(pluginSource))
     },
     configRenderContext: {
       pathwayMode: "plugin-first",
       generatedFilesFallback: true,
+      pluginSource,
+      pluginPackageSpecifier: opencodePackagePluginSpecifier,
+      localFallbackPluginPath: opencodeLocalPluginPath,
       distributionMode: states.distributionModeState?.value ?? null,
       commandSurface: states.commandSurfaceState?.value ?? null,
       permissionMode: states.permissionModeState?.permissionMode ?? null,
@@ -210,8 +223,9 @@ async function resolveOpencodeRenderState(projectPath, variables = {}, states = 
   };
 }
 
-function buildDefaultOpencodePluginEntries() {
-  return ["./.opencode/plugin/opencode-tasks.js"];
+function buildDefaultOpencodePluginEntries(pluginSource = "package") {
+  const source = normalizeOpencodePluginSource(pluginSource, "OpenCode plugin source");
+  return [source === "package" ? opencodePackagePluginSpecifier : opencodeLocalPluginPath];
 }
 
 async function buildValidatorProjectGuidance(projectPath, variables = {}) {
@@ -467,29 +481,40 @@ async function resolveDistributionModeState(projectPath, previousManifest, optio
 async function resolveOpencodeSurfaceAndPermissionState(projectPath, previousManifest, options = {}) {
   const configuredCommandSurface = await readConfiguredOpencodeCommandSurface(projectPath);
   const configuredPermissionMode = await readConfiguredOpencodePermissionMode(projectPath);
+  const configuredPluginSource = await readConfiguredOpencodePluginSource(projectPath);
   const explicitCommandSurface = options.opencodeCommandSurface === null || options.opencodeCommandSurface === undefined
     ? null
     : normalizeOpencodeCommandSurface(options.opencodeCommandSurface, "--opencode-command-surface value");
   const explicitPermissionMode = options.opencodePermissionMode === null || options.opencodePermissionMode === undefined
     ? null
     : normalizeOpencodePermissionMode(options.opencodePermissionMode, "--opencode-permission-mode value");
+  const explicitPluginSource = options.opencodePluginSource === null || options.opencodePluginSource === undefined
+    ? null
+    : normalizeOpencodePluginSource(options.opencodePluginSource, "--opencode-plugin-source value");
   const managedCommandSurface = inferManagedOpencodeCommandSurface(previousManifest);
   const managedPermissionMode = inferManagedOpencodePermissionMode(previousManifest);
+  const managedPluginSource = inferManagedOpencodePluginSource(previousManifest);
   const hasOpencode = explicitCommandSurface !== null
     || explicitPermissionMode !== null
+    || explicitPluginSource !== null
     || options.withOpencode === true
     || hasManagedOpencodeAssets(previousManifest)
     || configuredCommandSurface.value !== null
-    || configuredPermissionMode.value !== null;
+    || configuredPermissionMode.value !== null
+    || configuredPluginSource.value !== null;
 
   let value = null;
   let source = null;
   let permissionMode = null;
   let permissionModeSource = null;
+  let pluginSource = null;
+  let pluginSourceSource = null;
 
   assertValidOpencodeCommandSurfaceSource(configuredCommandSurface, "config");
   assertValidOpencodePermissionModeSource(configuredPermissionMode, "config");
+  assertValidOpencodePluginSourceSource(configuredPluginSource, "config");
   assertValidOpencodePermissionModeSource(validateOptionalOpencodePermissionMode(previousManifest?.opencodePermissionMode, "manifest opencodePermissionMode"), "manifest");
+  assertValidOpencodePluginSourceSource(validateOptionalOpencodePluginSource(previousManifest?.opencodePluginSource, "manifest opencodePluginSource"), "manifest");
 
   if (explicitCommandSurface !== null) {
     value = explicitCommandSurface;
@@ -522,12 +547,28 @@ async function resolveOpencodeSurfaceAndPermissionState(projectPath, previousMan
     permissionModeSource = hasManagedOpencodeAssets(previousManifest) ? "legacy-default" : "default-new-install";
   }
 
+  if (explicitPluginSource !== null) {
+    pluginSource = explicitPluginSource;
+    pluginSourceSource = "cli";
+  } else if (configuredPluginSource.value !== null) {
+    pluginSource = configuredPluginSource.value;
+    pluginSourceSource = "config";
+  } else if (managedPluginSource.value !== null) {
+    pluginSource = managedPluginSource.value;
+    pluginSourceSource = managedPluginSource.source;
+  } else if (options.withOpencode === true) {
+    pluginSource = "package";
+    pluginSourceSource = "default-new-install";
+  }
+
   return {
     includeOpencode: options.withOpencode === false ? false : hasOpencode,
     value,
     source,
     permissionMode,
     permissionModeSource,
+    pluginSource,
+    pluginSourceSource,
     persistToConfig: value !== null && (
       source === "cli"
       || source === "config"
@@ -536,6 +577,11 @@ async function resolveOpencodeSurfaceAndPermissionState(projectPath, previousMan
     persistPermissionModeToConfig: permissionMode !== null && (
       permissionModeSource === "cli"
       || permissionModeSource === "config"
+      || options.withOpencode === true
+    ),
+    persistPluginSourceToConfig: pluginSource !== null && (
+      pluginSourceSource === "cli"
+      || pluginSourceSource === "config"
       || options.withOpencode === true
     )
   };
@@ -566,6 +612,21 @@ async function readConfiguredOpencodePermissionMode(projectPath) {
     const parsed = parseSimpleYaml(await readText(configPath));
     const value = parsed?.opencode?.permissionMode;
     return validateOptionalOpencodePermissionMode(value, `${projectConfigRelative} opencode.permissionMode`);
+  } catch {
+    return { value: null, error: null, rawValue: null };
+  }
+}
+
+async function readConfiguredOpencodePluginSource(projectPath) {
+  const configPath = path.join(projectPath, projectConfigRelative);
+  if (!(await pathExists(configPath))) {
+    return { value: null, error: null, rawValue: null };
+  }
+
+  try {
+    const parsed = parseSimpleYaml(await readText(configPath));
+    const value = parsed?.opencode?.pluginSource;
+    return validateOptionalOpencodePluginSource(value, `${projectConfigRelative} opencode.pluginSource`);
   } catch {
     return { value: null, error: null, rawValue: null };
   }
@@ -632,6 +693,32 @@ function inferManagedOpencodePermissionMode(previousManifest) {
   }
 
   return { value: "default", source: "legacy-default" };
+}
+
+function inferManagedOpencodePluginSource(previousManifest) {
+  const topLevel = validateOptionalOpencodePluginSource(previousManifest?.opencodePluginSource, "manifest opencodePluginSource");
+  if (topLevel.value !== null) {
+    return { value: topLevel.value, source: "manifest" };
+  }
+
+  if (!hasManagedOpencodeAssets(previousManifest)) {
+    return { value: null, source: null };
+  }
+
+  const recordedValues = (previousManifest?.managedFiles ?? [])
+    .filter((file) => file.adapter === opencodeArtifactAdapter && typeof file.pluginSource === "string" && file.pluginSource.length > 0)
+    .map((file) => validateOptionalOpencodePluginSource(file.pluginSource, `manifest managedFiles[${file.path}] pluginSource`))
+    .filter((result) => result.value !== null);
+
+  if (recordedValues.some((result) => result.value === "package")) {
+    return { value: "package", source: "manifest-metadata" };
+  }
+
+  if (recordedValues.some((result) => result.value === "local")) {
+    return { value: "local", source: "manifest-metadata" };
+  }
+
+  return { value: "local", source: "existing-managed-assets" };
 }
 
 async function readConfiguredDistributionMode(projectPath) {
@@ -731,6 +818,19 @@ function assertValidOpencodePermissionModeSource(result, sourceKind) {
   );
 }
 
+function assertValidOpencodePluginSourceSource(result, sourceKind) {
+  if (!result?.error) {
+    return;
+  }
+
+  const subject = sourceKind === "manifest"
+    ? ".marionettist/manifest.json opencodePluginSource"
+    : `${projectConfigRelative} opencode.pluginSource`;
+  throw new Error(
+    `Cannot continue because ${subject} is invalid. ${result.error} Fix the recorded OpenCode plugin source or remove it before rerunning. Use \`marionettist doctor --project <path>\` for a detailed report.`
+  );
+}
+
 function renderProjectConfigWithSelections(content, states = {}) {
   const sections = [];
 
@@ -744,6 +844,9 @@ function renderProjectConfigWithSelections(content, states = {}) {
   }
   if (states.opencodePermissionModeState?.persistPermissionModeToConfig && states.opencodePermissionModeState.permissionMode) {
     opencodeLines.push(`  permissionMode: "${states.opencodePermissionModeState.permissionMode}"`);
+  }
+  if (states.opencodePluginSourceState?.persistPluginSourceToConfig && states.opencodePluginSourceState.pluginSource) {
+    opencodeLines.push(`  pluginSource: "${states.opencodePluginSourceState.pluginSource}"`);
   }
   if (opencodeLines.length > 0) {
     sections.push(`opencode:\n${opencodeLines.join("\n")}`);
@@ -801,6 +904,15 @@ function buildHarnessConfigRenderSelections(states = {}) {
       : {
         permissionMode: null,
         persistPermissionModeToConfig: false
+      },
+    opencodePluginSourceState: states.opencodePluginSourceState?.persistPluginSourceToConfig
+      ? {
+        pluginSource: states.opencodePluginSourceState.pluginSource,
+        persistPluginSourceToConfig: true
+      }
+      : {
+        pluginSource: null,
+        persistPluginSourceToConfig: false
       }
   };
 }
@@ -983,6 +1095,7 @@ async function operationForOrphan(previous, projectPath) {
     renderInputHash: previous.renderInputHash,
     commandSurface: previous.commandSurface,
     permissionMode: previous.permissionMode,
+    pluginSource: previous.pluginSource,
     exists,
     currentHash: currentManaged === null ? null : sha256(currentManaged),
     previousHash: getManagedFileHash(previous),
@@ -1010,12 +1123,18 @@ export async function buildPlan(projectPath, mode, options = {}) {
     permissionModeSource: opencodeCommandSurfaceState.permissionModeSource,
     persistPermissionModeToConfig: opencodeCommandSurfaceState.persistPermissionModeToConfig
   };
+  const opencodePluginSourceState = {
+    pluginSource: opencodeCommandSurfaceState.pluginSource,
+    pluginSourceSource: opencodeCommandSurfaceState.pluginSourceSource,
+    persistPluginSourceToConfig: opencodeCommandSurfaceState.persistPluginSourceToConfig
+  };
   const assets = await buildFrameworkAssets(projectPath, {
     ...options,
     includeOpencode: opencodeCommandSurfaceState.includeOpencode,
     distributionModeState,
     opencodeCommandSurfaceState,
-    opencodePermissionModeState
+    opencodePermissionModeState,
+    opencodePluginSourceState
   });
   const assetPaths = new Set(assets.map((asset) => asset.targetRelative));
 
@@ -1046,7 +1165,8 @@ export async function buildPlan(projectPath, mode, options = {}) {
     operations,
     force: options.force,
     distributionMode: distributionModeState.value,
-    opencodePermissionMode: opencodePermissionModeState.permissionMode
+    opencodePermissionMode: opencodePermissionModeState.permissionMode,
+    opencodePluginSource: opencodePluginSourceState.pluginSource
   });
 
   operations.push({
@@ -1059,5 +1179,5 @@ export async function buildPlan(projectPath, mode, options = {}) {
     manifest
   });
 
-  return { version, previousManifest, manifest, operations, distributionModeState, opencodeCommandSurfaceState, opencodePermissionModeState };
+  return { version, previousManifest, manifest, operations, distributionModeState, opencodeCommandSurfaceState, opencodePermissionModeState, opencodePluginSourceState };
 }

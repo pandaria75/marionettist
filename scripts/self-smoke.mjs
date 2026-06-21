@@ -45,6 +45,7 @@ const mirrorChecks = [
     target: ".opencode/agents/validators/generic-fallback.md"
   }
 ];
+const packageAlignmentRoots = ["plugin", "pathway", "pathway-skills"];
 
 try {
   const expectedMirrorFiles = await getExpectedMirrorFiles();
@@ -122,6 +123,7 @@ try {
   await assertDoctorFailsForUnresolvedPermissionPlaceholder();
   await assertMirrorDriftDetected();
   await assertMissingMirrorDetected();
+  await assertPackagePluginAssetAlignment();
   await assertLocalSelfModelProfilesPreservedAndRendered();
   await assertMirrorResyncFromTemplateSource();
   await assertOrdinaryOpencodeInitDoesNotInstallSelfFiles();
@@ -307,35 +309,83 @@ async function assertDoctorFailsForUnresolvedPermissionPlaceholder() {
 async function assertOrdinaryOpencodeInitDoesNotInstallSelfFiles() {
   await fs.rm(ordinaryOpencodeProject, { recursive: true, force: true });
   const output = await harness("init", "--project", ordinaryOpencodeProject, "--auto", "--with-opencode");
-  assertIncludes(output, "new-managed: .opencode/commands/marionettist.md");
-  assertIncludes(output, "new-managed: .opencode/agents/marionettist-planner.md");
+  assertIncludes(output, "new-managed: opencode.jsonc");
   assert(await pathExists(path.join(ordinaryOpencodeProject, "opencode.jsonc")), "ordinary init --with-opencode must still generate opencode.jsonc");
-  assert(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "agents", "marionettist-planner.md")), "ordinary init must still generate template agent files");
-  assert(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "commands", "marionettist.md")), "ordinary init must install the minimal builder command by default");
+  assert(!(await pathExists(path.join(ordinaryOpencodeProject, ".opencode"))), "ordinary init package default must not create generated fallback assets");
+
+  const config = await fs.readFile(path.join(ordinaryOpencodeProject, "marionettist.config.yaml"), "utf8");
+  assertIncludes(config, 'pluginSource: "package"');
+
+  const manifest = await readProjectManifest(ordinaryOpencodeProject);
+  assert(manifest.opencodePluginSource === "package", "ordinary init package default must record package plugin source");
+  assert(!manifest.managedFiles.some((file) => file.path.startsWith(".opencode/")), "ordinary init package default must not manage generated fallback assets");
+
+  const projectConfig = await fs.readFile(path.join(ordinaryOpencodeProject, "opencode.jsonc"), "utf8");
+  assertIncludes(projectConfig, '"plugin": ["marionettist-pathway-opencode"]');
+
+  const syncOutput = await switchOrdinaryProjectToLocalFallback(ordinaryOpencodeProject);
+  assertIncludes(syncOutput, "new-managed: .opencode/commands/marionettist.md");
+  assertIncludes(syncOutput, "new-managed: .opencode/agents/marionettist-planner.md");
+  assertIncludes(syncOutput, "update: opencode.jsonc");
+
+  assert(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "agents", "marionettist-planner.md")), "ordinary local fallback must generate template agent files");
+  assert(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "commands", "marionettist.md")), "ordinary local fallback must install the minimal builder command");
   const ordinaryBuilder = await fs.readFile(path.join(ordinaryOpencodeProject, ".opencode", "agents", "marionettist-builder.md"), "utf8");
   assertIncludes(ordinaryBuilder, "model: openai/gpt-5.5");
   assertExcludes(ordinaryBuilder, "{{MODEL_PROFILE_THINK}}");
-  assert(!(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "commands", "marionettist-feature.md"))), "ordinary init minimal default must not install advanced feature command files");
+  assert(!(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "commands", "marionettist-feature.md"))), "ordinary local fallback minimal default must not install advanced feature command files");
   assert(!(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "commands", "marionettist-self-init.md"))), "ordinary init must not install self command files");
   assert(!(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "commands", "marionettist-self-review.md"))), "ordinary init must not install self review command files");
   assert(!(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "commands", "marionettist-self-test.md"))), "ordinary init must not install self test command files");
   assert(!(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "agents", "marionettist-framework-planner.md"))), "ordinary init must not install self planner agent files");
   assert(!(await pathExists(path.join(ordinaryOpencodeProject, ".opencode", "agents", "marionettist-framework-reviewer.md"))), "ordinary init must not install self reviewer agent files");
+
+  const localFallbackProjectConfig = await fs.readFile(path.join(ordinaryOpencodeProject, "opencode.jsonc"), "utf8");
+  assertIncludes(localFallbackProjectConfig, '"plugin": ["./.opencode/plugin/opencode-tasks.js"]');
 }
 
 async function assertOrdinaryFullOpencodeInitRetainsAdvancedCommands() {
   await fs.rm(ordinaryFullOpencodeProject, { recursive: true, force: true });
   const output = await harness("init", "--project", ordinaryFullOpencodeProject, "--auto", "--with-opencode", "--opencode-command-surface", "full");
-  assertIncludes(output, "new-managed: .opencode/commands/marionettist-feature.md");
+  assertIncludes(output, "new-managed: opencode.jsonc");
+  assert(!(await pathExists(path.join(ordinaryFullOpencodeProject, ".opencode"))), "ordinary full package default must not create generated fallback assets");
+
+  const syncOutput = await switchOrdinaryProjectToLocalFallback(ordinaryFullOpencodeProject, { commandSurface: "full" });
+  assertIncludes(syncOutput, "new-managed: .opencode/commands/marionettist-feature.md");
   for (const command of [...standardOpencodeCommands, ...advancedOnlyOpencodeCommands]) {
     assert(await pathExists(path.join(ordinaryFullOpencodeProject, ".opencode", "commands", command)), `ordinary full init must install ${command}`);
   }
-  assert(!(await pathExists(path.join(ordinaryFullOpencodeProject, ".opencode", "commands", "marionettist-self-init.md"))), "ordinary full init must not install self command files");
+  assert(!(await pathExists(path.join(ordinaryFullOpencodeProject, ".opencode", "commands", "marionettist-self-init.md"))), "ordinary full local fallback must not install self command files");
 
-  const doctorOutput = await assertProjectDoctorBaseline(ordinaryFullOpencodeProject, "ordinary full OpenCode install");
+  const doctorOutput = await assertProjectDoctorBaseline(ordinaryFullOpencodeProject, "ordinary full OpenCode local fallback install");
   assertIncludes(doctorOutput, "PASS  OpenCode command surface [advanced] required normal commands present");
   assertIncludes(doctorOutput, "PASS  OpenCode command surface [advanced] standard helper commands present");
   assertIncludes(doctorOutput, "PASS  OpenCode command surface [advanced] advanced commands present");
+}
+
+async function assertPackagePluginAssetAlignment() {
+  for (const root of packageAlignmentRoots) {
+    const sourceRoot = path.join(repoRoot, "templates", "pathways", "opencode", root);
+    const targetRoot = path.join(repoRoot, "distributions", "opencode", root);
+    const sourceFiles = await snapshotDirectory(sourceRoot);
+    const targetFiles = await snapshotDirectory(targetRoot);
+    const sourceNames = sourceFiles.map(([relative]) => relative);
+    const targetNames = targetFiles.map(([relative]) => relative);
+    assert(JSON.stringify(targetNames) === JSON.stringify(sourceNames), `distributions/opencode/${root}/ files must match templates/pathways/opencode/${root}/ files`);
+
+    const sourceByName = new Map(sourceFiles);
+    for (const [relative, target] of targetFiles) {
+      const source = sourceByName.get(relative);
+      const normalize = root === "plugin"
+        ? normalizePluginForAlignment
+        : normalizeRuntimeAssetForAlignment;
+      if (root === "plugin" && relative === "opencode-tasks.js") {
+        assert(target.includes('const packageSkillPath = fileURLToPath(new URL("../pathway-skills", import.meta.url));'), "package plugin must resolve package-local pathway-skills with fileURLToPath");
+        assert(source.includes('const prototypeSkillPath = ".opencode/pathway-skills";'), "template plugin must keep repository-local pathway-skills fallback path");
+      }
+      assert(normalize(target) === normalize(source), `distributions/opencode/${root}/${relative} must stay aligned with templates/pathways/opencode/${root}/${relative}`);
+    }
+  }
 }
 
 async function getExpectedMirrorFiles() {
@@ -409,6 +459,48 @@ async function pathExists(filePath) {
   } catch {
     return false;
   }
+}
+
+async function readProjectManifest(projectPath) {
+  return JSON.parse(await fs.readFile(path.join(projectPath, ".marionettist", "manifest.json"), "utf8"));
+}
+
+async function switchOrdinaryProjectToLocalFallback(projectPath, { commandSurface = "minimal" } = {}) {
+  const configPath = path.join(projectPath, "marionettist.config.yaml");
+  let config = await fs.readFile(configPath, "utf8");
+  config = config.replace('pluginSource: "package"', 'pluginSource: "local"');
+  await fs.writeFile(configPath, config, "utf8");
+
+  const syncArgs = ["sync", "--project", projectPath, "--with-opencode"];
+  if (commandSurface === "full") {
+    syncArgs.push("--opencode-command-surface", "full");
+  }
+
+  return harness(...syncArgs);
+}
+
+function normalizePluginForAlignment(content) {
+  return content
+    .replace('import { readFile } from "node:fs/promises";\nimport { fileURLToPath } from "node:url";\n', 'import { readFile } from "node:fs/promises";\n')
+    .replace(/^const packageSkillPath = .*$/m, 'const sharedSkillPath = "__SKILL_PATH__";')
+    .replace(/^const prototypeSkillPath = .*$/m, 'const sharedSkillPath = "__SKILL_PATH__";')
+    .replace(/packageSkillPath/g, 'sharedSkillPath')
+    .replace(/prototypeSkillPath/g, 'sharedSkillPath')
+    .replace(/Repository-local OpenCode pathway prototype/g, 'PATHWAY_PROTOTYPE')
+    .replace(/OpenCode pathway prototype/g, 'PATHWAY_PROTOTYPE');
+}
+
+function normalizeRuntimeAssetForAlignment(content) {
+  return content
+    .replace(/repository-local OpenCode pathway prototype/g, "OpenCode pathway prototype")
+    .replace(/Repository-local OpenCode pathway prototype/g, "OpenCode pathway prototype")
+    .replace(/repository-local OpenCode pathway plugin prototype/g, "OpenCode pathway plugin prototype")
+    .replace(/local marionettist plugin-first pathway seam/g, "marionettist plugin-first pathway seam")
+    .replace(/repository-local assets/g, "ASSET_SOURCE")
+    .replace(/package-local assets/g, "ASSET_SOURCE")
+    .replace(/`\.opencode\/pathway-skills`/g, "SKILL_PATH")
+    .replace(/\.opencode\/pathway-skills/g, "SKILL_PATH")
+    .replace(/the package skill path/g, "SKILL_PATH");
 }
 
 function assert(condition, message) {

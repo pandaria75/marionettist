@@ -35,7 +35,19 @@ If you install with OpenCode, also review:
 
 - command surface choices
 - permission mode choices
+- plugin source choice: `package` or `local`
 - model profiles in `.marionettist/model-profiles.yml`
+
+Example:
+
+```yaml
+opencode:
+  pluginSource: package  # package | local
+```
+
+- `package` is the default happy path for new installs
+- `local` keeps the repository-local generated plugin fallback
+- if sync needs to render `opencode.pluginSource` into `marionettist.config.yaml`, that file may show up as `conflict`; review the diff before applying it
 
 OpenCode also has two different config-oriented command surfaces to keep distinct:
 

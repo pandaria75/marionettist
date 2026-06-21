@@ -10,6 +10,7 @@ Issue #42 has implemented the public rename:
 - current config uses `marionettist.config.yaml`
 - managed runtime state uses `.marionettist/`
 - current OpenCode assets use `marionettist-*` names
+- the OpenCode plugin package spec is `marionettist-pathway-opencode`
 
 Legacy `harness` names in this document exist only to help older installs migrate.
 
@@ -54,6 +55,35 @@ The recommended migration path is:
    - update scripts, docs, CI references, local automation, and any OpenCode references to the new names
 5. **Verify**
    - confirm the new installation state, manifest location, command references, and OpenCode asset names all match Marionettist naming
+
+## OpenCode package migration
+
+For OpenCode specifically, do **not** assume old generated installs are auto-migrated to the package default.
+
+Current package facts:
+
+- package spec: `marionettist-pathway-opencode`
+- repository source root: `distributions/opencode/`
+- this issue does not publish the package; treat it as private/unpublished source unless a later release says otherwise
+- repository-local fallback remains available through `opencode.pluginSource: local`
+
+Recommended migration path for an older generated OpenCode install:
+
+1. **Preserve customizations**
+   - back up user-owned `.opencode` commands, agents, skills, and config edits
+2. **Remove generated integration first**
+   - uninstall or remove the old generated OpenCode integration before enabling the package plugin path
+   - avoid mixed old/new installs unless you are intentionally debugging overlap
+3. **Enable package plugin**
+   - switch to the package-first OpenCode path
+   - use `opencode.pluginSource: local` only when you intentionally want the repository-local fallback instead
+4. **Reapply local overrides carefully**
+   - same-name local commands or agents can remain as intentional overrides of plugin-provided entries
+   - keep only the user-owned customizations you still want to win
+5. **Reload OpenCode**
+   - restart or reload OpenCode after plugin/config changes so the new integration is picked up
+
+During sync, rendering `opencode.pluginSource` into `marionettist.config.yaml` can cause that config file to appear as `conflict`. Review the diff before applying it; this reflects managed render-input change rather than automatic migration.
 
 ## Explicit non-compatibility note
 

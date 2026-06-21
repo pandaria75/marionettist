@@ -710,12 +710,28 @@ async function assertInitPreservesExistingLocalKnowledge(projectPath) {
 
 async function assertOpencodeInstall(projectPath) {
   const initOutput = await harness("init", "--project", projectPath, "--auto", "--with-opencode");
-  assertIncludes(initOutput, "new-managed: .opencode/commands/marionettist.md");
-  assertIncludes(initOutput, "new-managed: .opencode/commands/marionettist-dev.md");
-  assertIncludes(initOutput, "new-managed: .opencode/commands/marionettist-incident.md");
-  assertIncludes(initOutput, "new-managed: .opencode/agents/marionettist-validator.md");
   assertIncludes(initOutput, "new-managed: opencode.jsonc");
   assertIncludes(initOutput, "note: project-level opencode pathway prototype is enabled via opencode.jsonc");
+
+  const packageManifest = await readManifest(projectPath);
+  assert(packageManifest.opencodePluginSource === "package", "default OpenCode install must record package plugin source");
+  assert(packageManifest.managedFiles.some((file) => file.path === "opencode.jsonc"), "default OpenCode install must manage opencode.jsonc");
+  assert(!packageManifest.managedFiles.some((file) => file.path.startsWith(".opencode/")), "default OpenCode install must not manage generated fallback assets");
+
+  const packageHarnessConfig = await fs.readFile(path.join(projectPath, "marionettist.config.yaml"), "utf8");
+  assertIncludes(packageHarnessConfig, 'opencode:\n  commandSurface: "minimal"');
+  assertIncludes(packageHarnessConfig, 'pluginSource: "package"');
+
+  const packageProjectConfig = await fs.readFile(path.join(projectPath, "opencode.jsonc"), "utf8");
+  assertIncludes(packageProjectConfig, '"plugin": ["marionettist-pathway-opencode"]');
+  assert(!(await pathExists(path.join(projectPath, ".opencode"))), "default OpenCode install must not create generated local fallback assets");
+
+  const localFallbackSyncOutput = await switchProjectToLocalOpencodeFallback(projectPath, { commandSurface: "minimal" });
+  assertIncludes(localFallbackSyncOutput, "new-managed: .opencode/commands/marionettist.md");
+  assertIncludes(localFallbackSyncOutput, "new-managed: .opencode/commands/marionettist-dev.md");
+  assertIncludes(localFallbackSyncOutput, "new-managed: .opencode/commands/marionettist-incident.md");
+  assertIncludes(localFallbackSyncOutput, "new-managed: .opencode/agents/marionettist-validator.md");
+  assertIncludes(localFallbackSyncOutput, "update: opencode.jsonc");
 
   await assertMinimalOpencodeCommandsAndAgents(projectPath);
   await assertRenderedOpencodeModels(projectPath);
@@ -880,27 +896,24 @@ async function assertOpencodeBackfill(projectPath) {
   const manifestBeforeBackfill = await readManifest(projectPath);
   assert(!manifestBeforeBackfill.managedFiles.some((file) => file.path.startsWith(".opencode/")), "backfill baseline manifest must start without OpenCode assets");
 
-  await harness("init", "--project", projectPath, "--auto", "--with-opencode");
-  await assertMinimalOpencodeCommandsAndAgents(projectPath);
+  const initOutput = await harness("init", "--project", projectPath, "--auto", "--with-opencode");
+  assertIncludes(initOutput, "new-managed: opencode.jsonc");
+  assertExcludes(initOutput, "new-managed: .opencode/commands/marionettist.md");
 
   const diffOutput = await harness("diff", "--project", projectPath);
-  assertIncludes(diffOutput, "unchanged: .opencode/commands/marionettist.md");
-  assertIncludes(diffOutput, "unchanged: .opencode/agents/marionettist-validator.md");
   assertIncludes(diffOutput, "unchanged: opencode.jsonc");
 
   const manifest = await readManifest(projectPath);
-  assert(manifest.managedFiles.some((file) => file.path === ".opencode/commands/marionettist.md"), "backfill must add minimal OpenCode command to manifest");
-  assert(!manifest.managedFiles.some((file) => file.path === ".opencode/commands/marionettist-feature.md"), "backfill minimal mode must not add advanced OpenCode command to manifest");
-  assert(manifest.managedFiles.some((file) => file.path === ".opencode/agents/marionettist-validator.md"), "backfill must add OpenCode validator agent to manifest");
+  assert(manifest.opencodePluginSource === "package", "default OpenCode backfill must record package plugin source");
   assert(manifest.managedFiles.some((file) => file.path === "opencode.jsonc"), "backfill must add project OpenCode config to manifest");
-  assert(!manifest.managedFiles.some((file) => file.path.startsWith(".opencode/agents/validators/")), "backfill must not add validator snippet assets to manifest");
+  assert(!manifest.managedFiles.some((file) => file.path.startsWith(".opencode/")), "default OpenCode backfill must not add generated fallback assets to manifest");
 }
 
 async function assertGradleValidatorGuidance(projectPath) {
   await fs.mkdir(projectPath, { recursive: true });
   await fs.writeFile(path.join(projectPath, "settings.gradle.kts"), "rootProject.name = \"smoke\"\n", "utf8");
 
-  await harness("init", "--project", projectPath, "--auto", "--with-opencode");
+  await initProjectWithLocalOpencodeFallback(projectPath, { preserveExisting: true });
 
   const validatorContent = await fs.readFile(path.join(projectPath, ".opencode", "agents", "marionettist-validator.md"), "utf8");
   assertIncludes(validatorContent, "# Generic Validator Guidance");
@@ -931,9 +944,7 @@ async function assertMinimalOpencodeCommandsAndAgents(projectPath) {
 }
 
 async function assertStandardOpencodeInstall(projectPath) {
-  await cleanupPaths(projectPath);
-
-  const initOutput = await harness("init", "--project", projectPath, "--auto", "--with-opencode", "--opencode-command-surface", "standard");
+  const { syncOutput: initOutput } = await initProjectWithLocalOpencodeFallback(projectPath, { commandSurface: "standard" });
   for (const command of standardOpencodeCommands) {
     assertIncludes(initOutput, `new-managed: .opencode/commands/${command}`);
   }
@@ -963,9 +974,7 @@ async function assertStandardOpencodeInstall(projectPath) {
 }
 
 async function assertAdvancedOpencodeInstall(projectPath) {
-  await cleanupPaths(projectPath);
-
-  const initOutput = await harness("init", "--project", projectPath, "--auto", "--with-opencode", "--opencode-command-surface", "full");
+  const { syncOutput: initOutput } = await initProjectWithLocalOpencodeFallback(projectPath, { commandSurface: "advanced" });
   for (const command of [...standardOpencodeCommands, ...advancedOnlyOpencodeCommands]) {
     assertIncludes(initOutput, `new-managed: .opencode/commands/${command}`);
   }
@@ -1237,7 +1246,7 @@ async function assertLegacyProfileFallbackRender(projectPath) {
 
     const diffOutput = await harness("diff", "--project", projectPath, "--with-opencode");
     assertIncludes(diffOutput, "missing: .marionettist/model-profiles.yml");
-    assertIncludes(diffOutput, "modified-local: marionettist.config.yaml");
+    assertIncludes(diffOutput, "conflict: marionettist.config.yaml");
 
     let doctor = await assertProjectDoctorBaselineResult(projectPath, "missing canonical profiles warning");
     assertIncludes(doctor.stdout, "WARN  OpenCode model [MISSING] .opencode/agents/marionettist-builder.md cannot determine expected model because .marionettist/model-profiles.yml is missing for profile think.");
@@ -1601,6 +1610,47 @@ async function assertProjectDoctorBaselineResult(projectPath, label) {
   assert(result.code === 0, `doctor must pass for ${label}`);
   assertIncludes(result.stdout, "PASS  AGENTS.md managed block found");
   return result;
+}
+
+async function initProjectWithLocalOpencodeFallback(projectPath, { commandSurface = "minimal", preserveExisting = false } = {}) {
+  if (!preserveExisting) {
+    await cleanupPaths(projectPath);
+  }
+
+  const initArgs = ["init", "--project", projectPath, "--auto", "--with-opencode"];
+  if (commandSurface === "standard") {
+    initArgs.push("--opencode-command-surface", "standard");
+  } else if (commandSurface === "advanced") {
+    initArgs.push("--opencode-command-surface", "full");
+  }
+
+  const initOutput = await harness(...initArgs);
+  const syncOutput = await switchProjectToLocalOpencodeFallback(projectPath, { commandSurface });
+  return { initOutput, syncOutput };
+}
+
+async function switchProjectToLocalOpencodeFallback(projectPath, { commandSurface = "minimal" } = {}) {
+  const configPath = path.join(projectPath, "marionettist.config.yaml");
+  let harnessConfig = await fs.readFile(configPath, "utf8");
+  harnessConfig = harnessConfig.replace('pluginSource: "package"', 'pluginSource: "local"');
+
+  if (!harnessConfig.includes('pluginSource: "local"')) {
+    const opencodeBlock = commandSurface === "minimal"
+      ? '\nopencode:\n  commandSurface: "minimal"\n  pluginSource: "local"\n'
+      : `\nopencode:\n  commandSurface: "${commandSurface}"\n  pluginSource: "local"\n`;
+    harnessConfig = `${harnessConfig.replace(/\s*$/u, "")}${opencodeBlock}`;
+  }
+
+  await fs.writeFile(configPath, harnessConfig, "utf8");
+
+  const syncArgs = ["sync", "--project", projectPath, "--with-opencode"];
+  if (commandSurface === "standard") {
+    syncArgs.push("--opencode-command-surface", "standard");
+  } else if (commandSurface === "advanced") {
+    syncArgs.push("--opencode-command-surface", "full");
+  }
+
+  return harness(...syncArgs);
 }
 
 async function harnessAllowFailure(...args) {

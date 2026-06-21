@@ -6,6 +6,7 @@ export const distributionModeValues = new Set(["embedded", "hybrid", "adapter"])
 export const opencodeArtifactAdapter = "opencode";
 export const opencodeCommandSurfaceValues = new Set(["minimal", "standard", "advanced"]);
 export const opencodePermissionModeValues = new Set(["default", "moderate", "loose"]);
+export const opencodePluginSourceValues = new Set(["package", "local"]);
 const opencodeCommandSurfaceAliases = new Map([["full", "advanced"]]);
 
 export function manifestPath(projectPath) {
@@ -37,10 +38,11 @@ export function manifestFileMap(manifest) {
   return result;
 }
 
-export function buildManifest({ version, installedAt, previousManifest, operations, force = false, distributionMode = null, opencodePermissionMode = null }) {
+export function buildManifest({ version, installedAt, previousManifest, operations, force = false, distributionMode = null, opencodePermissionMode = null, opencodePluginSource = null }) {
   const previousInstalledAt = previousManifest?.installedAt ?? installedAt;
   const manifestDistributionMode = resolveManifestDistributionMode(previousManifest, distributionMode);
   const manifestOpencodePermissionMode = resolveManifestOpencodePermissionMode(previousManifest, opencodePermissionMode);
+  const manifestOpencodePluginSource = resolveManifestOpencodePluginSource(previousManifest, opencodePluginSource);
   const managedFiles = operations
     .filter((operation) => operation.type === "file" && operation.managed)
     .map((operation) => buildManagedFileRecord(operation, force))
@@ -51,6 +53,7 @@ export function buildManifest({ version, installedAt, previousManifest, operatio
     frameworkVersion: version,
     ...(manifestDistributionMode ? { distributionMode: manifestDistributionMode } : {}),
     ...(manifestOpencodePermissionMode ? { opencodePermissionMode: manifestOpencodePermissionMode } : {}),
+    ...(manifestOpencodePluginSource ? { opencodePluginSource: manifestOpencodePluginSource } : {}),
     installedAt: previousInstalledAt,
     updatedAt: installedAt,
     managedFiles
@@ -165,6 +168,16 @@ export function normalizeOpencodePermissionMode(value, label = "OpenCode permiss
   return normalized;
 }
 
+export function normalizeOpencodePluginSource(value, label = "OpenCode plugin source") {
+  const normalized = String(value ?? "").trim().toLowerCase();
+
+  if (!opencodePluginSourceValues.has(normalized)) {
+    throw new Error(`Unsupported ${label}: ${value}. Expected package or local.`);
+  }
+
+  return normalized;
+}
+
 export function validateOptionalOpencodePermissionMode(value, label = "OpenCode permission mode") {
   if (value === undefined || value === null || value === "") {
     return {
@@ -185,6 +198,38 @@ export function validateOptionalOpencodePermissionMode(value, label = "OpenCode 
   try {
     return {
       value: normalizeOpencodePermissionMode(value, label),
+      error: null,
+      rawValue: value
+    };
+  } catch (error) {
+    return {
+      value: null,
+      error: error instanceof Error ? error.message : String(error),
+      rawValue: value
+    };
+  }
+}
+
+export function validateOptionalOpencodePluginSource(value, label = "OpenCode plugin source") {
+  if (value === undefined || value === null || value === "") {
+    return {
+      value: null,
+      error: null,
+      rawValue: value
+    };
+  }
+
+  if (typeof value !== "string") {
+    return {
+      value: null,
+      error: `${label} invalid: expected string package|local, got ${typeof value}`,
+      rawValue: value
+    };
+  }
+
+  try {
+    return {
+      value: normalizeOpencodePluginSource(value, label),
       error: null,
       rawValue: value
     };
@@ -221,6 +266,18 @@ function resolveManifestOpencodePermissionMode(previousManifest, opencodePermiss
   return null;
 }
 
+function resolveManifestOpencodePluginSource(previousManifest, opencodePluginSource) {
+  if (opencodePluginSource !== null && opencodePluginSource !== undefined) {
+    return normalizeOpencodePluginSource(opencodePluginSource, "OpenCode plugin source");
+  }
+
+  if (previousManifest?.opencodePluginSource !== undefined) {
+    return normalizeOpencodePluginSource(previousManifest.opencodePluginSource, "manifest opencodePluginSource");
+  }
+
+  return null;
+}
+
 function buildManagedFileRecord(operation, force) {
   const hash = manifestHashForOperation(operation, force);
   const record = {
@@ -249,6 +306,9 @@ function buildManagedFileRecord(operation, force) {
     }
     if (operation.permissionMode) {
       record.permissionMode = normalizeOpencodePermissionMode(operation.permissionMode, "OpenCode permission mode metadata");
+    }
+    if (operation.pluginSource) {
+      record.pluginSource = normalizeOpencodePluginSource(operation.pluginSource, "OpenCode plugin source metadata");
     }
   }
 

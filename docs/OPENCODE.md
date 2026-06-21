@@ -2,7 +2,7 @@
 
 [中文版](./OPENCODE.zh-CN.md)
 
-This guide is for teams that use the optional OpenCode scaffolding installed by `marionettist init --with-opencode`.
+This guide is for teams that use the optional OpenCode integration installed by `marionettist init --with-opencode`.
 
 OpenCode improves ergonomics. It does not replace the Marionettist workflow. The repository files, task artifacts, and gates remain the source of truth.
 
@@ -20,6 +20,13 @@ Navigation note:
 - **Validator guidance** for build, test, lint, and smoke-check workflows.
 - **Local permission posture** through generated OpenCode agent files.
 
+Current default posture:
+
+- new installs default to package-first OpenCode plugin usage through `marionettist-pathway-opencode`
+- the package source in this repository is `distributions/opencode/`
+- that package is currently unpublished/private in this issue; Marionettist does not claim npm publication here
+- repository-local fallback remains available with `opencode.pluginSource: local`
+
 The core Marionettist workflow still works without OpenCode.
 
 ## 2. Install
@@ -35,6 +42,13 @@ marionettist init --with-opencode
 marionettist init --with-opencode --opencode-command-surface minimal
 marionettist init --with-opencode --opencode-command-surface standard
 marionettist init --with-opencode --opencode-command-surface advanced
+```
+
+If you want the repository-local generated plugin path instead of the package default, set:
+
+```yaml
+opencode:
+  pluginSource: local  # package | local
 ```
 
 You can also set the command surface in project config:
@@ -61,12 +75,12 @@ These are managed defaults. Teams may choose what to commit and what to keep loc
 
 Current MVP posture:
 
-- `opencode.jsonc` enables the repository-local plugin path `./.opencode/plugin/opencode-tasks.js`
-- plugin-first behavior is the default when that plugin is present
+- `opencode.pluginSource: package` is the default for new installs
+- `opencode.pluginSource: local` keeps the repository-local plugin path `./.opencode/plugin/opencode-tasks.js`
 - generated `.opencode/agents/**` and `.opencode/commands/**` files remain supported fallback assets
-- framework source stays split on purpose: plugin prototype assets come from `templates/pathways/opencode/**`, while generated fallback assets come from `templates/opencode/**`
+- framework source stays split on purpose: package source is `distributions/opencode/**`, pathway/plugin source comes from `templates/pathways/opencode/**`, and generated fallback assets come from `templates/opencode/**`
 
-Use `marionettist diff`, `marionettist sync`, and `marionettist doctor` to inspect drift and safe updates. After regenerating `opencode.jsonc` or `.opencode/plugin/**`, restart OpenCode if the current session does not reload configuration automatically.
+Use `marionettist diff`, `marionettist sync`, and `marionettist doctor` to inspect drift and safe updates. After regenerating `opencode.jsonc`, switching plugin source, or updating `.opencode/plugin/**`, restart or reload OpenCode if the current session does not reload configuration automatically.
 
 ## 4. Command Surfaces
 
@@ -131,6 +145,8 @@ To change models:
 3. Run `marionettist sync` when the preview is safe.
 4. Avoid duplicating model choices in `opencode.jsonc`.
 
+Package-provided agent defaults still prefer project-local `.marionettist/model-profiles.yml` when present.
+
 ## 8. Gate Behavior
 
 OpenCode follows the same Marionettist gates as the file-based workflow.
@@ -189,11 +205,25 @@ Safe behavior:
 - render-input drift is surfaced as a conflict
 - force-style replacement must be explicit
 
+OpenCode plugin-source note:
+
+- when Marionettist needs to render `opencode.pluginSource` into `marionettist.config.yaml`, sync may report that config file as `conflict` rather than `modified-local`
+- review the diff before applying it; this is expected when the managed render input changes
+- old generated installs are not auto-migrated to the package default
+
 Operational notes:
 
-- if a plugin entry and a file entry share the same name, the plugin entry may win
-- if both an explicit plugin entry and `.opencode/plugin/` auto-discovery load the same plugin, the current prototype remains acceptable because its config hook is idempotent
+- same-name local commands or agents override plugin-provided entries
+- if both an explicit plugin entry and `.opencode/plugin/` auto-discovery load sources that inject the same Marionettist surface, the current prototype remains acceptable because its config hook is idempotent
 - command smoke may report `NOT_RUN` with evidence when the local OpenCode CLI is unavailable or lacks `--command` support; at least one capable environment should still run `opencode run --command marionettist-pathway-prototype` before closing MVP runtime validation work
+
+Migration recommendation:
+
+1. preserve user-owned custom `.opencode` content
+2. uninstall or remove the old generated OpenCode integration first
+3. enable the package plugin path
+4. keep only the local overrides you still want
+5. restart or reload OpenCode
 
 Use this flow:
 

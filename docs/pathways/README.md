@@ -20,7 +20,8 @@ Related operator guide:
 ## Current status
 
 - OpenCode is the only documented Pathway in the current MVP scope.
-- The current OpenCode story is plugin-first with generated-file fallback, not a completed packaged Pathway release.
+- The current OpenCode story is package-first plugin usage with generated-file fallback.
+- The package spec is `marionettist-pathway-opencode`, sourced from `distributions/opencode/`, but this issue does not claim npm publication.
 - Pathway-scoped config authoring currently means the OpenCode `marionettist-pathway-config` workflow, separate from the general `marionettist-config` wrapper.
 - Future Pathways such as Pi belong to later roadmap work and are not implemented here.
 

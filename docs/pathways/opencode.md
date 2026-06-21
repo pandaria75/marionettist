@@ -1,11 +1,12 @@
-# OpenCode Pathway MVP
+# OpenCode Pathway
 
 This note captures the confirmed MVP direction for OpenCode Pathway support in Marionettist.
 
 Current-state reminder:
 
 - current commands, config files, and repository docs use **Marionettist** naming
-- `marionettist-pathway-opencode` is still a future packaging direction, not a current released artifact
+- the package spec is `marionettist-pathway-opencode`, with source rooted at `distributions/opencode/`
+- the default package path currently points at an unpublished/private package; this issue does not publish it
 - generated `.opencode/**` assets remain part of the supported MVP story
 
 Related docs:
@@ -21,8 +22,9 @@ Migration note: legacy `harness` names are migration-only context now. For the b
 ## Decisions
 
 - Default posture: plugin-first.
-- MVP distribution shape: repository-local prototype, not a published package.
-- Default plugin path: `./.opencode/plugin/opencode-tasks.js`.
+- Package shape: `marionettist-pathway-opencode` sourced from `distributions/opencode/`.
+- Default plugin source for new installs: package.
+- Local fallback plugin path: `./.opencode/plugin/opencode-tasks.js` when `opencode.pluginSource: local` is selected.
 - Compatibility: generated OpenCode files remain a supported fallback under `templates/opencode/**` and generated `.opencode/agents/**` and `.opencode/commands/**` files.
 - Validation path: `opencode run --command marionettist-pathway-prototype` is the accepted runtime smoke path for this MVP.
 
@@ -49,7 +51,13 @@ For this MVP, the documented targets are illustrative rather than exhaustive: ex
 
 ## What Plugin-First Means
 
-For the MVP, generated `opencode.jsonc` enables a repository-local plugin entry for `./.opencode/plugin/opencode-tasks.js`. OpenCode should prefer pathway/plugin-provided behavior when that behavior is available. The framework still keeps generated-file fallback behavior so existing installs and safer migration paths remain available.
+For the current implementation, new installs default to the package plugin path for `marionettist-pathway-opencode`. OpenCode should prefer pathway/plugin-provided behavior when that behavior is available. The framework still keeps generated-file fallback behavior so existing installs and safer migration paths remain available.
+
+Fallback choices:
+
+- `opencode.pluginSource: package` uses the package plugin path as the default happy path.
+- `opencode.pluginSource: local` keeps the repository-local generated plugin entry `./.opencode/plugin/opencode-tasks.js`.
+- generated `.opencode/agents/**` and `.opencode/commands/**` remain supported fallback assets in either mode.
 
 Plugin-first does not remove normal Marionettist boundaries:
 
@@ -57,16 +65,16 @@ Plugin-first does not remove normal Marionettist boundaries:
 - managed assets must still be safe to diff and sync
 - user-owned local OpenCode customization must not be overwritten by default
 
-## Repository-Local MVP Shape
+## Package And Fallback Shape
 
-The MVP only needs a repository-local prototype. It does not require package publishing, external distribution, or a broader pathway ecosystem rollout.
+The package source now lives in `distributions/opencode/`, but this task does not publish or release that package. Treat it as package source existing in-repo, not as a public npm artifact.
 
 Current source-layout intent:
 
-- `templates/pathways/opencode/**` contains the plugin prototype assets only.
-- It does not mirror the generated fallback templates.
-- Generated fallback assets continue to come from `templates/opencode/**`.
-- A future packaged release may compose or bundle both kinds of assets differently, but that is outside this MVP.
+- `distributions/opencode/**` contains the package-plugin source for `marionettist-pathway-opencode`.
+- `templates/pathways/opencode/**` remains the framework source for pathway/plugin assets.
+- `templates/opencode/**` remains the generated fallback source.
+- generated fallback support is preserved; old installs are not auto-migrated.
 
 Expected MVP capabilities are:
 
@@ -89,16 +97,31 @@ This MVP direction is intentionally additive. It does not remove or invalidate `
 
 The current fallback includes generated `.opencode/agents/**` and `.opencode/commands/**` files even when the plugin-first default is enabled.
 
-## Same-Name Override Behavior
+## Override Behavior
 
-Issue #37 accepted that same-name plugin entries may override file-defined entries. For the MVP, documentation is the mitigation; an automatic conflict-prevention mechanism is out of scope.
+Plugin-provided entries do not overwrite same-name local entries during injection. In practice, same-name local commands or agents remain the user-owned override path.
 
 Practical meaning:
 
-- if a plugin and a file define the same OpenCode entry name, the plugin-provided entry may win
-- teams should avoid relying on duplicate names unless override behavior is intentional
+- if a project-local command or agent uses the same name as a plugin-provided entry, the local entry should remain the effective override
+- teams should still avoid duplicate names unless override behavior is intentional
+- user-owned custom `.opencode` files should be preserved during migration rather than silently replaced
 
 This warning applies both to generated fallback entries and to project-local custom entries.
+
+## Migration Guidance
+
+Old generated installs should not be auto-migrated.
+
+Recommended path:
+
+1. back up user-owned `.opencode` customizations
+2. uninstall or remove the old generated OpenCode integration first
+3. enable the package plugin path for `marionettist-pathway-opencode`
+4. restore or reapply user-owned customizations that should remain local overrides
+5. restart or reload OpenCode so plugin/config changes are picked up
+
+Do not mix the old generated integration and the new package plugin path unless you intentionally want to debug overlap.
 
 ## Runtime Validation And Smoke Posture
 
@@ -116,10 +139,10 @@ Smoke behavior is intentionally environment-conditional:
 
 Two MVP caveats are currently accepted:
 
-- an explicit plugin entry and `.opencode/plugin/` auto-discovery may load the same plugin twice
+- an explicit plugin entry and `.opencode/plugin/` auto-discovery may load different sources that inject the same Marionettist surface
 - the current prototype `config` hook is idempotent, so this posture is accepted for the MVP instead of adding extra hardening in this slice
 
-After regenerating `opencode.jsonc` or `.opencode/plugin/**`, restart OpenCode if the running session does not pick up the changes automatically.
+After changing `opencode.jsonc`, switching `opencode.pluginSource`, reinstalling generated fallback assets, or updating plugin assets, restart or reload OpenCode if the running session does not pick up the changes automatically.
 
 The same restart guidance applies when a config-writing workflow updates OpenCode-visible plugin, command, or skill assets and the current session does not reload them automatically.
 
@@ -137,6 +160,6 @@ When local OpenCode entries conflict with pathway-provided entries, users can re
 This MVP note does not define:
 
 - Pi Pathway behavior
-- package publishing strategy
+- package publishing or npm release completion
 - full conflict-prevention automation
 - a full pathway documentation architecture beyond this initial skeleton
