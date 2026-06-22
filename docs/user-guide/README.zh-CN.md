@@ -10,8 +10,8 @@
 
 1. [快速开始](./quick-start.zh-CN.md) —— 安装、初始化，并进入推荐工作流
 2. [理念说明](../philosophy.zh-CN.md) —— 理解 Marionettist 为什么强调先规划、再编码，以及 gate / slice 的作用
-3. [配置](./configuration.md) —— 查看主要的项目本地文件和设置
-4. [故障排查](./troubleshooting.md) —— 处理常见的安装与工作流问题
+3. [配置](./configuration.zh-CN.md) —— 查看主要的项目本地文件和设置
+4. [故障排查](./troubleshooting.zh-CN.md) —— 处理常见的安装与工作流问题
 
 ## 导航地图
 

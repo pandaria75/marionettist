@@ -1,5 +1,7 @@
 # Troubleshooting
 
+[中文版](./troubleshooting.zh-CN.md)
+
 ## `marionettist init` would change existing files
 
 That is expected in repositories that already contain local material.

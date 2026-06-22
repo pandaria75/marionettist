@@ -1,5 +1,7 @@
 # Configuration
 
+[中文版](./configuration.zh-CN.md)
+
 Start with the smallest set of files that control local behavior.
 
 ## Core files
