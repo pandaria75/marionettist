@@ -2,9 +2,16 @@
 
 [中文版](./GUIDELINES.zh-CN.md)
 
-This guide is for tech leads and developers who want to install and use Marionettist in a target project.
+This guide is the durable reference for teams adopting Marionettist in a target project.
 
-For design rationale, see [docs/DESIGN.md](./DESIGN.md). For OpenCode usage, see [docs/OPENCODE.md](./OPENCODE.md).
+Use it after the shorter onboarding pages:
+
+- start at [README.md](../README.md) for the project overview
+- follow [docs/user-guide/quick-start.md](./user-guide/quick-start.md) for the shortest setup path
+- read [docs/philosophy.md](./philosophy.md) for the beginner-friendly workflow rationale
+- use [docs/OPENCODE.md](./OPENCODE.md) only if your team wants optional OpenCode integration
+
+For deeper design rationale, see [docs/DESIGN.md](./DESIGN.md).
 
 Navigation note:
 
@@ -16,7 +23,7 @@ Navigation note:
 Install the CLI first:
 
 ```powershell
-npm install -g github:pandaria75/universal-ai-harness-framework
+npm install -g github:pandaria75/marionettist
 ```
 
 Then run it inside a target project:
@@ -31,6 +38,10 @@ marionettist init
 # Optional: include OpenCode commands and agents
 marionettist init --with-opencode
 ```
+
+For a step-by-step first install, use [docs/user-guide/quick-start.md](./user-guide/quick-start.md). Keep this page as the long-lived reference for what init installs and how the workflow behaves afterward.
+
+If you are maintaining this framework source repository, use `marionettist self init --apply` instead of running regular `marionettist init` here.
 
 During interactive init, existing files are not overwritten silently. The CLI asks whether to back up, overwrite, or skip. Use `--auto` to skip existing files. Use `--force` only when you intentionally want replacement.
 
@@ -106,7 +117,7 @@ Start with task intake and context preparation.
 Do not start coding until the analysis gate is approved.
 ```
 
-With OpenCode:
+With optional OpenCode integration, the short entrypoint is:
 
 ```text
 /marionettist <describe the work>
@@ -271,14 +282,7 @@ When docs or rules are added, moved, renamed, or deleted, update `docs/project/k
 
 OpenCode is optional. Marionettist still works through files, prompts, and skills without it.
 
-Use OpenCode when you want:
-
-- `/marionettist` and focused slash commands
-- local role agents such as builder, coder, reviewer, validator
-- model profiles by role
-- generated validator guidance
-
-See [docs/OPENCODE.md](./OPENCODE.md) for setup and usage.
+Use [docs/OPENCODE.md](./OPENCODE.md) when you need setup details for slash commands, role agents, model profiles, or permission posture. Keep this page focused on the workflow contract that applies with or without OpenCode.
 
 ## 11. Upgrade And Sync
 

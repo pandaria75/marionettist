@@ -2,9 +2,26 @@
 
 [中文版](./README.zh-CN.md)
 
-A reusable, file-based Marionettist workflow for safer AI-assisted development in any repository.
+Marionettist is a reusable, file-based workflow for safer AI-assisted development in any repository.
 
 It gives AI agents and human teams a shared contract: where rules live, how task context is prepared, when coding may start, and where the agent must stop for approval.
+
+## What Marionettist Is
+
+Marionettist helps teams move important AI-workflow context out of chat and into repository files.
+
+Use it when you want:
+
+- repository-local rules and onboarding files
+- task context prepared before coding starts
+- explicit approval gates for non-trivial work
+- framework-managed updates that preserve local project content
+
+## If You Are Here To...
+
+- **Add Marionettist to a target project:** start with [Install](#install) and [For target-project teams](#for-target-project-teams).
+- **Understand the workflow first:** read [What Problem It Solves](#what-problem-it-solves), then [Read Next](#read-next).
+- **Maintain this framework repository itself:** jump to [For framework maintainers of this repo](#for-framework-maintainers-of-this-repo).
 
 ## What Problem It Solves
 
@@ -17,6 +34,8 @@ AI-assisted work often fails for simple reasons:
 - upgrades to agent prompts overwrite local team rules
 
 This framework moves the important parts into normal files. They can be read by any agent, reviewed in Git, and upgraded safely.
+
+If you want the beginner-friendly workflow philosophy behind planning, gates, slices, and project-neutral design, read [docs/philosophy.md](./docs/philosophy.md).
 
 ## Highlights
 
@@ -32,13 +51,13 @@ This framework moves the important parts into normal files. They can be read by 
 
 ```powershell
 # From GitHub
-npm install -g github:pandaria75/universal-ai-harness-framework
+npm install -g github:pandaria75/marionettist
 
 # Or from a local clone of this framework repo
 npm link
 ```
 
-## Minimal Usage
+## For Target-Project Teams
 
 Run these commands inside a target project:
 
@@ -62,7 +81,9 @@ After init, the target project gets files such as:
 - `.agents/skills/*` for portable workflow skills
 - `.marionettist/manifest.json` for safe upgrades
 
-## Small Example
+This repository is the framework source, but the normal day-to-day user path is: install Marionettist into your own repository, review the installed files, then follow the target project's local `AGENTS.md` and docs.
+
+## Typical First Run
 
 Without OpenCode, give your agent a prompt like this:
 
@@ -83,7 +104,7 @@ With OpenCode installed, start from the builder command:
 
 The agent should classify the task, prepare the needed context, stop at the analysis gate, and wait for approval before coding.
 
-## Common Commands
+## Common Commands For Target Projects
 
 ```powershell
 # Preview framework updates
@@ -98,20 +119,23 @@ marionettist doctor
 
 For more install modes, command-surface options, task tiers, and gate behavior, see the usage guide.
 
-## Read Next
-
-| Document | Best For | What It Covers |
-| --- | --- | --- |
-| [docs/DESIGN.md](./docs/DESIGN.md) | Tech leads, architects, framework evaluators | Design ideas, workflow philosophy, asset ownership, non-goals |
-| [docs/GUIDELINES.md](./docs/GUIDELINES.md) | Teams adopting Marionettist | Installation, daily usage, task tiers, gates, upgrades |
-| [docs/OPENCODE.md](./docs/OPENCODE.md) | Teams using OpenCode | Slash commands, agent roles, model profiles, permission posture |
-
-## Boundary For This Repository
+## For Framework Maintainers Of This Repo
 
 This repository is the **framework source**, not a normal target project.
 
-- Use `marionettist self init` when maintaining this framework repo.
+- Use `marionettist self init --apply` when maintaining this framework repo.
+- Use `marionettist self doctor` and `marionettist self test` for self-maintenance checks.
 - Do not run regular `marionettist init` here as if this were a target project.
 - `templates/` and `skills/` are publishable assets for target projects.
 - `.marionettist-self/` is disposable local runtime state.
 - OpenCode is optional. The core Marionettist workflow works through files and prompts.
+
+## Read Next
+
+| Document | Best For | What It Covers |
+| --- | --- | --- |
+| [docs/user-guide/README.md](./docs/user-guide/README.md) | New users adopting Marionettist | Recommended reading path and user guide entry |
+| [docs/philosophy.md](./docs/philosophy.md) | Beginners evaluating the workflow | Why Marionettist plans before coding, uses gates, and stays project-neutral |
+| [docs/DESIGN.md](./docs/DESIGN.md) | Tech leads, architects, framework evaluators | Design ideas, workflow philosophy, asset ownership, non-goals |
+| [docs/GUIDELINES.md](./docs/GUIDELINES.md) | Teams adopting Marionettist | Installation, daily usage, task tiers, gates, upgrades |
+| [docs/OPENCODE.md](./docs/OPENCODE.md) | Teams using OpenCode | Slash commands, agent roles, model profiles, permission posture |

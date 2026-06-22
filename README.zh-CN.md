@@ -2,9 +2,26 @@
 
 [English](./README.md)
 
-一套可复用的文件型 Marionettist 工作流，让任意仓库中的 AI 辅助开发更安全。
+Marionettist 是一套可复用的文件型工作流，让任意仓库中的 AI 辅助开发更安全。
 
 它为 AI agent 和人类团队提供一份共享契约：规则放在哪里、任务上下文如何准备、何时可以编码、agent 必须在何处停下等待批准。
+
+## Marionettist 是什么
+
+Marionettist 帮助团队把 AI 工作流中的关键信息从聊天记录移回仓库文件。
+
+适合以下需求：
+
+- 希望规则和 onboarding 文件留在仓库里
+- 希望编码前先准备任务上下文
+- 希望对非平凡任务设置明确的批准 gate
+- 希望框架更新时保留项目自己的本地内容
+
+## 如果你是来…
+
+- **给目标项目安装 Marionettist：** 从 [安装](#安装) 和 [面向目标项目团队](#面向目标项目团队) 开始。
+- **先了解工作流再决定是否采用：** 先读 [解决的问题](#解决的问题)，再看 [延伸阅读](#延伸阅读)。
+- **维护当前这个 framework 仓库本身：** 直接跳到 [面向本仓库的 framework 维护者](#面向本仓库的-framework-维护者)。
 
 ## 解决的问题
 
@@ -17,6 +34,8 @@ AI 辅助开发常因简单原因失败：
 - agent prompt 升级覆盖了本地的团队规则
 
 这套框架把重要内容移到普通文件中。任何 agent 都能读取，能在 Git 中 review，能安全地升级。
+
+如果你想先用适合初学者的方式理解为什么它强调先规划、gate、slice 和项目中立设计，请阅读 [docs/philosophy.zh-CN.md](./docs/philosophy.zh-CN.md)。
 
 ## 亮点
 
@@ -32,13 +51,13 @@ AI 辅助开发常因简单原因失败：
 
 ```powershell
 # 从 GitHub 安装
-npm install -g github:pandaria75/universal-ai-harness-framework
+npm install -g github:pandaria75/marionettist
 
 # 或从本框架仓库的本地克隆安装
 npm link
 ```
 
-## 最小使用方式
+## 面向目标项目团队
 
 在目标项目中执行以下命令：
 
@@ -62,7 +81,9 @@ marionettist init --with-opencode
 - `.agents/skills/*` — 可移植工作流 skills
 - `.marionettist/manifest.json` — 用于安全升级
 
-## 小例子
+这个仓库是 framework 源码仓库，但普通用户的日常路径是：把 Marionettist 安装到你自己的仓库里，检查已安装文件，然后遵循目标项目本地的 `AGENTS.md` 和文档。
+
+## 首次使用示例
 
 不使用 OpenCode 时，可以给 agent 这样的提示词：
 
@@ -83,7 +104,7 @@ marionettist init --with-opencode
 
 Agent 应分类任务、准备所需上下文，在 analysis gate 停下等待批准后再编码。
 
-## 常用命令
+## 目标项目常用命令
 
 ```powershell
 # 预览框架更新
@@ -98,20 +119,23 @@ marionettist doctor
 
 更多安装模式、命令面选项、任务 tier 和 gate 行为，请阅读使用指南。
 
-## 延伸阅读
-
-| 文档 | 适合人群 | 内容 |
-| --- | --- | --- |
-| [docs/DESIGN.zh-CN.md](./docs/DESIGN.zh-CN.md) | 技术负责人、架构师、框架评估者 | 设计思想、工作流哲学、资产所有权、非目标 |
-| [docs/GUIDELINES.zh-CN.md](./docs/GUIDELINES.zh-CN.md) | 采用 Marionettist 的团队 | 安装、日常使用、任务 tier、gate、升级 |
-| [docs/OPENCODE.zh-CN.md](./docs/OPENCODE.zh-CN.md) | 使用 OpenCode 的团队 | Slash commands、agent 角色、模型 profiles、权限姿态 |
-
-## 本仓库的边界
+## 面向本仓库的 Framework 维护者
 
 本仓库是 **framework 源码仓库**，不是普通的 target project。
 
-- 维护本 framework 仓库时使用 `marionettist self init`。
+- 维护本仓库时使用 `marionettist self init --apply`。
+- 进行自维护检查时使用 `marionettist self doctor` 和 `marionettist self test`。
 - 不要在这里运行普通的 `marionettist init`，仿佛它是 target project。
 - `templates/` 和 `skills/` 是面向目标项目的可发布资产。
 - `.marionettist-self/` 是可删除的本地运行态。
 - OpenCode 是可选的。核心 Marionettist 工作流通过文件和提示词即可运行。
+
+## 延伸阅读
+
+| 文档 | 适合人群 | 内容 |
+| --- | --- | --- |
+| [docs/user-guide/README.zh-CN.md](./docs/user-guide/README.zh-CN.md) | 刚开始采用 Marionettist 的用户 | 推荐阅读路径与用户指南入口 |
+| [docs/philosophy.zh-CN.md](./docs/philosophy.zh-CN.md) | 想先理解方法论的初学者 | 为什么 Marionettist 强调先规划、gate 与项目中立 |
+| [docs/DESIGN.zh-CN.md](./docs/DESIGN.zh-CN.md) | 技术负责人、架构师、框架评估者 | 设计思想、工作流哲学、资产所有权、非目标 |
+| [docs/GUIDELINES.zh-CN.md](./docs/GUIDELINES.zh-CN.md) | 采用 Marionettist 的团队 | 安装、日常使用、任务 tier、gate、升级 |
+| [docs/OPENCODE.zh-CN.md](./docs/OPENCODE.zh-CN.md) | 使用 OpenCode 的团队 | Slash commands、agent 角色、模型 profiles、权限姿态 |

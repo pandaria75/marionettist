@@ -2,9 +2,11 @@
 
 [中文版](./OPENCODE.zh-CN.md)
 
-This guide is for teams that use the optional OpenCode integration installed by `marionettist init --with-opencode`.
+This guide is the main reference for the optional OpenCode integration installed by `marionettist init --with-opencode`.
 
-OpenCode improves ergonomics. It does not replace the Marionettist workflow. The repository files, task artifacts, and gates remain the source of truth.
+OpenCode improves ergonomics. It does not replace the Marionettist workflow. Repository files, task artifacts, and gates remain the source of truth.
+
+Use this page when you need OpenCode-specific setup or usage details such as package-vs-local plugin source, command surfaces, generated fallback files, model profiles, permissions, validation, sync, or privacy guidance.
 
 Navigation note:
 
@@ -20,6 +22,8 @@ Navigation note:
 - **Validator guidance** for build, test, lint, and smoke-check workflows.
 - **Local permission posture** through generated OpenCode agent files.
 
+This support is optional. Teams can keep using Marionettist through files and prompts without OpenCode.
+
 Current default posture:
 
 - new installs default to package-first OpenCode plugin usage through `marionettist-pathway-opencode`
@@ -27,9 +31,15 @@ Current default posture:
 - package-first installs use the `marionettist-pathway-opencode` package path, while this repository remains the source of the packaged assets
 - repository-local fallback remains available with `opencode.pluginSource: local`
 
-The core Marionettist workflow still works without OpenCode.
+Important boundary:
+
+- treat `docs/OPENCODE.md` as the human-readable reference
+- treat generated `.opencode/**` files as installed assets, not the framework-maintenance source docs
+- for this framework repository itself, use `marionettist self init --apply --with-opencode`; do not use regular target-project init here
 
 ## 2. Install
+
+Install the Marionettist CLI first. Then use these commands inside the target project where you want OpenCode support.
 
 ```powershell
 # Preview first
@@ -43,6 +53,14 @@ marionettist init --with-opencode --opencode-command-surface minimal
 marionettist init --with-opencode --opencode-command-surface standard
 marionettist init --with-opencode --opencode-command-surface advanced
 ```
+
+For this framework repository itself, use `marionettist self init --apply --with-opencode` rather than regular target-project init.
+
+Recommended setup order:
+
+1. install base Marionettist first if the repository is not set up yet
+2. add `--with-opencode` when you want the optional OpenCode surfaces
+3. choose `minimal` unless your team already knows it wants more explicit command wrappers
 
 If you want the repository-local generated plugin path instead of the package default, set:
 
@@ -59,6 +77,8 @@ opencode:
 ```
 
 Legacy `full` is accepted as an alias for `advanced`.
+
+If other docs mention OpenCode only briefly, prefer this page as the detailed reference instead of copying setup snippets into multiple onboarding pages.
 
 ## 3. Installed Files
 
@@ -79,6 +99,8 @@ Current MVP posture:
 - `opencode.pluginSource: local` keeps the repository-local plugin path `./.opencode/plugin/opencode-tasks.js`
 - generated `.opencode/agents/**` and `.opencode/commands/**` files remain supported fallback assets
 - framework source stays split on purpose: package source is `distributions/opencode/**`, pathway/plugin source comes from `templates/pathways/opencode/**`, and generated fallback assets come from `templates/opencode/**`
+
+Do not treat generated fallback files as the place to update framework behavior. In this framework repository, edit the real framework source and regenerate instead of editing generated mirrors directly.
 
 Use `marionettist diff`, `marionettist sync`, and `marionettist doctor` to inspect drift and safe updates. After regenerating `opencode.jsonc`, switching plugin source, or updating `.opencode/plugin/**`, restart or reload OpenCode if the current session does not reload configuration automatically.
 
@@ -120,7 +142,7 @@ The builder owns orchestration. Subagents should receive bounded inputs and retu
 
 ## 7. Model Profiles
 
-OpenCode agent model values are rendered from `.marionettist/model-profiles.yml` when it exists. Legacy `harness.config.yaml` references are migration-only context, not the current path.
+OpenCode agent model values are rendered from project-local model profile settings. For current installs, `.marionettist/model-profiles.yml` is the main path. Legacy `harness.config.yaml` references are migration-only context, not the current path.
 
 Default profile intent:
 
@@ -143,9 +165,11 @@ To change models:
 1. Edit `.marionettist/model-profiles.yml`.
 2. Run `marionettist diff` to preview generated changes.
 3. Run `marionettist sync` when the preview is safe.
-4. Avoid duplicating model choices in `opencode.jsonc`.
+4. Avoid duplicating model choices in generated OpenCode files such as `opencode.jsonc` when project-local model profiles already define them.
 
 Package-provided agent defaults still prefer project-local `.marionettist/model-profiles.yml` when present.
+
+For this framework repository, keep self-maintenance behavior in self-profile sources and not in generated `.opencode/**` mirrors.
 
 ## 8. Gate Behavior
 
@@ -216,6 +240,8 @@ Operational notes:
 - same-name local commands or agents override plugin-provided entries
 - if both an explicit plugin entry and `.opencode/plugin/` auto-discovery load sources that inject the same Marionettist surface, the current prototype remains acceptable because its config hook is idempotent
 - command smoke may report `NOT_RUN` with evidence when the local OpenCode CLI is unavailable or lacks `--command` support; at least one capable environment should still run `opencode run --command marionettist-pathway-prototype` before closing MVP runtime validation work
+
+When OpenCode-related docs elsewhere stay short, they should usually link here instead of repeating these ownership and sync details.
 
 Migration recommendation:
 
