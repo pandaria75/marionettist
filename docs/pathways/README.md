@@ -23,7 +23,7 @@ Related operator guide:
 - The current OpenCode story is package-first plugin usage with generated-file fallback.
 - The package spec is `marionettist-pathway-opencode`, with source rooted at `distributions/opencode/`.
 - Pathway-scoped config authoring currently means the OpenCode `marionettist-pathway-config` workflow, separate from the general `marionettist-config` wrapper.
-- Future Pathways such as Pi belong to later roadmap work and are not implemented here.
+- Future Pathways such as Pi belong to later roadmap work and are not implemented here; see the [Pi plugin parallel plan](../develop/02-pi-plugin-parallel-plan.md) for the current experimental boundary.
 
 Scope for this directory:
 

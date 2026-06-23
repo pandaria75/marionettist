@@ -31,5 +31,5 @@ This documentation set helps teams use and extend Marionettist.
 - [Advanced](./advanced/README.md)
 - [Migration](./migration/README.md) — rename and transition guidance for legacy harness-era installs
 - [Reference](./reference/README.md)
-- `docs/develop/` — internal roadmap and development planning material
+- `docs/develop/` — internal roadmap and development planning material, including the [next-stage vision](./develop/00-next-stage-vision.md)
 - `docs/blogs/` — blog-style explanatory content
