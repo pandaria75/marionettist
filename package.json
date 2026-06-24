@@ -1,12 +1,14 @@
 {
   "name": "marionettist",
-  "version": "0.2.10",
+  "version": "0.3.1",
   "type": "module",
   "bin": {
-    "marionettist": "./bin/marionettist.js",
-    "mari": "./bin/marionettist.js"
+    "marionettist": "bin/marionettist.js",
+    "mari": "bin/marionettist.js"
   },
   "scripts": {
+    "opencode:dist": "node ./scripts/build-opencode-distribution.mjs",
+    "opencode:dist:check": "node ./scripts/build-opencode-distribution.mjs --check",
     "smoke": "node ./scripts/smoke.mjs",
     "self:smoke": "node ./scripts/self-smoke.mjs"
   },

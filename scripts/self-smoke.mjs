@@ -45,9 +45,8 @@ const mirrorChecks = [
     target: ".opencode/agents/validators/generic-fallback.md"
   }
 ];
-const packageAlignmentRoots = ["plugin", "pathway", "pathway-skills"];
-
 try {
+  await exec(process.execPath, [path.join(repoRoot, "scripts", "build-opencode-distribution.mjs"), "--check"], repoRoot);
   const expectedMirrorFiles = await getExpectedMirrorFiles();
   const initOutput = await harness("self", "init");
   assertIncludes(initOutput, "mode: dry-run");
@@ -56,7 +55,6 @@ try {
 
   const beforeRelevantOpencode = await readExistingFiles([...selfOpencodeFiles, ...expectedMirrorFiles]);
   const beforeTemplateAgents = await fs.readFile(path.join(repoRoot, "templates", "AGENTS.md"), "utf8");
-  const beforeTemplateOpencodeLegacy = await snapshotDirectory(path.join(repoRoot, "templates", "opencode"));
   const beforeTemplateOpencodePathway = await snapshotDirectory(path.join(repoRoot, "templates", "pathways", "opencode"));
   const beforeSkills = await snapshotDirectory(path.join(repoRoot, "skills"));
 
@@ -89,7 +87,7 @@ try {
 
   const selfOpencodeReadme = await readRelative(".opencode/README.md");
   assertIncludes(selfOpencodeReadme, "must not be edited directly");
-  assertIncludes(selfOpencodeReadme, "Edit `templates/opencode/**` instead");
+  assertIncludes(selfOpencodeReadme, "Edit `templates/pathways/opencode/**` instead");
 
   const selfReviewer = await readRelative(".opencode/agents/marionettist-framework-reviewer.md");
   assertIncludes(selfReviewer, "model: opencode-go/glm-5.1");
@@ -103,7 +101,6 @@ try {
   assertIncludes(mirroredBuilder, "edit: allow");
 
   assert((await fs.readFile(path.join(repoRoot, "templates", "AGENTS.md"), "utf8")) === beforeTemplateAgents, "self OpenCode init must not modify templates/AGENTS.md");
-  assertSameFileSnapshot(beforeTemplateOpencodeLegacy, await snapshotDirectory(path.join(repoRoot, "templates", "opencode")), "self OpenCode init must not modify templates/opencode sources");
   assertSameFileSnapshot(beforeTemplateOpencodePathway, await snapshotDirectory(path.join(repoRoot, "templates", "pathways", "opencode")), "self OpenCode init must not modify templates/pathways/opencode sources");
   assertSameFileSnapshot(beforeSkills, await snapshotDirectory(path.join(repoRoot, "skills")), "self OpenCode init must not modify skills");
 
@@ -123,7 +120,7 @@ try {
   await assertDoctorFailsForUnresolvedPermissionPlaceholder();
   await assertMirrorDriftDetected();
   await assertMissingMirrorDetected();
-  await assertPackagePluginAssetAlignment();
+  await assertOpencodeDistributionCheck();
   await assertLocalSelfModelProfilesPreservedAndRendered();
   await assertMirrorResyncFromTemplateSource();
   await assertOrdinaryOpencodeInitDoesNotInstallSelfFiles();
@@ -132,7 +129,6 @@ try {
   const templateAgents = await fs.readFile(path.join(repoRoot, "templates", "AGENTS.md"), "utf8");
   assertExcludes(templateAgents, "HARNESS_SELF_POLICY");
   assertExcludes(templateAgents, ".marionettist-self");
-  assertSameFileSnapshot(beforeTemplateOpencodeLegacy, await snapshotDirectory(path.join(repoRoot, "templates", "opencode")), "self smoke must restore templates/opencode sources after resync test");
   assertSameFileSnapshot(beforeTemplateOpencodePathway, await snapshotDirectory(path.join(repoRoot, "templates", "pathways", "opencode")), "self smoke must restore templates/pathways/opencode sources after resync test");
 
   const testOutput = await harness("self", "test");
@@ -363,35 +359,15 @@ async function assertOrdinaryFullOpencodeInitRetainsAdvancedCommands() {
   assertIncludes(doctorOutput, "PASS  OpenCode command surface [advanced] advanced commands present");
 }
 
-async function assertPackagePluginAssetAlignment() {
-  for (const root of packageAlignmentRoots) {
-    const sourceRoot = path.join(repoRoot, "templates", "pathways", "opencode", root);
-    const targetRoot = path.join(repoRoot, "distributions", "opencode", root);
-    const sourceFiles = await snapshotDirectory(sourceRoot);
-    const targetFiles = await snapshotDirectory(targetRoot);
-    const sourceNames = sourceFiles.map(([relative]) => relative);
-    const targetNames = targetFiles.map(([relative]) => relative);
-    assert(JSON.stringify(targetNames) === JSON.stringify(sourceNames), `distributions/opencode/${root}/ files must match templates/pathways/opencode/${root}/ files`);
-
-    const sourceByName = new Map(sourceFiles);
-    for (const [relative, target] of targetFiles) {
-      const source = sourceByName.get(relative);
-      const normalize = root === "plugin"
-        ? normalizePluginForAlignment
-        : normalizeRuntimeAssetForAlignment;
-      if (root === "plugin" && relative === "opencode-tasks.js") {
-        assert(target.includes('const packageSkillPath = fileURLToPath(new URL("../pathway-skills", import.meta.url));'), "package plugin must resolve package-local pathway-skills with fileURLToPath");
-        assert(source.includes('const prototypeSkillPath = ".opencode/pathway-skills";'), "template plugin must keep repository-local pathway-skills fallback path");
-      }
-      assert(normalize(target) === normalize(source), `distributions/opencode/${root}/${relative} must stay aligned with templates/pathways/opencode/${root}/${relative}`);
-    }
-  }
+async function assertOpencodeDistributionCheck() {
+  const script = path.join(repoRoot, "scripts", "build-opencode-distribution.mjs");
+  await exec(process.execPath, [script, "--check"], repoRoot);
 }
 
 async function getExpectedMirrorFiles() {
   const relativeFiles = [];
   for (const root of ["agents", "commands"]) {
-    await collectRelativeFiles(path.join(repoRoot, "templates", "opencode", root), `.opencode/${root}`, relativeFiles);
+    await collectRelativeFiles(path.join(repoRoot, "templates", "pathways", "opencode", root), `.opencode/${root}`, relativeFiles);
   }
   relativeFiles.sort();
   return relativeFiles;
@@ -477,30 +453,6 @@ async function switchOrdinaryProjectToLocalFallback(projectPath, { commandSurfac
   }
 
   return harness(...syncArgs);
-}
-
-function normalizePluginForAlignment(content) {
-  return content
-    .replace('import { readFile } from "node:fs/promises";\nimport { fileURLToPath } from "node:url";\n', 'import { readFile } from "node:fs/promises";\n')
-    .replace(/^const packageSkillPath = .*$/m, 'const sharedSkillPath = "__SKILL_PATH__";')
-    .replace(/^const prototypeSkillPath = .*$/m, 'const sharedSkillPath = "__SKILL_PATH__";')
-    .replace(/packageSkillPath/g, 'sharedSkillPath')
-    .replace(/prototypeSkillPath/g, 'sharedSkillPath')
-    .replace(/Repository-local OpenCode pathway prototype/g, 'PATHWAY_PROTOTYPE')
-    .replace(/OpenCode pathway prototype/g, 'PATHWAY_PROTOTYPE');
-}
-
-function normalizeRuntimeAssetForAlignment(content) {
-  return content
-    .replace(/repository-local OpenCode pathway prototype/g, "OpenCode pathway prototype")
-    .replace(/Repository-local OpenCode pathway prototype/g, "OpenCode pathway prototype")
-    .replace(/repository-local OpenCode pathway plugin prototype/g, "OpenCode pathway plugin prototype")
-    .replace(/local marionettist plugin-first pathway seam/g, "marionettist plugin-first pathway seam")
-    .replace(/repository-local assets/g, "ASSET_SOURCE")
-    .replace(/package-local assets/g, "ASSET_SOURCE")
-    .replace(/`\.opencode\/pathway-skills`/g, "SKILL_PATH")
-    .replace(/\.opencode\/pathway-skills/g, "SKILL_PATH")
-    .replace(/the package skill path/g, "SKILL_PATH");
 }
 
 function assert(condition, message) {

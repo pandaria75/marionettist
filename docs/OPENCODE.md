@@ -97,8 +97,11 @@ Current MVP posture:
 
 - `opencode.pluginSource: package` is the default for new installs
 - `opencode.pluginSource: local` keeps the repository-local plugin path `./.opencode/plugin/opencode-tasks.js`
-- generated `.opencode/agents/**` and `.opencode/commands/**` files remain supported fallback assets
-- framework source stays split on purpose: package source is `distributions/opencode/**`, pathway/plugin source comes from `templates/pathways/opencode/**`, and generated fallback assets come from `templates/opencode/**`
+- package mode now registers the standard Marionettist agents and command surface at runtime from `marionettist-pathway-opencode`, so generated `.opencode/agents/**` and `.opencode/commands/**` files are no longer required for package-first installs
+- generated `.opencode/agents/**` and `.opencode/commands/**` files remain supported fallback assets for local plugin mode and local overrides
+- `templates/pathways/opencode/**` is the only framework OpenCode source of truth for local fallback generation and package staging input
+- `distributions/opencode/**` is generated package staging built from `templates/pathways/opencode/**`
+- `templates/opencode/**` has been removed and is no longer used
 
 Do not treat generated fallback files as the place to update framework behavior. In this framework repository, edit the real framework source and regenerate instead of editing generated mirrors directly.
 
@@ -168,6 +171,7 @@ To change models:
 4. Avoid duplicating model choices in generated OpenCode files such as `opencode.jsonc` when project-local model profiles already define them.
 
 Package-provided agent defaults still prefer project-local `.marionettist/model-profiles.yml` when present.
+When that file is missing, package mode falls back to legacy `marionettist.config.yaml` profile mappings when available and otherwise uses safe built-in defaults. Restart or reload OpenCode after changing model profiles so runtime-registered agents pick up the new values.
 
 For this framework repository, keep self-maintenance behavior in self-profile sources and not in generated `.opencode/**` mirrors.
 
@@ -234,6 +238,7 @@ OpenCode plugin-source note:
 - when Marionettist needs to render `opencode.pluginSource` into `marionettist.config.yaml`, sync may report that config file as `conflict` rather than `modified-local`
 - review the diff before applying it; this is expected when the managed render input changes
 - old generated installs are not auto-migrated to the package default
+- `marionettist doctor` recognizes package-plugin installs and should not require generated `.opencode/agents/**` or `.opencode/commands/**` fallback files when the package runtime surface is configured
 
 Operational notes:
 

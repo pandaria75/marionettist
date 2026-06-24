@@ -145,7 +145,7 @@ async function buildOpencodeAssets(projectPath, variables = {}, states = {}) {
   for (const sourceRelative of opencodeRelatives) {
     const resolvedSource = await resolveOpencodeTemplateSource(sourceRelative);
     if (!resolvedSource) {
-      throw new Error(`Framework OpenCode template source not found: templates/opencode/${sourceRelative}`);
+      throw new Error(`Framework OpenCode template source not found: templates/pathways/opencode/${sourceRelative}`);
     }
     if (sourceRelative.startsWith(opencodeValidatorTemplatePrefix)) {
       continue;
@@ -267,7 +267,7 @@ async function buildValidatorProjectGuidance(projectPath, variables = {}) {
 async function readResolvedOpencodeTemplateText(sourceRelative) {
   const resolvedSource = await resolveOpencodeTemplateSource(sourceRelative);
   if (!resolvedSource) {
-    throw new Error(`Framework OpenCode template source not found: templates/opencode/${sourceRelative}`);
+    throw new Error(`Framework OpenCode template source not found: templates/pathways/opencode/${sourceRelative}`);
   }
 
   return readText(resolvedSource.sourcePath);

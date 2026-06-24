@@ -13,7 +13,7 @@ const selfProfileRelative = ".marionettist/self/README.md";
 const selfRuntimeRelative = ".marionettist-self/";
 const selfModelProfilesRelative = ".marionettist/model-profiles.yml";
 const templatesAgentsRelative = "templates/AGENTS.md";
-const templatesOpencodeRelative = "templates/opencode";
+const templatesOpencodeRelative = "templates/pathways/opencode";
 const selfModelProfilesTemplateSourceRelative = ".marionettist/model-profiles.yml";
 const selfOpencodeMirrorRoots = ["agents", "commands"];
 const selfOpencodeRequiredFiles = [
@@ -104,7 +104,7 @@ const selfOpencodeContents = new Map([
     "",
     "This directory intentionally contains two kinds of files:",
     "- framework self-only files that may be committed",
-    "- generated local runtime mirrors copied from `templates/opencode/**`",
+    "- generated local runtime mirrors copied from `templates/pathways/opencode/**`",
     "",
     "Boundary rules:",
     "- Do not run regular marionettist init against this framework repository; use `marionettist self init --apply --with-opencode` for self setup.",
@@ -115,16 +115,16 @@ const selfOpencodeContents = new Map([
     "",
     "Source of truth:",
     "- Self-only files in `.opencode/agents/marionettist-framework-*.md` and `.opencode/commands/marionettist-self-*.md` are maintained for this repository.",
-    "- Target-project OpenCode agents and commands still come only from `templates/opencode/**`.",
+    "- Target-project OpenCode agents and commands come from `templates/pathways/opencode/**`.",
     "- Mirrored files under `.opencode/agents/marionettist-*.md`, `.opencode/agents/validators/**`, `.opencode/commands/marionettist.md`, and `.opencode/commands/marionettist-*.md` must not be edited directly.",
-    "- Edit `templates/opencode/**` instead, then rerun `marionettist self init --apply --with-opencode`, then run `marionettist self doctor`.",
+    "- Edit `templates/pathways/opencode/**` instead, then rerun `marionettist self init --apply --with-opencode`, then run `marionettist self doctor`.",
     "",
     "Commit policy:",
     "- Commit `opencode.jsonc`.",
     "- Commit `.opencode/README.md`.",
     "- Commit `.opencode/agents/marionettist-framework-*.md`.",
     "- Commit `.opencode/commands/marionettist-self-*.md`.",
-    "- Do not commit generated mirrors from `templates/opencode/**`.",
+    "- Do not commit generated mirrors from `templates/pathways/opencode/**`.",
     "",
     "Before changing `src/commands`, `src/core`, `templates`, or `skills`, inspect the current boundary and run relevant smoke tests.",
     "",
@@ -218,7 +218,7 @@ const selfOpencodeContents = new Map([
     "",
     "Check:",
     "- regular target-project `marionettist init --with-opencode` remains separate from `marionettist self init --apply --with-opencode`",
-    "- self-only rules are not added to `templates/AGENTS.md`, `templates/opencode`, or `skills/`",
+    "- self-only rules are not added to `templates/AGENTS.md`, `templates/pathways/opencode`, or `skills/`",
     "- templates/ and skills/ remain product source assets, not self runtime output",
     "- .marionettist-self/ remains local runtime sandbox state",
     "- managed block markers in `templates/AGENTS.md` are present",
@@ -722,7 +722,7 @@ async function buildSelfOpencodeMirrorEntries() {
     }
     const resolvedSource = await resolveOpencodeTemplateSource(sourceRelative);
     if (!resolvedSource) {
-      throw new Error(`Framework OpenCode template source not found: templates/opencode/${sourceRelative}`);
+      throw new Error(`Framework OpenCode template source not found: templates/pathways/opencode/${sourceRelative}`);
     }
     const targetRelative = toPosix(path.join(".opencode", sourceRelative));
 

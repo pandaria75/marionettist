@@ -98,7 +98,7 @@ opencode:
 - `opencode.pluginSource: package` 是新安装的默认值
 - `opencode.pluginSource: local` 会保留仓库本地插件路径 `./.opencode/plugin/opencode-tasks.js`
 - 生成的 `.opencode/agents/**` 和 `.opencode/commands/**` 文件仍然是受支持的回退资产
-- 框架 source 目前有意拆分：package source 来自 `distributions/opencode/**`，pathway/plugin source 来自 `templates/pathways/opencode/**`，生成式回退资产来自 `templates/opencode/**`
+- 框架 source 现在以 `templates/pathways/opencode/**` 作为 OpenCode Pathway 唯一源；`distributions/opencode/**` 是由该源生成并检查的 package staging；`templates/opencode/**` 已移除且不再使用
 
 不要把这些生成式回退文件当作更新 framework 行为的地方。在本 framework 仓库中，应编辑真正的 framework source，再重新生成，而不是直接修改生成镜像。
 

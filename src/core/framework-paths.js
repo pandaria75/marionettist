@@ -17,7 +17,6 @@ export const frameworkRoot = path.resolve(currentDir, "../..");
 export const templatesRoot = path.join(frameworkRoot, "templates");
 export const coreTemplatesRoot = path.join(templatesRoot, "core");
 export const pathwaysTemplatesRoot = path.join(templatesRoot, "pathways");
-export const opencodeTemplatesRoot = path.join(templatesRoot, "opencode");
 export const pathwayOpencodeTemplatesRoot = path.join(pathwaysTemplatesRoot, "opencode");
 export const distributionsRoot = path.join(frameworkRoot, "distributions");
 export const skillsRoot = path.join(frameworkRoot, "skills");
@@ -35,10 +34,7 @@ export function getCoreTemplateSourceRelativeCandidates(sourceRelative) {
 
 export function getOpencodeTemplateSourceRelativeCandidates(sourceRelative) {
   const normalizedSourceRelative = normalizeSourceRelative(sourceRelative);
-  return [
-    path.posix.join("pathways", "opencode", normalizedSourceRelative),
-    path.posix.join("opencode", normalizedSourceRelative)
-  ];
+  return [path.posix.join("pathways", "opencode", normalizedSourceRelative)];
 }
 
 export function getCoreTemplateSourceCandidates(sourceRelative) {
@@ -89,14 +85,12 @@ export async function resolveOpencodeTemplateSource(sourceRelative) {
 
 export async function listResolvedOpencodeTemplateRelatives() {
   const relatives = new Set();
-  for (const root of [pathwayOpencodeTemplatesRoot, opencodeTemplatesRoot]) {
-    for (const sourcePath of await listFiles(root)) {
-      const sourceRelative = toPosixPath(path.relative(root, sourcePath));
-      if (isPlaceholderSourceRelative(sourceRelative)) {
-        continue;
-      }
-      relatives.add(sourceRelative);
+  for (const sourcePath of await listFiles(pathwayOpencodeTemplatesRoot)) {
+    const sourceRelative = toPosixPath(path.relative(pathwayOpencodeTemplatesRoot, sourcePath));
+    if (isPlaceholderSourceRelative(sourceRelative)) {
+      continue;
     }
+    relatives.add(sourceRelative);
   }
 
   return [...relatives].sort((left, right) => left.localeCompare(right));

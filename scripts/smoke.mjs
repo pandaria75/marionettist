@@ -26,7 +26,7 @@ const clearWorkflowProject = path.join(tempBase, `harness-smoke-clear-${process.
 const clearManagedOnlyProject = path.join(tempBase, `harness-smoke-clear-managed-only-${process.pid}`);
 const clearPartialFailureProject = path.join(tempBase, `harness-smoke-clear-partial-${process.pid}`);
 const clearSymlinkEscapeProject = path.join(tempBase, `harness-smoke-clear-symlink-${process.pid}`);
-const validatorSnippetPathText = ["templates", "opencode", "agents", "validators"].join("/");
+const validatorSnippetPathText = ["templates", "pathways", "opencode", "agents", "validators"].join("/");
 const prototypeOpencodeCommandName = "marionettist-pathway-prototype";
 const pathwayConfigOpencodeCommandName = "marionettist-pathway-config";
 const publishableScanRoots = ["README.md", "README.zh-CN.md", "docs", "templates", "skills", "src", "scripts", "package.json"];
@@ -56,7 +56,7 @@ const forbiddenSensitivePatterns = [
   { label: "E:\\AI_WORK", regex: /E:\\AI_WORK/g },
   { label: "legacy project prefix", regex: new RegExp(["unisic", ""].join("-"), "g") },
   { label: "legacy map term", regex: new RegExp(["module", "map"].join("-"), "g") },
-  { label: validatorSnippetPathText, regex: /templates\/opencode\/agents\/validators/g }
+  { label: validatorSnippetPathText, regex: /templates\/pathways\/opencode\/agents\/validators/g }
 ];
 const binaryLikeExtensions = new Set([
   ".png",
@@ -1284,13 +1284,13 @@ async function readExpectedAgentModels(projectPath) {
 async function assertP1DocsAndTemplateCoverage() {
   const harnessConfigTemplate = await fs.readFile(path.join(repoRoot, "templates", "marionettist.config.yaml"), "utf8");
   const targetAgentsTemplate = await fs.readFile(path.join(repoRoot, "templates", "AGENTS.md"), "utf8");
-  const builderTemplate = await fs.readFile(path.join(repoRoot, "templates", "opencode", "agents", "marionettist-builder.md"), "utf8");
-  const coderTemplate = await fs.readFile(path.join(repoRoot, "templates", "opencode", "agents", "marionettist-coder.md"), "utf8");
-  const criticTemplate = await fs.readFile(path.join(repoRoot, "templates", "opencode", "agents", "marionettist-critic.md"), "utf8");
-  const reviewerTemplate = await fs.readFile(path.join(repoRoot, "templates", "opencode", "agents", "marionettist-reviewer.md"), "utf8");
-  const continueCommand = await fs.readFile(path.join(repoRoot, "templates", "opencode", "commands", "marionettist-continue.md"), "utf8");
+  const builderTemplate = await fs.readFile(path.join(repoRoot, "templates", "pathways", "opencode", "agents", "marionettist-builder.md"), "utf8");
+  const coderTemplate = await fs.readFile(path.join(repoRoot, "templates", "pathways", "opencode", "agents", "marionettist-coder.md"), "utf8");
+  const criticTemplate = await fs.readFile(path.join(repoRoot, "templates", "pathways", "opencode", "agents", "marionettist-critic.md"), "utf8");
+  const reviewerTemplate = await fs.readFile(path.join(repoRoot, "templates", "pathways", "opencode", "agents", "marionettist-reviewer.md"), "utf8");
+  const continueCommand = await fs.readFile(path.join(repoRoot, "templates", "pathways", "opencode", "commands", "marionettist-continue.md"), "utf8");
   const workflowTemplate = await fs.readFile(path.join(repoRoot, "templates", "docs", "project", "marionettist-workflow.md"), "utf8");
-  const incidentCommand = await fs.readFile(path.join(repoRoot, "templates", "opencode", "commands", "marionettist-incident.md"), "utf8");
+  const incidentCommand = await fs.readFile(path.join(repoRoot, "templates", "pathways", "opencode", "commands", "marionettist-incident.md"), "utf8");
   const incidentSkill = await fs.readFile(path.join(repoRoot, "skills", "incident-pack-builder", "SKILL.md"), "utf8");
   const hypothesisSkill = await fs.readFile(path.join(repoRoot, "skills", "hypothesis-critic", "SKILL.md"), "utf8");
   const contextPackSkill = await fs.readFile(path.join(repoRoot, "skills", "context-pack-builder", "SKILL.md"), "utf8");
@@ -1408,7 +1408,7 @@ async function assertP1DocsAndTemplateCoverage() {
   assertExcludes(targetAgentsTemplate, "Do not add numeric scoring");
   assertExcludes(targetAgentsTemplate, "without any numeric score field");
 
-  const opencodeReadmeTemplate = await fs.readFile(path.join(repoRoot, "templates", "opencode", "README.md"), "utf8");
+  const opencodeReadmeTemplate = await fs.readFile(path.join(repoRoot, "templates", "pathways", "opencode", "README.md"), "utf8");
   assertIncludes(opencodeReadmeTemplate, "supplemental `risk_score` does not strengthen the gate");
   assertIncludes(opencodeReadmeTemplate, "whose supplemental `risk_score` requires a stronger pause than `gateClass` alone");
 

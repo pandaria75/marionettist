@@ -25,7 +25,7 @@ Migration note: legacy `harness` names are migration-only context now. For the b
 - Package shape: `marionettist-pathway-opencode` sourced from `distributions/opencode/`.
 - Default plugin source for new installs: package.
 - Local fallback plugin path: `./.opencode/plugin/opencode-tasks.js` when `opencode.pluginSource: local` is selected.
-- Compatibility: generated OpenCode files remain a supported fallback under `templates/opencode/**` and generated `.opencode/agents/**` and `.opencode/commands/**` files.
+- Compatibility: generated OpenCode files remain a supported local fallback, sourced from `templates/pathways/opencode/**` and generated into `.opencode/agents/**` and `.opencode/commands/**` when local mode is selected.
 - Validation path: `opencode run --command marionettist-pathway-prototype` is the accepted runtime smoke path for this MVP.
 
 ## Pathway Configuration Workflow
@@ -51,13 +51,13 @@ For this MVP, the documented targets are illustrative rather than exhaustive: ex
 
 ## What Plugin-First Means
 
-For the current implementation, new installs default to the package plugin path for `marionettist-pathway-opencode`. OpenCode should prefer pathway/plugin-provided behavior when that behavior is available. The framework still keeps generated-file fallback behavior so existing installs and safer migration paths remain available.
+For the current implementation, new installs default to the package plugin path for `marionettist-pathway-opencode`. OpenCode should prefer package/plugin-provided behavior when that behavior is available. The framework still keeps generated-file local fallback behavior so existing installs and safer migration paths remain available.
 
 Fallback choices:
 
 - `opencode.pluginSource: package` uses the package plugin path as the default happy path.
 - `opencode.pluginSource: local` keeps the repository-local generated plugin entry `./.opencode/plugin/opencode-tasks.js`.
-- generated `.opencode/agents/**` and `.opencode/commands/**` remain supported fallback assets in either mode.
+- generated `.opencode/agents/**` and `.opencode/commands/**` remain supported fallback assets when local mode is selected.
 
 Plugin-first does not remove normal Marionettist boundaries:
 
@@ -67,14 +67,14 @@ Plugin-first does not remove normal Marionettist boundaries:
 
 ## Package And Fallback Shape
 
-The package source now lives in `distributions/opencode/`, while the framework still keeps the source-of-truth assets in-repo and preserves generated fallback behavior.
+The OpenCode Pathway source of truth now lives in `templates/pathways/opencode/**`. The package staging tree lives in `distributions/opencode/**` and is generated/checked from the pathway source.
 
 Current source-layout intent:
 
-- `distributions/opencode/**` contains the package-plugin source for `marionettist-pathway-opencode`.
-- `templates/pathways/opencode/**` remains the framework source for pathway/plugin assets.
-- `templates/opencode/**` remains the generated fallback source.
-- generated fallback support is preserved; old installs are not auto-migrated.
+- `templates/pathways/opencode/**` contains the framework source for package and local OpenCode Pathway assets.
+- `distributions/opencode/**` contains generated package staging for `marionettist-pathway-opencode`.
+- `templates/opencode/**` has been removed and is no longer used.
+- generated local fallback support is preserved; old installs are not auto-migrated.
 
 Expected MVP capabilities are:
 
@@ -93,7 +93,7 @@ Fallback intent:
 - keep a safe compatibility path while pathway behavior is introduced
 - avoid forcing immediate migration to plugin-only behavior
 
-This MVP direction is intentionally additive. It does not remove or invalidate `templates/opencode/**` fallback behavior.
+This MVP direction preserves generated `.opencode/**` local fallback behavior while removing the old `templates/opencode/**` source directory.
 
 The current fallback includes generated `.opencode/agents/**` and `.opencode/commands/**` files even when the plugin-first default is enabled.
 

@@ -565,7 +565,7 @@ When recorded, the mode appears in `.marionettist/manifest.json` as `distributio
 
 For optional OpenCode assets:
 
-- the framework template source of truth is `templates/opencode/**` in the framework distribution
+- the framework OpenCode template source of truth is `templates/pathways/opencode/**` in the framework distribution
 - managed entries may record metadata such as `adapter`, `commandSurface`, `templateHash`, `renderedHash`, and legacy `hash`
 - safe comparison uses `renderedHash ?? hash` for compatibility with older manifests
 - local edits, missing files, conflicts, and orphaned managed entries are reported rather than silently overwritten
