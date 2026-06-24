@@ -84,34 +84,20 @@ test("buildPlan rerenders OpenCode agents when only model profile config changes
   });
 });
 
-test("buildPlan records future pathway OpenCode sources when present and falls back otherwise", async (t) => {
+test("buildPlan records pathway OpenCode sources for local fallback assets", async (t) => {
     const futureSource = path.join(process.cwd(), "templates", "pathways", "opencode", "commands", "slice-38-2-plan-source.md");
-    const legacySource = path.join(process.cwd(), "templates", "opencode", "commands", "slice-38-2-plan-source.md");
-
-  await fs.mkdir(path.dirname(legacySource), { recursive: true });
-  await fs.writeFile(legacySource, "legacy command", "utf8");
 
   t.after(async () => {
-    await fs.rm(futureSource, { force: true });
-    await fs.rm(legacySource, { force: true });
-  });
+     await fs.rm(futureSource, { force: true });
+   });
+
+  await fs.mkdir(path.dirname(futureSource), { recursive: true });
+  await fs.writeFile(futureSource, "future command", "utf8");
 
   await withTempProject(t, async (projectPath) => {
-    let plan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true, opencodeCommandSurface: "advanced", opencodePluginSource: "local" }));
-    let operation = plan.operations.find((entry) => entry.targetRelative === ".opencode/commands/slice-38-2-plan-source.md");
-    assert(operation, "expected legacy fallback command to be planned");
-    assert.equal(operation.sourceRelative, "templates/opencode/commands/slice-38-2-plan-source.md");
-    assert.equal(operation.content, "legacy command");
-
-    await applyManagedOperations(plan);
-
-    await fs.mkdir(path.dirname(futureSource), { recursive: true });
-    await fs.writeFile(futureSource, "future command", "utf8");
-
-    plan = await buildPlan(projectPath, "sync", buildPlanOptions({ project: projectPath, withOpencode: true, opencodeCommandSurface: "advanced", opencodePluginSource: "local" }));
-    operation = plan.operations.find((entry) => entry.targetRelative === ".opencode/commands/slice-38-2-plan-source.md");
-    assert(operation, "expected future pathway command to be planned");
-    assert.equal(operation.status, "update");
+    const plan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withOpencode: true, opencodeCommandSurface: "advanced", opencodePluginSource: "local" }));
+    const operation = plan.operations.find((entry) => entry.targetRelative === ".opencode/commands/slice-38-2-plan-source.md");
+    assert(operation, "expected pathway command to be planned");
     assert.equal(operation.sourceRelative, "templates/pathways/opencode/commands/slice-38-2-plan-source.md");
     assert.equal(operation.content, "future command");
   });
@@ -320,7 +306,7 @@ test("buildPlan preserves repository-local OpenCode fallback planning when plugi
     assert.equal(configCommandAssetOperation.sourceRelative, "templates/pathways/opencode/pathway/commands/marionettist-pathway-config.md");
     assert.equal(skillAssetOperation.sourceRelative, "templates/pathways/opencode/pathway-skills/marionettist-pathway-prototype/SKILL.md");
     assert.equal(configSkillAssetOperation.sourceRelative, "templates/pathways/opencode/pathway-skills/marionettist-pathway-config/SKILL.md");
-    assert.equal(fallbackCommandOperation.sourceRelative, "templates/opencode/commands/marionettist.md");
+    assert.equal(fallbackCommandOperation.sourceRelative, "templates/pathways/opencode/commands/marionettist.md");
     assert.match(configOperation.content, /"plugin": \["\.\/\.opencode\/plugin\/opencode-tasks\.js"\]/);
 
     await applyManagedOperations(plan);

@@ -9,7 +9,7 @@ Review diffs in this framework repository with findings first.
 
 Check:
 - regular target-project `marionettist init --with-opencode` remains separate from `marionettist self init --apply --with-opencode`
-- self-only rules are not added to `templates/AGENTS.md`, `templates/opencode`, or `skills/`
+- self-only rules are not added to `templates/AGENTS.md`, `templates/pathways/opencode`, or `skills/`
 - templates/ and skills/ remain product source assets, not self runtime output
 - .marionettist-self/ remains local runtime sandbox state
 - managed block markers in `templates/AGENTS.md` are present

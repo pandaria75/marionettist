@@ -6,6 +6,8 @@ Marionettist is a reusable, file-based workflow for safer AI-assisted developmen
 
 It gives AI agents and human teams a shared contract: where rules live, how task context is prepared, when coding may start, and where the agent must stop for approval.
 
+Marionettist currently remains focused on practical Agent Harness behavior. Its longer-term roadmap explores broader workflow families through real dogfooding projects such as Quill and isolated adapter experiments such as Pi; Quill MVP is not expected to depend on a Marionettist runtime, and shared-foundation extraction is a later evidence-driven decision.
+
 ## What Marionettist Is
 
 Marionettist helps teams move important AI-workflow context out of chat and into repository files.
@@ -139,3 +141,4 @@ This repository is the **framework source**, not a normal target project.
 | [docs/DESIGN.md](./docs/DESIGN.md) | Tech leads, architects, framework evaluators | Design ideas, workflow philosophy, asset ownership, non-goals |
 | [docs/GUIDELINES.md](./docs/GUIDELINES.md) | Teams adopting Marionettist | Installation, daily usage, task tiers, gates, upgrades |
 | [docs/OPENCODE.md](./docs/OPENCODE.md) | Teams using OpenCode | Slash commands, agent roles, model profiles, permission posture |
+| [docs/develop/00-next-stage-vision.md](./docs/develop/00-next-stage-vision.md) | Maintainers planning future work | Quill dogfooding, Pi adapter exploration, delayed shared-foundation strategy |

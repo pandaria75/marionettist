@@ -27,8 +27,8 @@ This file governs work on the framework itself. It is not the same as `templates
 - `templates/AGENTS.md` defines target-project agent behavior.
 - Root `AGENTS.md` defines framework maintenance behavior.
 - Framework self-bootstrap behavior belongs in `.marionettist/self/` and self OpenCode files, not target-project templates.
-- `templates/core/` and `templates/pathways/` are the future framework source roots for shared and Pathway-specific template content as that layout fills in.
-- `templates/opencode/` remains the current backward-safe fallback source for target-project OpenCode agents and commands until equivalent files exist under the future roots.
+- `templates/core/` and `templates/pathways/` are the framework source roots for shared and Pathway-specific template content.
+- `templates/pathways/opencode/` is the source of truth for target-project OpenCode agents, commands, plugin assets, and package staging inputs.
 - Root `.opencode/` may contain both self-only files and generated mirrors from the active framework OpenCode source candidates for local framework maintenance.
 - Template files must not assume a specific language, build tool, backend framework, frontend framework, or module layout.
 - Template files may reference `marionettist.config.yaml` as the target-project source of local configuration.
@@ -70,5 +70,5 @@ When changing templates or skills, validate that:
 - When a task comes from GitHub issues, add a completion summary comment to the relevant issue(s) before closing the task; include what changed, validation results, residual risks, and follow-up impact for related issues.
 - Do not mix framework-maintenance rules with target-project Marionettist rules.
 - Do not put self-only OpenCode commands, agents, or policy into `templates/AGENTS.md`, publishable template source roots, or `skills/`.
-- Do not edit generated `.opencode/agents/marionettist-*.md`, `.opencode/agents/validators/**`, or `.opencode/commands/marionettist-*.md` directly; edit the active framework OpenCode source files instead, using `templates/pathways/opencode/**` when populated or `templates/opencode/**` as the legacy fallback, then rerun `marionettist self init --apply --with-opencode`.
+- Do not edit generated `.opencode/agents/marionettist-*.md`, `.opencode/agents/validators/**`, or `.opencode/commands/marionettist-*.md` directly; edit the active framework OpenCode source files in `templates/pathways/opencode/**`, then rerun `marionettist self init --apply --with-opencode`.
 - Do not treat generated target-project docs as code indexes.

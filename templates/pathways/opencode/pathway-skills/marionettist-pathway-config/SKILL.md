@@ -7,7 +7,7 @@ description: Use when the user wants natural-language Pathway-scoped OpenCode or
 
 Pathway-scoped workflow for drafting configuration changes safely from natural-language requests.
 
-Relationship note: `templates/opencode/commands/marionettist-config.md` is the general or legacy OpenCode config wrapper. This skill is Pathway-scoped guidance and must not silently duplicate or replace that wrapper.
+Relationship note: `templates/pathways/opencode/commands/marionettist-config.md` is the general OpenCode config wrapper source. This skill is Pathway-scoped guidance and must not silently duplicate or replace that wrapper.
 
 ## When To Use
 

@@ -4,8 +4,8 @@ These files are optional local OpenCode assets for repositories that want a mari
 
 ### What Is Included
 
-- `opencode.jsonc`: project-level OpenCode config that enables the repository-local `./.opencode/plugin/opencode-tasks.js` plugin prototype.
-- `.opencode/plugin/opencode-tasks.js`: repository-local OpenCode plugin prototype asset installed from the Pathway source root.
+- `opencode.jsonc`: project-level OpenCode config that enables either the package plugin default or the repository-local `./.opencode/plugin/opencode-tasks.js` prototype.
+- `.opencode/plugin/opencode-tasks.js`: repository-local OpenCode plugin prototype asset installed from this Pathway source root.
 - `commands/*.md`: starter slash commands that route users into the Marionettist workflow, with `/marionettist` as the default builder-first entrypoint and optional `minimal`, `standard`, and `advanced` command surfaces.
 - `agents/*.md`: starter agent definitions for builder, coder, critic, indexer, planner, reviewer, and validator roles.
 - `agents/validators/*.md`: validator guidance variants you can copy from or adapt to your project type.
@@ -31,7 +31,7 @@ These files are optional local OpenCode assets for repositories that want a mari
 - That baseline is enforced as strongly as OpenCode schema allows. Where schema cannot express a risky pattern precisely, templates fall back to warnings, prompts, and agent guidance prose.
 - Treat `loose` as a higher-trust local option, not as a shared default recommendation. Do not treat these templates as endorsing global `permission: allow`.
 - Install/distribution mode is recorded in `.marionettist/manifest.json` as `distributionMode` (`embedded`, `hybrid`, or `adapter`). Legacy installs without that field remain valid and are reported safely.
-- OpenCode generated artifact ownership stays template-driven: plugin prototype assets currently come from `templates/pathways/opencode/**`, generated fallback assets remain in `templates/opencode/**`, and target-project manifest entries track adapter metadata, `templateHash`, `renderedHash`, and legacy `hash` compatibility.
+- OpenCode generated artifact ownership stays template-driven: `templates/pathways/opencode/**` is the only framework source of truth, `distributions/opencode/**` is generated package staging, and target-project manifest entries track adapter metadata, `templateHash`, `renderedHash`, and legacy `hash` compatibility.
 - `marionettist diff` and `marionettist sync` protect local modifications. Missing files, conflicts, and orphaned managed entries are reported rather than silently overwritten; explicit force is required for intentional managed replacement.
 - Same-name plugin and file entries may conflict. If a plugin-provided agent or command shares a name with a generated or project-local file entry, the plugin entry may win.
 - OpenCode may load the same plugin from both the explicit config entry and `.opencode/plugin/` auto-discovery. The current prototype is accepted because its config hook is idempotent.

@@ -1,12 +1,13 @@
 {
   "name": "marionettist-pathway-opencode",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "description": "OpenCode Pathway plugin package surface for Marionettist.",
   "main": "./index.js",
   "files": [
     "index.js",
     "plugin/",
+    "templates/",
     "pathway/",
     "pathway-skills/"
   ],

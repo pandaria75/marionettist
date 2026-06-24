@@ -3,7 +3,7 @@ import path from "node:path";
 import { parseCommonArgs } from "../core/args.js";
 import { projectConfigRelative } from "../core/framework-paths.js";
 import { validateOptionalGatePolicyDefaultMode } from "../core/gate-policy.js";
-import { validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface, validateOptionalOpencodePermissionMode } from "../core/manifest.js";
+import { validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface, validateOptionalOpencodePermissionMode, validateOptionalOpencodePluginSource } from "../core/manifest.js";
 import { loadTierPolicyState, tierPolicySourceRelative } from "../core/tier-policy.js";
 import { parseSimpleYaml } from "../core/yaml.js";
 
@@ -41,6 +41,8 @@ const advancedOnlyOpencodeCommands = [
   ".opencode/commands/marionettist-bugfix.md",
   ".opencode/commands/marionettist-refactor.md"
 ];
+const opencodePackagePluginSpecifier = "marionettist-pathway-opencode";
+const opencodeLocalPluginSpecifier = "./.opencode/plugin/opencode-tasks.js";
 const modelDriftRemediation = "Reconcile the local model sources, then run `marionettist diff --project <path>` or `marionettist sync --project <path> --with-opencode` to preview or apply the safe regeneration.";
 
 export async function doctorCommand(args) {
@@ -57,10 +59,10 @@ export async function doctorCommand(args) {
   await checkPath(options.project, "docs/project/knowledge-map.md", "file", "docs/project/knowledge-map.md exists", results);
   await checkPath(options.project, "docs/project/marionettist-workflow.md", "file", "docs/project/marionettist-workflow.md exists", results);
   await checkPath(options.project, ".task", "directory", ".task directory exists", results);
-  const opencodeConfig = await checkOpencode(options.project, results);
-  checkOpenCodePermissionMode(manifest, projectConfig, opencodeConfig, results);
-  await checkOpenCodeCommandSurface(options.project, projectConfig, opencodeConfig, results);
-  await checkOpenCodeModelDrift(options.project, projectConfig, opencodeConfig, results);
+  const opencodeState = await checkOpencode(options.project, manifest, projectConfig, results);
+  checkOpenCodePermissionMode(manifest, projectConfig, opencodeState?.config, results);
+  await checkOpenCodeCommandSurface(options.project, projectConfig, opencodeState, results);
+  await checkOpenCodeModelDrift(options.project, projectConfig, opencodeState, results);
   await checkSkills(options.project, results);
   await checkActiveTask(options.project, results);
 
@@ -256,7 +258,7 @@ async function checkPath(projectPath, relative, expectedType, label, results) {
   }
 }
 
-async function checkOpencode(projectPath, results) {
+async function checkOpencode(projectPath, manifest, harnessConfig, results) {
   const configPath = path.join(projectPath, "opencode.jsonc");
   let parsedConfig = null;
   if (await exists(configPath)) {
@@ -270,27 +272,55 @@ async function checkOpencode(projectPath, results) {
     results.push(warn("opencode.jsonc not found; optional OpenCode scaffold not installed"));
   }
 
-  await checkMarkdownFrontmatterDirectory(projectPath, [".opencode/agent", ".opencode/agents"], "OpenCode agent", results);
-  await checkMarkdownFrontmatterDirectory(projectPath, [".opencode/command", ".opencode/commands"], "OpenCode command", results);
-  return parsedConfig;
+  const runtimeSource = detectOpenCodeRuntimeSource(manifest, harnessConfig, parsedConfig);
+  if (runtimeSource.pluginSource === "package") {
+    results.push(pass(`OpenCode runtime source: package plugin (${runtimeSource.sourceLabel})`));
+  } else if (runtimeSource.pluginSource === "local") {
+    results.push(pass(`OpenCode runtime source: local plugin (${runtimeSource.sourceLabel})`));
+  }
+
+  const agentDirectoryExists = Boolean(await findFirstDirectory(projectPath, [".opencode/agent", ".opencode/agents"]));
+  const commandDirectoryExists = Boolean(await findFirstDirectory(projectPath, [".opencode/command", ".opencode/commands"]));
+
+  if (runtimeSource.pluginSource !== "package" || agentDirectoryExists) {
+    await checkMarkdownFrontmatterDirectory(projectPath, [".opencode/agent", ".opencode/agents"], "OpenCode agent", results);
+  }
+
+  if (runtimeSource.pluginSource !== "package" || commandDirectoryExists) {
+    await checkMarkdownFrontmatterDirectory(projectPath, [".opencode/command", ".opencode/commands"], "OpenCode command", results);
+  }
+
+  return { config: parsedConfig, runtimeSource };
 }
 
-async function checkOpenCodeModelDrift(projectPath, harnessConfig, opencodeConfig, results) {
+async function checkOpenCodeModelDrift(projectPath, harnessConfig, opencodeState, results) {
+  const opencodeConfig = opencodeState?.config ?? null;
+  const runtimeSource = opencodeState?.runtimeSource?.pluginSource ?? null;
   const agentDirectory = await findFirstDirectory(projectPath, [".opencode/agent", ".opencode/agents"]);
+  const canonicalSource = await readModelProfileSource(path.join(projectPath, ".marionettist", "model-profiles.yml"), "canonical");
+
+  if (canonicalSource.parseError) {
+    results.push(fail(`.marionettist/model-profiles.yml parse failed: ${canonicalSource.parseError.message}`));
+    return;
+  }
+
+  if (runtimeSource === "package" && !agentDirectory) {
+    if (canonicalSource.exists) {
+      results.push(pass("OpenCode package agents resolve models at runtime from .marionettist/model-profiles.yml after OpenCode restart/reload"));
+    } else {
+      results.push(pass("OpenCode package agents will use package-safe default model profiles because .marionettist/model-profiles.yml is missing"));
+    }
+    return;
+  }
+
   if (!agentDirectory) {
     return;
   }
 
   await checkOpenCodePlaceholderDrift(projectPath, results);
 
-  const canonicalSource = await readModelProfileSource(path.join(projectPath, ".marionettist", "model-profiles.yml"), "canonical");
   const adapterSource = await readAdapterModelSource(projectPath);
   const opencodeAssignments = extractOpencodeModelAssignments(opencodeConfig);
-
-  if (canonicalSource.parseError) {
-    results.push(fail(`.marionettist/model-profiles.yml parse failed: ${canonicalSource.parseError.message}`));
-    return;
-  }
   if (adapterSource.parseError) {
     results.push(fail(`${adapterSource.label} parse failed: ${adapterSource.parseError.message}`));
     return;
@@ -353,7 +383,9 @@ function checkOpenCodePermissionMode(manifest, harnessConfig, opencodeConfig, re
   }
 }
 
-async function checkOpenCodeCommandSurface(projectPath, harnessConfig, opencodeConfig, results) {
+async function checkOpenCodeCommandSurface(projectPath, harnessConfig, opencodeState, results) {
+  const opencodeConfig = opencodeState?.config ?? null;
+  const runtimeSource = opencodeState?.runtimeSource?.pluginSource ?? null;
   const commandDirectory = await findFirstDirectory(projectPath, [".opencode/command", ".opencode/commands"]);
   const configuredSurface = readConfiguredCommandSurface(harnessConfig);
   const hasCommandSurfaceConfig = Object.prototype.hasOwnProperty.call(harnessConfig?.opencode ?? {}, "commandSurface");
@@ -372,6 +404,24 @@ async function checkOpenCodeCommandSurface(projectPath, harnessConfig, opencodeC
 
   const hasOpenCodeScaffold = Boolean(opencodeConfig) || commandDirectory !== null;
   if (!hasOpenCodeScaffold) {
+    return;
+  }
+
+  if (runtimeSource === "package" && commandDirectory === null) {
+    const effectiveSurface = configuredSurface.value
+      ? (configuredSurface.isLegacyAlias ? "legacy-full" : configuredSurface.value)
+      : "minimal";
+
+    results.push(pass(`OpenCode command surface [${effectiveSurface}] required normal commands provided by package plugin ${opencodePackagePluginSpecifier}`));
+    if (effectiveSurface === "advanced" || effectiveSurface === "legacy-full") {
+      results.push(pass(`OpenCode command surface [${effectiveSurface}] standard helper commands provided by package plugin ${opencodePackagePluginSpecifier}`));
+      results.push(pass(`OpenCode command surface [${effectiveSurface}] advanced commands provided by package plugin ${opencodePackagePluginSpecifier}`));
+    } else if (effectiveSurface === "standard") {
+      results.push(pass(`OpenCode command surface [${effectiveSurface}] standard helper commands provided by package plugin ${opencodePackagePluginSpecifier}`));
+      results.push(pass(`OpenCode command surface [${effectiveSurface}] advanced-only commands absent by configured package surface`));
+    } else {
+      results.push(pass(`OpenCode command surface [${effectiveSurface}] non-minimal commands omitted by configured package surface`));
+    }
     return;
   }
 
@@ -907,6 +957,48 @@ function readConfiguredPermissionMode(harnessConfig) {
       ? stripValidationErrorPrefix(result.error, label)
       : result.error
   };
+}
+
+function detectOpenCodeRuntimeSource(manifest, harnessConfig, opencodeConfig) {
+  const manifestSource = readConfiguredPluginSourceValue(manifest?.opencodePluginSource, ".marionettist/manifest.json opencodePluginSource");
+  if (manifestSource.value) {
+    return { pluginSource: manifestSource.value, sourceLabel: ".marionettist/manifest.json opencodePluginSource" };
+  }
+
+  const configSource = readConfiguredPluginSourceValue(harnessConfig?.opencode?.pluginSource, `${projectConfigRelative} opencode.pluginSource`);
+  if (configSource.value) {
+    return { pluginSource: configSource.value, sourceLabel: `${projectConfigRelative} opencode.pluginSource` };
+  }
+
+  const opencodePlugins = Array.isArray(opencodeConfig?.plugin) ? opencodeConfig.plugin : [];
+  if (opencodePlugins.some((entry) => readPluginSpecifier(entry) === opencodePackagePluginSpecifier)) {
+    return { pluginSource: "package", sourceLabel: `opencode.jsonc plugin ${opencodePackagePluginSpecifier}` };
+  }
+  if (opencodePlugins.some((entry) => readPluginSpecifier(entry) === opencodeLocalPluginSpecifier)) {
+    return { pluginSource: "local", sourceLabel: `opencode.jsonc plugin ${opencodeLocalPluginSpecifier}` };
+  }
+
+  const managedPluginFile = manifest?.managedFiles?.some((file) => file.path === ".opencode/plugin/opencode-tasks.js");
+  if (managedPluginFile) {
+    return { pluginSource: "local", sourceLabel: ".marionettist/manifest.json managed local OpenCode plugin" };
+  }
+
+  return { pluginSource: null, sourceLabel: null };
+}
+
+function readPluginSpecifier(entry) {
+  if (typeof entry === "string") {
+    return entry;
+  }
+  if (Array.isArray(entry) && typeof entry[0] === "string") {
+    return entry[0];
+  }
+  return null;
+}
+
+function readConfiguredPluginSourceValue(value, label) {
+  const result = validateOptionalOpencodePluginSource(value, label);
+  return { value: result.value, error: result.error };
 }
 
 function stripValidationErrorPrefix(error, label) {

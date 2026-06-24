@@ -17,10 +17,11 @@ Use this section when you want stable pointers to the framework's current concep
 ## Migration and future-direction references
 
 - [Migration landing page](../migration/README.md) — entrypoint for implemented rename status and legacy migration guidance
+- [Next-stage vision](../develop/00-next-stage-vision.md) — current Quill dogfooding, Pi adapter, and delayed shared-foundation direction
 - [Future roadmap](../develop/marionettist-future-roadmap.md)
 - [Recommended development order](../develop/marionettist-recommended-development-order.md)
 - [Parallel development guidance](../develop/marionettist-parallel-development-guidance.md)
 
 ## Maintainer note
 
-Some development references still discuss future packaging or older harness-era naming. Treat those as planning or historical material, not as the current user-facing surface.
+Some development references still discuss future packaging or older harness-era naming. Treat those as planning or historical material, not as the current user-facing surface. The next-stage vision documents the current priority: Quill MVP first, Marionettist feedback fixes, Pi as a parallel experiment, and shared foundation only after validation.
