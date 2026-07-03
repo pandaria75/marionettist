@@ -16,9 +16,12 @@ Quill MVP is the mainline. Marionettist optimization is the feedback loop. Pi pl
 
 ## Issue handling during Quill work
 
-- Blocking Quill MVP: fix immediately.
-- Non-blocking but painful: create issue and roadmap it.
-- Architecture-only: record as future work after Quill MVP.
+- `blocking`: fix immediately.
+- `non-blocking`: create an issue and roadmap it.
+- `architecture-idea`: record for later evaluation.
+- `future-work`: track after Quill MVP stabilizes.
+
+See `01-quill-dogfooding-plan.md` for the detailed feedback protocol, required issue fields, and blocker triage rules.
 
 ## Sequence
 
