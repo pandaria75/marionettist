@@ -51,6 +51,17 @@ This file governs work on the framework itself. It is not the same as `templates
 - `marionettist diff` must show what would change before sync.
 - Destructive behavior is forbidden unless explicitly requested by the user and implemented behind clear flags.
 
+## Version And Release Policy
+
+When preparing a version bump or release, update all repository version sources together:
+
+- `VERSION`
+- root `package.json`
+- root `package-lock.json`
+- `distributions/opencode/package.json` when releasing `marionettist-pathway-opencode`
+
+Before publishing, verify that generated or staged release assets are current, including `distributions/opencode/README.md` and `distributions/opencode/templates/**` when the OpenCode pathway package is affected.
+
 ## Validation
 
 When changing CLI code, run the relevant Node command or smoke test.
