@@ -15,6 +15,10 @@ const managedMappings = [
   { source: "plugin", target: "plugin" }
 ];
 
+const managedFileMappings = [
+  { source: "README.md", target: "README.md" }
+];
+
 const checkOnly = process.argv.includes("--check");
 
 const expectedFiles = await buildExpectedFiles();
@@ -42,6 +46,11 @@ async function buildExpectedFiles() {
       const targetRelative = toPosix(path.join(mapping.target, relative));
       expected.set(targetRelative, transformContent(mapping, relative, content));
     }
+  }
+
+  for (const mapping of managedFileMappings) {
+    const content = await fs.readFile(path.join(sourceRoot, mapping.source), "utf8");
+    expected.set(mapping.target, transformContent(mapping, mapping.source, content));
   }
 
   return expected;
@@ -80,6 +89,17 @@ async function computeDrift(expectedFiles) {
     const targetDirectory = path.join(distributionRoot, mapping.target);
     for (const [relative, content] of await collectFiles(targetDirectory, { allowMissing: true })) {
       actualFiles.set(toPosix(path.join(mapping.target, relative)), content);
+    }
+  }
+
+  for (const mapping of managedFileMappings) {
+    const targetPath = path.join(distributionRoot, mapping.target);
+    try {
+      actualFiles.set(mapping.target, await fs.readFile(targetPath, "utf8"));
+    } catch (error) {
+      if (error?.code !== "ENOENT") {
+        throw error;
+      }
     }
   }
 

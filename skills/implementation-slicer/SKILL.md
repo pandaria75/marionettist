@@ -59,7 +59,9 @@ Use this skill to convert a requirement document into executable implementation 
 - Emit `gateReasons` as short reason labels that explain why the slice should pause or may continue under the selected policy.
 - `risk_score` is stricter supplemental metadata, not a replacement for `gateClass`, required human gates, explicit stop conditions, or critic-required pauses.
 - When `risk_score` indicates higher risk than `gateClass` alone, preserve or strengthen the stop posture rather than weakening it.
-- Treat these as common higher-risk inputs when assigning or explaining `risk_score`: database schema updates, permissions or security logic, device communication, scheduling, public APIs, build scripts, code deletion, dependency upgrades, and production configuration.
+- Calibrate ordinary bounded `standard` slices toward `risk_score` 2-3 unless there is concrete elevated impact, reversibility concern, or validation uncertainty.
+- Use `risk_score` 4-5 only when the slice itself carries elevated safety, compatibility, production, data, security, cross-boundary, or validation risk.
+- Treat these as common higher-risk inputs when assigning or explaining `risk_score`: database schema updates, permissions or security logic, device communication, scheduling, externally committed public API compatibility, build or release scripts, code deletion, dependency upgrades, and production configuration.
 
 ## Output Document Template
 

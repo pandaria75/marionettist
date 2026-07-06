@@ -57,11 +57,11 @@ For fast-path tasks:
    - build/deployment
 4. Read `marionettist.config.yaml` gate policy defaults when present, especially `gatePolicy.defaultMode` and whether task-local override is allowed.
 5. Explain the available gate policy choices for the task:
-   - `strict` for the most pause-heavy posture, especially for existing Marionettist Tier L, high-risk, workflow-sensitive, or boundary-sensitive work
-   - `balanced` for the normal middle posture for many non-trivial tasks with clear approved slices
+   - `strict` for the most pause-heavy posture, especially for explicitly high-risk, boundary-sensitive, or critic-required work
+   - `balanced` for the normal middle posture for many non-trivial tasks with clear approved slices, including low/moderate-risk `standard` slices that should not pause after every slice
    - `autonomous` only when the task is already well-bounded, validation is clear, and fewer mid-task pauses are acceptable
 6. Recommend an initial gate policy for the task based on risk and workflow sensitivity, but make clear the recommendation is advisory rather than controlling.
-7. Explain that a task-local gate policy selection changes only the task's gate posture. It does not bypass required analysis gates, critic-required routing, final approval by default, explicit stops, protected or dangerous command stops, or `risk_score >= 4` stops.
+7. Explain that a task-local gate policy selection changes only the task's gate posture. It does not bypass required analysis gates, critic-required routing, final approval by default, explicit stops, protected or dangerous command stops, or concrete elevated-risk `risk_score >= 4` stops. A `strict` recommendation is advisory and must not overwrite an explicit selected policy.
 8. For non-trivial new tasks, ask for and capture the selected task gate policy when task-local override is allowed. If no explicit selection is provided, record the default or effective task policy instead of leaving policy state implicit.
 9. Ask only the minimum blocking questions required to choose the next workflow.
 10. Do not implement code.
@@ -190,12 +190,14 @@ Use:
 - Keep the intake lightweight.
 - Prefer repository evidence over asking the user when possible.
 - Recommend a gate policy at task start for non-trivial work, but keep the recommendation advisory.
+- Do not classify work as Tier L merely because it is non-trivial. Prefer Tier M for clear, bounded bugfixes, features, refactors, docs, or config work without cross-boundary ambiguity or sensitive production/security/compatibility impact.
+- Treat Tier S as available for clearly scoped localized low-risk work such as typo/comment fixes, docs-only corrections, small tests/examples, harmless config text changes, or localized one-file fixes with no boundary ambiguity.
 - Record gate policy state for non-trivial work even on fast path; do not leave selected/default/effective policy implicit when the evidence is available.
 - Treat Tier L / Tier M references here as existing Marionettist task classification guidance only, not as a configurable tier-policy mapping.
 - Preserve final approval by default unless higher-priority instructions explicitly change it.
 - Treat task override as policy selection, not as permission to bypass required gates.
 - Keep Marionettist gate policy separate from OpenCode permission settings.
-- Do not imply that autonomous bypasses analysis, critic-required review, final approval, explicit stops, protected or dangerous command handling, or `risk_score >= 4` pauses.
+- Do not imply that balanced or autonomous bypasses analysis, critic-required review, final approval, explicit stops, protected or dangerous command handling, or concrete elevated-risk `risk_score >= 4` pauses.
 
 ## Gate / Stop Condition
 

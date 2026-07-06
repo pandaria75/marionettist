@@ -517,10 +517,11 @@ async function assertTierPolicyConflictDoctorValidation(projectPath) {
   await writeProjectTierPolicy(projectPath, `schemaVersion: "1"
 tiers:
   S:
-    description: "Minor, low-risk work with clear scope and no boundary ambiguity"
+    description: "Clearly scoped localized low-risk work with no boundary ambiguity"
     matchRules:
-      - "single low-risk change"
-      - "clear scope with no workflow impact"
+      - "single or very small localized low-risk change"
+      - "typo, comment, docs-only correction, small test/example update, or harmless config text change"
+      - "clear scope with no workflow, compatibility, security, production, or boundary impact"
       - "project-local micro-change with extra guardrails"
     minTier: null
     maxTier: "S"
@@ -529,10 +530,10 @@ tiers:
     reviewLevel: "standard"
     modelProfileHint: "build"
   M:
-    description: "Standard work that needs analysis context before coding"
+    description: "Standard clear-scope work that benefits from analysis context before coding"
     matchRules:
-      - "small feature, bugfix, refactor, or docs task with non-trivial risk"
-      - "clear scope but more than trivial complexity"
+      - "small or medium feature, bugfix, refactor, docs, or config task with clear scope"
+      - "more than trivial complexity but no real boundary ambiguity or sensitive production/security/compatibility impact"
     minTier: "M"
     maxTier: "M"
     workflowHint: "analysis-context"
@@ -542,8 +543,9 @@ tiers:
   L:
     description: "Local L description override"
     matchRules:
-      - "multi-area or workflow-sensitive change"
-      - "architecture-sensitive or approval-sensitive work"
+      - "multi-area or cross-boundary workflow-sensitive change"
+      - "architecture-sensitive, security-sensitive, production-sensitive, compatibility-sensitive, or approval-sensitive work"
+      - "unclear ownership or real boundary ambiguity"
       - "project-specific escalation wording"
     minTier: "L"
     maxTier: null
@@ -563,9 +565,9 @@ tiers:
   await writeProjectTierPolicy(projectPath, `schemaVersion: "1"
 tiers:
   S:
-    description: "Minor, low-risk work with clear scope and no boundary ambiguity"
+    description: "Clearly scoped localized low-risk work with no boundary ambiguity"
     matchRules:
-      - "single low-risk change"
+      - "single or very small localized low-risk change"
     minTier: null
     maxTier: "S"
     workflowHint: "direct"
@@ -573,9 +575,9 @@ tiers:
     reviewLevel: "standard"
     modelProfileHint: "build"
   M:
-    description: "Standard work that needs analysis context before coding"
+    description: "Standard clear-scope work that benefits from analysis context before coding"
     matchRules:
-      - "clear scope but more than trivial complexity"
+      - "more than trivial complexity but no real boundary ambiguity or sensitive production/security/compatibility impact"
     minTier: "M"
     maxTier: "M"
     workflowHint: "analysis-context"
@@ -583,10 +585,10 @@ tiers:
     reviewLevel: "standard"
     modelProfileHint: "build"
   L:
-    description: "Complex, cross-cutting, boundary-sensitive, or high-risk work"
+    description: "Complex, cross-cutting, boundary-sensitive, or concretely high-risk work"
     matchRules:
-      - "multi-area or workflow-sensitive change"
-      - "architecture-sensitive or approval-sensitive work"
+      - "multi-area or cross-boundary workflow-sensitive change"
+      - "architecture-sensitive, security-sensitive, production-sensitive, compatibility-sensitive, or approval-sensitive work"
     minTier: "L"
     maxTier: null
     workflowHint: "full-harness"
@@ -602,10 +604,11 @@ tiers:
   await writeProjectTierPolicy(projectPath, `schemaVersion: "1"
 tiers:
   S:
-    description: "Minor, low-risk work with clear scope and no boundary ambiguity"
+    description: "Clearly scoped localized low-risk work with no boundary ambiguity"
     matchRules:
-      - "single low-risk change"
-      - "clear scope with no workflow impact"
+      - "single or very small localized low-risk change"
+      - "typo, comment, docs-only correction, small test/example update, or harmless config text change"
+      - "clear scope with no workflow, compatibility, security, production, or boundary impact"
     minTier: null
     maxTier: "M"
     workflowHint: "direct"
@@ -613,10 +616,10 @@ tiers:
     reviewLevel: "standard"
     modelProfileHint: "build"
   M:
-    description: "Standard work that needs analysis context before coding"
+    description: "Standard clear-scope work that benefits from analysis context before coding"
     matchRules:
-      - "small feature, bugfix, refactor, or docs task with non-trivial risk"
-      - "clear scope but more than trivial complexity"
+      - "small or medium feature, bugfix, refactor, docs, or config task with clear scope"
+      - "more than trivial complexity but no real boundary ambiguity or sensitive production/security/compatibility impact"
     minTier: "M"
     maxTier: "M"
     workflowHint: "analysis-context"
@@ -624,10 +627,11 @@ tiers:
     reviewLevel: "standard"
     modelProfileHint: "build"
   L:
-    description: "Complex, cross-cutting, boundary-sensitive, or high-risk work"
+    description: "Complex, cross-cutting, boundary-sensitive, or concretely high-risk work"
     matchRules:
-      - "multi-area or workflow-sensitive change"
-      - "architecture-sensitive or approval-sensitive work"
+      - "multi-area or cross-boundary workflow-sensitive change"
+      - "architecture-sensitive, security-sensitive, production-sensitive, compatibility-sensitive, or approval-sensitive work"
+      - "unclear ownership or real boundary ambiguity"
     minTier: "L"
     maxTier: null
     workflowHint: "analysis-context"
@@ -965,7 +969,7 @@ async function assertStandardOpencodeInstall(projectPath) {
   assertIncludes(doctorOutput, "PASS  OpenCode command surface [standard] advanced-only commands absent");
 
   const continueCommand = await fs.readFile(path.join(projectPath, ".opencode", "commands", "marionettist-continue.md"), "utf8");
-  assertIncludes(continueCommand, "supplemental `risk_score`");
+  assertIncludes(continueCommand, "Supplemental `risk_score`");
   assertIncludes(continueCommand, "must never weaken `gateClass`");
 
   const diffOutput = await harness("diff", "--project", projectPath);
@@ -1355,7 +1359,7 @@ async function assertP1DocsAndTemplateCoverage() {
   assertIncludes(continueCommand, "Use the reviewer’s bounded high-risk two-stage mode when the task or current slice/group is Tier L, high-risk, boundary-sensitive, workflow-sensitive, or critic-required.");
   assertIncludes(continueCommand, "Otherwise use the reviewer’s standard bounded diff-review mode by default.");
   assertIncludes(continueCommand, "route to `marionettist-critic` in `pre-done` mode");
-  assertIncludes(continueCommand, "`risk_score` is stricter supplemental metadata.");
+  assertIncludes(continueCommand, "Supplemental `risk_score` is stricter metadata.");
   assertIncludes(continueCommand, "must never weaken `gateClass`");
   assertIncludes(workflowTemplate, "Review is diff-first and bounded to the current approved slice or group.");
   assertIncludes(workflowTemplate, "The coding agent may perform lightweight self-check");
@@ -1409,10 +1413,10 @@ async function assertP1DocsAndTemplateCoverage() {
   assertExcludes(targetAgentsTemplate, "without any numeric score field");
 
   const opencodeReadmeTemplate = await fs.readFile(path.join(repoRoot, "templates", "pathways", "opencode", "README.md"), "utf8");
-  assertIncludes(opencodeReadmeTemplate, "supplemental `risk_score` does not strengthen the gate");
-  assertIncludes(opencodeReadmeTemplate, "whose supplemental `risk_score` requires a stronger pause than `gateClass` alone");
+  assertIncludes(opencodeReadmeTemplate, "low/moderate-risk `gateClass: standard` slice/group with `risk_score <= 3`");
+  assertIncludes(opencodeReadmeTemplate, "whose supplemental `risk_score` reflects concrete elevated risk");
 
-  assertIncludes(workflowRulesTemplate, "supplemental `risk_score` does not require a stronger pause");
+  assertIncludes(workflowRulesTemplate, "low/moderate-risk `gateClass: standard` slice with `risk_score <= 3`");
 
   assertIncludes(repositoryRulesTemplate, "type: observed | confirmed | target | hard");
   assertIncludes(repositoryRulesTemplate, "confidence: low | medium | high");

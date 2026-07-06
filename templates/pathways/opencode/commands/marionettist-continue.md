@@ -23,10 +23,10 @@ If `gatePolicy.selected` is missing at a decision point and task-local override 
 
 Policy semantics for continuation:
 - `strict`: stop at each required Marionettist gate.
-- `balanced`: preserve analysis and final approval gates; allow continuation only into the next already-approved `gateClass: simple` slice or group when supplemental `risk_score` does not strengthen the gate and no critic gate, explicit stop condition, or missing approval evidence blocks it.
+- `balanced`: preserve analysis and final approval gates; allow continuation into the next already-approved `gateClass: simple` slice/group or low/moderate-risk `gateClass: standard` slice/group with `risk_score <= 3` when no critic gate, explicit stop condition, or missing approval evidence blocks it.
 - `autonomous`: preserve analysis and final approval gates; allow continuation only into the next already-approved `gateClass: simple` or `gateClass: standard` slice or approved parallel group with `risk_score <= 3`, and only when no mandatory stop applies.
 
-`risk_score` is stricter supplemental metadata. Use it together with `gateClass` and `gateReasons` when deciding whether to continue, pause, or escalate. It may only preserve or strengthen required pauses and routing; it must never weaken `gateClass`, critic requirements, explicit gates, final approval, or other mandatory stops.
+Supplemental `risk_score` is stricter metadata. Use it together with `gateClass` and `gateReasons` when deciding whether to continue, pause, or escalate. It may only preserve or strengthen required pauses and routing; it must never weaken `gateClass`, critic requirements, explicit gates, final approval, or other mandatory stops.
 
 Continuation rules:
 - If there is no active task, prompt the user to create one with `/marionettist` or a focused entrypoint such as `/marionettist-dev`, `/marionettist-incident`, `/marionettist-docs`, or `/marionettist-config`.
@@ -42,7 +42,7 @@ Continuation rules:
 - If coding, review, and required validation are complete for critic-gated work, route to `marionettist-critic` in `pre-done` mode before declaring the approved work done. Provide reviewer verdict, validation evidence, changed-file inventory, and state/gate summary; do not ask the critic to redo code review.
 - If review passed but validation has not passed, route to `marionettist-validator`.
 - If the current slice or group is done and the next step is another already-approved slice or group, use the effective gate policy plus that next item's `gateClass`, `risk_score`, and `gateReasons` to decide whether to pause or continue.
-- In `balanced` mode, continue only for `gateClass: simple` slices or groups whose supplemental `risk_score` does not strengthen the gate, and only when no critic-required, explicit gate, or other stop condition applies.
+- In `balanced` mode, continue only for `gateClass: simple` or low/moderate-risk `gateClass: standard` slices or groups with `risk_score <= 3`, and only when no critic-required, explicit gate, or other stop condition applies.
 - In `autonomous` mode, continue only for already-approved next `simple` or `standard` slices or approved parallel groups with `risk_score <= 3`, and only when no mandatory stop applies.
 - In `autonomous` mode, stop for `risk_score >= 4`, `boundary-sensitive`, `high-risk`, critic-required work, explicit gates or stop conditions, protected-area or dangerous-command decisions, analysis-to-coding, and final approval.
 - When pausing or escalating because of risk, explain the controlling `gateClass` and include the relevant `risk_score` and `gateReasons` in the gate explanation.

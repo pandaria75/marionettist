@@ -100,11 +100,11 @@ Use `task-intake` as the default entrypoint for non-trivial repository tasks. Us
 
 When `.marionettist/tier-policy.yml` exists, use it as project-local guidance for Tier descriptions, match-rule language, workflow hints, review hints, and model-profile hints. Keep the executable workflow and all gate behavior anchored to `docs/project/marionettist-workflow.md` and `marionettist.config.yaml` `gatePolicy`.
 
-- **Tier S (Minor)**: Extremely limited scope such as a typo, comment tweak, or one-file low-risk fix.
+- **Tier S (Minor)**: Clearly scoped low-risk work such as a typo, comment tweak, docs-only correction, small test/config adjustment, or localized one-file fix with no boundary ambiguity.
   - *Flow*: Skip `.task/` documents and analysis skills. Proceed directly to coding, followed by review.
 - **Tier M (Standard)**: Small features, bugfixes, refactors, or documentation tasks with clear scope but more than trivial risk.
   - *Flow*: Analysis plus task-scoped `.task/<task-id>/context-pack.md`. `requirement-freezer` is optional and only used when behavior or business rules are unclear.
-- **Tier L (Complex)**: Large features, sensitive refactors, multi-module work, workflow-sensitive changes, or tasks with boundary ambiguity.
+- **Tier L (Complex)**: Large features, sensitive refactors, multi-module or cross-boundary work, compatibility/security/production-sensitive changes, or tasks with real boundary ambiguity.
   - *Flow*: Full Marionettist flow (intake -> freezer when needed -> inspection -> slicer -> context-pack).
 
 Use `task-intake` when:
@@ -143,10 +143,10 @@ For non-trivial work, the default Marionettist flow is:
 
 When `marionettist.config.yaml` defines `gatePolicy`, use it as the local default gate posture:
 - `strict`: stop at the analysis-to-coding gate and after every approved coding slice or approved parallel group
-- `balanced`: preserve the analysis gate and final approval by default; allow continuation only for already-approved slices whose frozen `gateClass` and supplemental `risk_score` do not require a stronger stop, and only when the approved plan and current policy explicitly permit that continuation
+- `balanced`: preserve the analysis gate and final approval by default; allow continuation for already-approved `simple` slices and low/moderate-risk `standard` slices with `risk_score <= 3`, and only when the approved plan and current policy explicitly permit that continuation and no mandatory stop applies
 - `autonomous`: preserve the analysis gate and final approval by default; allow continuation only for already-approved next slices or approved parallel groups whose frozen `gateClass` is `simple` or `standard`, whose supplemental `risk_score` is `3` or lower, and for which no mandatory stop applies; still stop mid-task for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, explicit gates or stop conditions, protected-area or dangerous-command work, or any slice whose supplemental `risk_score` requires a stronger pause than `gateClass` alone
 
-Template default is `gatePolicy.defaultMode: balanced` for general usability, but Tier L or otherwise high-risk work should recommend `strict` unless the user explicitly chooses a different policy.
+Template default is `gatePolicy.defaultMode: balanced` for general usability. Tier L or otherwise high-risk work may recommend `strict`, but an explicit task-local `gatePolicy.selected` value remains controlling for continuation posture and must not be overwritten by the recommendation.
 
 When task-local artifacts record `gatePolicy.selected`, that selected mode wins for the current task over `gatePolicy.defaultMode`. Treat `defaultMode` as fallback posture only when no task-local selection exists. Treat `recommended` values from tier hints or task artifacts as advisory only; they must not override an explicit selected mode.
 
@@ -166,7 +166,7 @@ For this workflow, the `gateClass` vocabulary is intentionally frozen to `simple
 
 `risk_score` is supplemental per-slice gate metadata with an integer range from `1` to `5`. It does not replace `gateClass`, does not invent new gate classes, and may only preserve or strengthen required pauses relative to `gateClass`, critic requirements, explicit gate reasons, and explicit stop conditions.
 
-Treat these as common higher-risk inputs when assigning or explaining `risk_score`: database schema updates, permissions or security logic, device communication, scheduling, public APIs, build scripts, code deletion, dependency upgrades, and production configuration.
+Treat these as common higher-risk inputs when assigning or explaining `risk_score`: database schema updates, permissions or security logic, device communication, scheduling, externally committed public API compatibility, build or release scripts, code deletion, dependency upgrades, and production configuration. Ordinary bounded `standard` slices should usually remain `risk_score` 2-3 unless the slice itself has concrete elevated safety, compatibility, production, data, security, reversibility, or validation risk.
 
 The agent may continue through small steps inside the analysis phase without pausing after each one.
 For bug fixes, the analysis phase is complete once a failing test case or clear reproduction steps are confirmed.
@@ -190,6 +190,14 @@ For continuation decisions, apply policy precedence in this order:
 1. explicit user instruction and task-local `gatePolicy.selected` for the current task
 2. repository `gatePolicy.defaultMode` as fallback when no task-local selection exists
 3. `recommended` values from tier hints or task artifacts as advisory context only
+
+Under selected `balanced`, the agent may continue to the next already-approved slice or approved parallel group without extra slice confirmation only when all of the following are true:
+- the next approved work has frozen `gateClass: simple` or `gateClass: standard`
+- the next approved work has `risk_score <= 3`
+- no critic is required for that next approved work
+- no explicit gate reason, stop condition, protected-area decision, or dangerous command requires a pause
+- no required approval evidence is missing
+- the analysis-to-coding gate has already been crossed with explicit approval
 
 Under selected `autonomous`, the agent may continue to the next already-approved slice or approved parallel group without extra slice confirmation only when all of the following are true:
 - the next approved work has frozen `gateClass: simple` or `gateClass: standard`

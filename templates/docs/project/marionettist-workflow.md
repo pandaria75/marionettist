@@ -8,9 +8,9 @@ When `marionettist.config.yaml` exists, read `knowledge.mode` and `knowledge.mat
 
 This project uses a branched Marionettist workflow based on task complexity:
 
-1. **Tier S (Minor)**: Skip `.task/` documents and gates. Direct coding and review.
+1. **Tier S (Minor)**: Clearly scoped localized low-risk work. Skip `.task/` documents and gates. Direct coding and review.
 2. **Tier M (Standard)**: Analysis plus task-scoped `.task/<task-id>/context-pack.md` before coding. `requirement-freezer` is optional and only used when behavior or business rules are unclear.
-3. **Tier L (Complex)**: Full mandatory Marionettist flow with analysis, approved slice execution, automatic slice review, and finalization.
+3. **Tier L (Complex)**: Large, cross-boundary, compatibility/security/production-sensitive, or genuinely ambiguous work. Full mandatory Marionettist flow with analysis, approved slice execution, automatic slice review, and finalization.
 
 For Tier M and L, the agent must complete phases in order. They must not automatically cross the analysis gate, and they must not automatically cross an inter-slice gate unless the selected gate policy explicitly permits that continuation and no mandatory stop applies.
 
@@ -39,7 +39,7 @@ gatePolicy:
 Mode semantics:
 
 - `strict`: stop at the analysis-to-coding gate and after every approved coding slice or approved parallel group.
-- `balanced`: preserve the analysis gate and final approval by default; allow continuation only for already-approved slices whose frozen `gateClass` and supplemental `risk_score` do not require a stronger stop, and only when the approved plan and selected policy explicitly permit that continuation.
+- `balanced`: preserve the analysis gate and final approval by default; allow continuation for already-approved `simple` slices and low/moderate-risk `standard` slices with `risk_score <= 3`, and only when the approved plan and selected policy explicitly permit that continuation and no mandatory stop applies.
 - `autonomous`: preserve the analysis gate and final approval by default; allow continuation only for already-approved next slices or approved parallel groups whose frozen `gateClass` is `simple` or `standard`, whose supplemental `risk_score` is `3` or lower, and for which no mandatory stop applies; still stop mid-task for `gateClass: high-risk`, `gateClass: boundary-sensitive`, critic-required, explicit gates or stop conditions, protected-area or dangerous-command work, or any slice whose supplemental `risk_score` requires a stronger pause than `gateClass` alone.
 
 `allowTaskOverride: true` means task-local artifacts may choose a different gate mode than `defaultMode` for that task. It does not let task-local artifacts bypass higher-priority user instructions, required analysis gates, required final approval, or any other explicit stop condition in this workflow.
@@ -54,7 +54,7 @@ Policy precedence for the current task is:
 
 In other words, `defaultMode` sets repository default posture, not an override of a selected task policy. A `recommended` value may explain why `strict` is safer for a task, but it must not replace an explicit task-local `selected` mode.
 
-Template default is `balanced` for general target-project usability. Tier L or otherwise high-risk tasks should recommend `strict` unless the user explicitly chooses a different policy.
+Template default is `balanced` for general target-project usability. Tier L or otherwise high-risk tasks may recommend `strict`, but an explicit task-local `gatePolicy.selected` value remains controlling for continuation posture and must not be overwritten by the recommendation.
 
 `gatePolicy` does not replace normal stop conditions. Human confirmation is still required for protected-area changes, requirement ambiguity, compatibility tradeoffs, or any other explicitly blocked decision.
 
@@ -71,13 +71,13 @@ For this workflow, `gateClass` is a non-replaced hint vocabulary frozen to:
 
 - `1`: very low additional risk signal
 - `2`: low additional risk signal
-- `3`: moderate additional risk signal
-- `4`: elevated additional risk signal
+- `3`: moderate additional risk signal; common for bounded `standard` slices
+- `4`: elevated additional risk signal; use only when concrete risk or uncertainty requires a stronger pause
 - `5`: highest additional risk signal
 
 `risk_score` does not replace `gateClass`, invent new gate classes, or weaken any pause that `gateClass`, critic requirements, or explicit gate reasons already require.
 
-Use `risk_score` only to preserve or strengthen the safer pause behavior relative to `gateClass`. If the numeric score indicates higher risk than `gateClass` alone, agents must keep the stricter stop.
+Use `risk_score` only to preserve or strengthen the safer pause behavior relative to `gateClass`. Do not inflate `risk_score` merely because work is non-trivial; ordinary bounded `standard` slices should usually remain at 2-3 unless concrete elevated impact, reversibility concern, or validation uncertainty exists. If the numeric score indicates higher risk than `gateClass` alone, agents must keep the stricter stop.
 
 Treat these as common higher-risk inputs when assigning or explaining `risk_score`:
 
@@ -85,13 +85,13 @@ Treat these as common higher-risk inputs when assigning or explaining `risk_scor
 - permissions or security logic
 - device communication
 - scheduling
-- public APIs
-- build scripts
+- externally committed public API compatibility
+- build or release scripts
 - code deletion
 - dependency upgrades
 - production configuration
 
-In `balanced` mode, continuation remains limited to already-approved slices whose frozen `gateClass` and supplemental `risk_score` both support continuation, and only when no explicit gate reason or task instruction requires a pause.
+In `balanced` mode, continuation remains limited to already-approved `simple` slices and low/moderate-risk `standard` slices with `risk_score <= 3`, and only when no explicit gate reason or task instruction requires a pause.
 
 In selected `autonomous` mode, continuation to the next already-approved slice or approved parallel group is allowed without extra slice confirmation only when all of the following are true:
 
@@ -334,7 +334,7 @@ If instructions conflict, the agent must follow the Marionettist gates unless th
 
 ## Trivial Task Exception (Tier S)
 
-A task is Tier S only if it is a single low-risk change with clear scope, no boundary ambiguity, no workflow impact, and no need for task documents. If any of those conditions is not clearly true, treat the task as non-trivial.
+A task may be Tier S when it is clearly scoped, localized, low-risk, and has no boundary ambiguity, compatibility concern, workflow impact, or need for task documents. It may include small docs-only corrections, typo/comment fixes, small tests or examples, harmless config text changes, or a localized one-file fix. If those low-risk conditions are not clearly true, treat the task as non-trivial.
 
 ## Agent Automation
 

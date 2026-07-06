@@ -19,10 +19,11 @@ schemaVersion: "1"
 
 tiers:
   S:
-    description: "Minor, low-risk work with clear scope and no boundary ambiguity"
+    description: "Clearly scoped localized low-risk work with no boundary ambiguity"
     matchRules:
-      - "single low-risk change"
-      - "clear scope with no workflow impact"
+      - "single or very small localized low-risk change"
+      - "typo, comment, docs-only correction, small test/example update, or harmless config text change"
+      - "clear scope with no workflow, compatibility, security, production, or boundary impact"
     minTier: null
     maxTier: "S"
     workflowHint: "direct"
@@ -31,10 +32,10 @@ tiers:
     modelProfileHint: "build"
 
   M:
-    description: "Standard work that needs analysis context before coding"
+    description: "Standard clear-scope work that benefits from analysis context before coding"
     matchRules:
-      - "small feature, bugfix, refactor, or docs task with non-trivial risk"
-      - "clear scope but more than trivial complexity"
+      - "small or medium feature, bugfix, refactor, docs, or config task with clear scope"
+      - "more than trivial complexity but no real boundary ambiguity or sensitive production/security/compatibility impact"
     minTier: "M"
     maxTier: "M"
     workflowHint: "analysis-context"
@@ -43,10 +44,11 @@ tiers:
     modelProfileHint: "build"
 
   L:
-    description: "Complex, cross-cutting, boundary-sensitive, or high-risk work"
+    description: "Complex, cross-cutting, boundary-sensitive, or concretely high-risk work"
     matchRules:
-      - "multi-area or workflow-sensitive change"
-      - "architecture-sensitive or approval-sensitive work"
+      - "multi-area or cross-boundary workflow-sensitive change"
+      - "architecture-sensitive, security-sensitive, production-sensitive, compatibility-sensitive, or approval-sensitive work"
+      - "unclear ownership or real boundary ambiguity"
     minTier: "L"
     maxTier: null
     workflowHint: "full-marionettist"
