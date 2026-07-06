@@ -29,3 +29,9 @@
 - Status: accepted for next stage
 - Decision: Marionettist's long-term direction is a broader Agent Workflow Harness for coding, writing, research, and ops families.
 - Rationale: The Harness concepts are broader than coding, but each family must be validated before implementation.
+
+## ADR-006: Treat current Marionettist maturity as the baseline; use next stage for short-term advancement and long-term evidence
+
+- Status: accepted for next stage
+- Decision: Next-stage planning should assume Marionettist is already practically mature enough to continue real work now, use Quill dogfooding for short-term advancement and gradual bug discovery, and reserve long-term architecture changes for evidence-backed decisions.
+- Rationale: Marionettist has already been used for a long time, no major blocking defects are currently known, and the mid-term Harness capability set already exists. The real planning need is clearer short-term execution plus clearer long-term evidence thresholds, not a reset to first-proof thinking.

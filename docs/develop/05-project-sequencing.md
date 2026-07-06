@@ -4,6 +4,8 @@
 
 Quill MVP is the mainline. Marionettist optimization is the feedback loop. Pi plugin work is a parallel experiment. Shared foundation is a delayed abstraction, not a current prerequisite.
 
+This sequencing assumes Marionettist already has a stable enough mid-term Harness baseline to support forward motion now. The short-term need is not to re-prove basic viability, but to use real work to advance Quill, surface small issues, and collect evidence for later long-term decisions.
+
 ## Operating rules
 
 1. Use `marionettist-pathway-opencode` to develop Quill.
@@ -25,46 +27,47 @@ See `01-quill-dogfooding-plan.md` for the detailed feedback protocol, required i
 
 ## Sequence
 
-- Phase 0: synchronize Marionettist docs and roadmap.
-- Phase 1: use `marionettist-pathway-opencode` to develop Quill MVP.
-- Phase 2: create `feature/pi-plugin-adapter` and validate a minimal Pi adapter in parallel.
-- Phase 3: after Quill produces 2-3 real articles, collect workflow / artifact / checkpoint lessons.
-- Phase 4: evaluate whether stable mechanisms should feed back into Marionettist.
-- Phase 5: decide whether to extract a shared foundation.
+- Phase 0: synchronize Marionettist docs and roadmap so short-term and long-term direction are explicit.
+- Phase 1: use the existing Marionettist/OpenCode baseline to keep Quill MVP advancing.
+- Phase 2: fix only genuinely blocking Marionettist problems immediately; record non-blocking friction for gradual follow-up.
+- Phase 3: create `feature/pi-plugin-adapter` and validate a minimal Pi adapter in parallel without changing the Quill mainline.
+- Phase 4: after Quill produces 2-3 real articles, collect workflow / artifact / checkpoint lessons from actual use.
+- Phase 5: evaluate whether stable mechanisms should feed back into Marionettist long-term direction.
+- Phase 6: decide later whether any shared foundation is justified.
 
 ```mermaid
 flowchart TD
-    A[Current state] --> B{Project priority decision}
+    A[Current baseline\nMarionettist already practical\nMid-term Harness exists] --> B{Which track?}
 
-    B --> C[Quill just started\nGoal: build MVP first]
-    B --> D[Marionettist already advanced\nGoal: optimize through real validation]
-    B --> E[Pi plugin is worth parallel exploration\nGoal: validate new platform adapter]
+    B --> C[Short-term mainline\nAdvance Quill MVP now]
+    B --> D[Existing mid-term baseline\nRefine Marionettist through real use]
+    B --> E[Parallel experiment\nPi adapter stays isolated]
+    B --> F[Long-term evolution\nEvidence-gated only]
 
-    C --> C1[Use marionettist-pathway-opencode for Quill]
-    C1 --> C2[Build Quill MVP skeleton\nCLI / docs / workflow / style profile]
-    C2 --> C3[Run article generation chain\nbrief -> outline -> draft -> review -> final]
-    C3 --> C4[Write 2-3 real articles]
-    C4 --> C5[Improve Quill from feedback]
+    C --> C1[Use marionettist-pathway-opencode for Quill development]
+    C1 --> C2[Build and iterate Quill MVP\nCLI / docs / workflow / style profile]
+    C2 --> C3[Run article workflow\nbrief -> sources -> outline -> draft -> review -> final]
+    C3 --> C4[Keep Quill moving while collecting feedback]
 
-    D --> D1[Develop Quill with Marionettist]
+    D --> D1[Use current Harness baseline in real Quill work]
     D1 --> D2{Harness issue found?}
-    D2 -->|Blocks Quill MVP| D3[Fix Harness immediately]
-    D2 -->|Non-blocking but painful| D4[Record Marionettist issue]
-    D2 -->|Architecture idea| D5[Delay until after Quill MVP]
+    D2 -->|Blocks accepted Quill progress| D3[Fix minimal blocker immediately]
+    D2 -->|Non-blocking friction| D4[Record issue and continue]
+    D2 -->|Architecture idea| D5[Capture for later evaluation]
 
     E --> E1[Create Pi plugin branch]
-    E1 --> E2[Build only plugin scaffold and minimal adapter]
-    E2 --> E3[Validate whether Pi suits long-term iteration]
-    E3 --> E4{Mature enough?}
-    E4 -->|Yes| E5[Merge into Marionettist mainline]
-    E4 -->|No| E6[Keep experimental branch; do not affect mainline]
+    E1 --> E2[Build minimal plugin scaffold / adapter only]
+    E2 --> E3[Keep Pi experimental and separate from mainline]
 
-    C5 --> F{Is Quill MVP stable?}
-    F -->|No| C2
-    F -->|Yes| G[Extract stable patterns\nworkflow / artifact / checkpoint / model role]
+    C4 --> G{Quill MVP stable enough\nfor stronger evidence?}
+    G -->|Not yet| C2
+    G -->|Yes| H[Collect repeated workflow / artifact / checkpoint lessons]
 
-    G --> H{Need shared foundation?}
-    H -->|Not yet| I[Let Quill keep evolving independently]
-    H -->|Repeated mechanisms are stable| J[Feed back into Marionettist]
-    J --> K[Marionettist becomes broader Agent Workflow Harness]
+    H --> F
+    F --> I{Are mechanisms repeated\nand boundaries stable?}
+    I -->|No| J[Keep shared foundation deferred]
+    I -->|Yes| K[Feed validated patterns back into Marionettist direction]
+    K --> L[Broaden toward Agent Workflow Harness over time]
 ```
+
+The long-term branch is intentionally evidence-gated. Pi remains experimental, and shared foundation work stays deferred unless repeated mechanisms survive real use across more than one workflow context.

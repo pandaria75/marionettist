@@ -4,6 +4,8 @@
 
 Quill is a local-first workflow CLI for high-quality content production. Marionettist is the development harness used to build Quill, not a runtime dependency for Quill MVP.
 
+Quill is not being used to prove that Marionettist is usable at all. Marionettist already has long-running practical use. Instead, Quill provides a fresh pressure field for discovering smaller bugs, workflow friction, missing polish, and non-coding workflow evidence under real project conditions.
+
 ## Quill MVP mainline
 
 The Quill MVP should focus on a usable article-generation chain:
@@ -20,6 +22,7 @@ The MVP should establish a practical CLI, minimal docs, workflow shape, style pr
 - Use OpenCode Pathway commands and agents to plan, implement, review, repair, and validate Quill tasks.
 - Treat Marionettist artifacts as development harness evidence, not as Quill runtime data.
 - Record Harness pain points discovered during Quill work.
+- Use Quill work to show where the current Harness is already sufficient and where gradual refinement is worth doing.
 
 ## Roadmap and decision anchors
 
@@ -42,6 +45,8 @@ When Quill development exposes Marionettist issues, classify them as:
 | `architecture-idea` | Improves design but is not needed for MVP | Record for later evaluation |
 | `future-work` | Useful after Quill MVP stabilizes | Track in future roadmap |
 
+This classification exists to keep feedback proportional. A rough edge discovered during Quill work is not automatically evidence that Marionettist is immature or blocked; many findings should remain narrow, incremental improvements.
+
 ## Feedback recording protocol
 
 Every Marionettist issue found during Quill work should become a GitHub issue or a consciously deferred note with the same minimum fields:
@@ -58,9 +63,13 @@ Every Marionettist issue found during Quill work should become a GitHub issue or
 
 When evidence is weak, record the uncertainty instead of upgrading it to a blocker. When evidence is strong, keep the report narrow enough to restore Quill progress without silently expanding into unrelated Marionettist redesign.
 
+Quill should also produce positive evidence: which existing task flows, review gates, artifact practices, and validation habits already work well enough in a non-coding workflow context. That evidence matters because the current stage is about refinement and extension, not first-time viability proof.
+
 ## Blocker triage rules
 
 Treat a problem as `blocking` only when it directly prevents Quill MVP progress under the accepted next-stage constraints in `00-next-stage-vision.md` and `08-decision-record.md`.
+
+Default toward `non-blocking` unless the problem clearly stops accepted Quill progress. This keeps small bugs and friction visible without turning them into artificial platform crises.
 
 ### Fix Marionettist immediately when the issue:
 
@@ -84,6 +93,8 @@ If a Harness issue blocks Quill MVP, Marionettist work takes priority until the 
 
 Non-blocking issues should become GitHub issues with the protocol fields above, including affected workflow stage, reproduction/evidence, workaround, and explicit triage decision.
 
+Non-blocking issues are expected output from dogfooding. The intent is to create a steady improvement loop while Quill continues moving, not to pause roadmap progress until every rough edge disappears.
+
 ## Triage outcomes by class
 
 - `blocking`: fix the smallest Marionettist problem that unblocks Quill, then continue Quill MVP work.
@@ -103,3 +114,5 @@ Quill may later provide evidence for stable primitives such as:
 - run logs for dogfooding projects.
 
 These patterns should feed back only after real Quill usage proves they are stable.
+
+Until then, Quill remains evidence for development-harness refinement and future workflow-family design, while Quill MVP runtime stays independent from Marionettist.

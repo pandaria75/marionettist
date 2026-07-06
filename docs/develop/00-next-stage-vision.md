@@ -4,13 +4,15 @@ This document records the next-stage direction for Marionettist after the curren
 
 ## Current status
 
-Marionettist is already a practical agent harness for coding work. It provides repository-local rules, task context, checkpoints, review gates, validators, model-role configuration, and safe framework-managed updates.
+Marionettist is already a practical, long-used agent harness for coding work. It provides repository-local rules, task context, checkpoints, review gates, validators, model-role configuration, and safe framework-managed updates.
+
+The current baseline is not a greenfield prototype waiting for first proof. The Harness is already usable, the mid-term capability set is already substantial, and no large blocking defects are currently known. Small bugs and workflow rough edges should still be expected, but they can be tracked, triaged, and fixed gradually through normal dogfooding work.
 
 The project was previously known as `universal-ai-harness-framework`. The current repository and package identity are `marionettist`, with OpenCode as the first documented Pathway.
 
 ## Next-stage positioning
 
-Marionettist should evolve from a coding-focused harness into an **Agent Workflow Harness**: a shared foundation for disciplined agent workflows across coding, writing, research, and operations.
+Marionettist should keep extending from a coding-focused harness toward an **Agent Workflow Harness**: a broader direction for disciplined agent workflows across coding, writing, research, and operations.
 
 This does not mean using the most expensive model for every task or building a heavy platform. The preferred direction is:
 
@@ -20,11 +22,33 @@ This does not mean using the most expensive model for every task or building a h
 - constrain and enhance multiple agent platforms through Harness conventions;
 - dogfood the Harness on real projects before abstracting.
 
+## Progress framing for this stage
+
+### Short-term focus
+
+- Keep Quill MVP as the mainline pressure field for near-term progress.
+- Use real Quill work to discover small Marionettist bugs, friction, and missing polish.
+- Fix Marionettist issues immediately only when they actually block Quill MVP progress.
+- Record non-blocking issues, workflow pain points, and architecture ideas without treating them as evidence of overall immaturity.
+
+### Existing mid-term foundation
+
+- Marionettist already has a meaningful Harness baseline: task intake, artifacts, review gates, validators, role/model configuration, and framework-managed updates.
+- The next stage builds on that foundation rather than re-proving it from scratch.
+- Quill dogfooding should refine and extend this baseline with better evidence, not reset roadmap confidence.
+
+### Long-term direction
+
+- Broaden Marionettist toward workflow families beyond coding when real evidence supports it.
+- Use Quill and later projects to clarify which workflow/artifact/checkpoint/review primitives are truly reusable.
+- Keep shared-foundation decisions evidence-gated until repeated patterns and stable boundaries are clear.
+
 ## Next-stage goals
 
 - Continue improving the existing Harness where it directly supports real work.
 - Use Quill as a real dogfooding project for the OpenCode Pathway.
-- Fix Marionettist issues that block Quill MVP immediately.
+- Advance short-term execution without overstating short-term bugs as platform blockers.
+- Build on the existing mid-term Harness foundation while collecting long-term workflow-family evidence.
 - Explore a Pi plugin adapter in parallel without blocking Quill.
 - Collect evidence for a future shared foundation, but do not implement that foundation prematurely.
 
@@ -35,6 +59,8 @@ This does not mean using the most expensive model for every task or building a h
 - It does not refactor Marionettist into a heavy all-in-one workflow platform.
 - It does not mix writing-workflow business logic into coding workflows.
 - It does not treat future architecture goals as already implemented.
+- It does not portray Marionettist as blocked on major defects before forward progress can continue.
+- It does not commit the project to shared-foundation extraction before evidence exists.
 
 ## Why Quill matters
 
