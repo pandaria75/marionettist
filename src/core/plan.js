@@ -72,6 +72,7 @@ async function buildFrameworkAssets(projectPath, options = {}) {
     const templateContent = await readText(resolvedSource.sourcePath);
     const renderState = buildFrameworkAssetRenderState(sourceRelative, variables, {
       modelProfilesState,
+      marionettistLanguageState: options.marionettistLanguageState,
       distributionModeState: options.distributionModeState,
       opencodeCommandSurfaceState: options.opencodeCommandSurfaceState,
       opencodePermissionModeState: options.opencodePermissionModeState,
@@ -478,6 +479,33 @@ async function resolveDistributionModeState(projectPath, previousManifest, optio
   };
 }
 
+async function resolveMarionettistLanguageState(projectPath, options = {}) {
+  const explicitValue = normalizeConfiguredStringValue(options.variables?.marionettistLanguage);
+  const configuredValue = await readConfiguredMarionettistLanguage(projectPath);
+
+  if (explicitValue !== null) {
+    return {
+      value: explicitValue,
+      source: "prompt",
+      persistToConfig: true
+    };
+  }
+
+  if (configuredValue.value !== null) {
+    return {
+      value: configuredValue.value,
+      source: "config",
+      persistToConfig: true
+    };
+  }
+
+  return {
+    value: null,
+    source: null,
+    persistToConfig: false
+  };
+}
+
 async function resolveOpencodeSurfaceAndPermissionState(projectPath, previousManifest, options = {}) {
   const configuredCommandSurface = await readConfiguredOpencodeCommandSurface(projectPath);
   const configuredPermissionMode = await readConfiguredOpencodePermissionMode(projectPath);
@@ -736,6 +764,21 @@ async function readConfiguredDistributionMode(projectPath) {
   }
 }
 
+export async function readConfiguredMarionettistLanguage(projectPath) {
+  const configPath = path.join(projectPath, projectConfigRelative);
+  if (!(await pathExists(configPath))) {
+    return { value: null, rawValue: null };
+  }
+
+  try {
+    const parsed = parseSimpleYaml(await readText(configPath));
+    const value = normalizeConfiguredStringValue(parsed?.marionettist?.language);
+    return { value, rawValue: parsed?.marionettist?.language ?? null };
+  } catch {
+    return { value: null, rawValue: null };
+  }
+}
+
 async function readProjectIdentityFromConfig(projectPath) {
   const configPath = path.join(projectPath, projectConfigRelative);
   if (!(await pathExists(configPath))) {
@@ -771,6 +814,10 @@ function readNestedProperty(value, pathSegments = []) {
 }
 
 function normalizeProjectIdentityConfigValue(value) {
+  return normalizeConfiguredStringValue(value);
+}
+
+function normalizeConfiguredStringValue(value) {
   if (typeof value !== "string") {
     return null;
   }
@@ -863,7 +910,10 @@ function renderProjectConfigWithSelections(content, states = {}) {
 function buildFrameworkAssetRenderState(sourceRelative, variables, states = {}) {
   if (sourceRelative === "marionettist.config.yaml") {
     return {
-      variables,
+      variables: {
+        ...variables,
+        marionettistLanguage: states.marionettistLanguageState?.value ?? null
+      },
       renderContext: {
         harnessConfigSelections: buildHarnessConfigRenderSelections(states)
       }
@@ -876,8 +926,25 @@ function buildFrameworkAssetRenderState(sourceRelative, variables, states = {}) 
   };
 }
 
+function buildMarionettistLanguageRenderBlock(marionettistLanguageState = {}) {
+  if (!marionettistLanguageState?.persistToConfig || !marionettistLanguageState.value) {
+    return "";
+  }
+
+  return `marionettist:\n  language: "${marionettistLanguageState.value}"`;
+}
+
 function buildHarnessConfigRenderSelections(states = {}) {
   return {
+    marionettistLanguageState: states.marionettistLanguageState?.persistToConfig
+      ? {
+        value: states.marionettistLanguageState.value,
+        persistToConfig: true
+      }
+      : {
+        value: null,
+        persistToConfig: false
+      },
     distributionModeState: states.distributionModeState?.persistToConfig
       ? {
         value: states.distributionModeState.value,
@@ -918,6 +985,16 @@ function buildHarnessConfigRenderSelections(states = {}) {
 }
 
 function finalizeFrameworkAssetRender({ content, renderContext }) {
+  if (content.includes("__MARIONETTIST_LANGUAGE_BLOCK__")) {
+    const marionettistLanguageBlock = buildMarionettistLanguageRenderBlock(
+      renderContext?.harnessConfigSelections?.marionettistLanguageState
+    );
+    content = content.replace(
+      /\n__MARIONETTIST_LANGUAGE_BLOCK__\n\n/u,
+      marionettistLanguageBlock ? `\n${marionettistLanguageBlock}\n\n` : "\n"
+    );
+  }
+
   if (renderContext?.harnessConfigSelections) {
     return renderProjectConfigWithSelections(content, renderContext.harnessConfigSelections);
   }
@@ -1116,6 +1193,7 @@ export async function buildPlan(projectPath, mode, options = {}) {
 
   const previousByPath = manifestFileMap(previousManifest);
   const operations = [];
+  const marionettistLanguageState = await resolveMarionettistLanguageState(projectPath, options);
   const distributionModeState = await resolveDistributionModeState(projectPath, previousManifest, options, mode);
   const opencodeCommandSurfaceState = await resolveOpencodeSurfaceAndPermissionState(projectPath, previousManifest, options);
   const opencodePermissionModeState = {
@@ -1130,6 +1208,7 @@ export async function buildPlan(projectPath, mode, options = {}) {
   };
   const assets = await buildFrameworkAssets(projectPath, {
     ...options,
+    marionettistLanguageState,
     includeOpencode: opencodeCommandSurfaceState.includeOpencode,
     distributionModeState,
     opencodeCommandSurfaceState,
@@ -1179,5 +1258,5 @@ export async function buildPlan(projectPath, mode, options = {}) {
     manifest
   });
 
-  return { version, previousManifest, manifest, operations, distributionModeState, opencodeCommandSurfaceState, opencodePermissionModeState, opencodePluginSourceState };
+  return { version, previousManifest, manifest, operations, marionettistLanguageState, distributionModeState, opencodeCommandSurfaceState, opencodePermissionModeState, opencodePluginSourceState };
 }

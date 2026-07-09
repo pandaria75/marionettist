@@ -19,6 +19,7 @@ Output:
 `.task/<task-id>/context-pack.md`, where `<task-id>` is read from `.task/active.json`.
 
 Requirements:
+- When `marionettist.config.yaml` exists, read `marionettist.language` early and use it for Marionettist user-facing communication only; support `en` and `zh-CN`, fall back to `en` when absent or unknown unless a higher-priority local safety instruction for that Marionettist interaction explicitly requires another language, and preserve identifiers, file paths, YAML keys, command names, and quoted user text.
 - Keep the context pack compact.
 - Include only what is needed for the current coding slice.
 - Include visible gate policy state when available: config `defaultMode`, recommended policy, selected policy, effective policy, and `finalApprovalRequired`.

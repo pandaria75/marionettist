@@ -7,6 +7,8 @@ Read `.task/active.json` first, then read `.task/<task-id>/state.json` if an act
 
 When available, also read `marionettist.config.yaml` so gate policy can be reported with its config `defaultMode`. Treat Marionettist gate policy separately from OpenCode permission settings.
 
+When `marionettist.config.yaml` exists, also read `marionettist.language` early and use it for Marionettist user-facing communication only. Support `en` and `zh-CN`; fall back to `en` when the value is absent or unknown unless a higher-priority local safety instruction for that Marionettist interaction explicitly requires another language. Preserve identifiers, file paths, YAML keys, command names, and quoted user text.
+
 Output only the current task status. Do not modify files and do not code.
 
 If no active task exists, tell the user to start with one of:

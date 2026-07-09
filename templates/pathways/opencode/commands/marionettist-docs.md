@@ -12,6 +12,7 @@ Task:
 $2
 
 Requirements:
+- When `marionettist.config.yaml` exists, read `marionettist.language` early and use it for Marionettist user-facing communication only; support `en` and `zh-CN`, fall back to `en` when absent or unknown unless a higher-priority local safety instruction for that Marionettist interaction explicitly requires another language, and preserve identifiers, file paths, YAML keys, command names, and quoted user text.
 - Treat this as the normal-user docs wrapper.
 - Prefer docs-oriented routing unless another workflow is clearly a better fit.
 - Explain the selected workflow in one concise sentence, including any required gate before acting or delegating.

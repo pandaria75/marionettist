@@ -1,29 +1,51 @@
 import { confirm, input, select } from "@inquirer/prompts";
 
-export async function promptConfig(defaultProjectName, options = {}) {
-  const projectName = await input({
+export const marionettistLanguageChoices = [
+  {
+    name: "English (en)",
+    value: "en",
+  },
+  {
+    name: "中文 (zh-CN)",
+    value: "zh-CN",
+  },
+];
+
+export function getMarionettistLanguageGuideText(language) {
+  if (language === "zh-CN") {
+    return "Marionettist 将使用中文提供 Marionettist CLI 引导和 agent 回复。";
+  }
+
+  return "Marionettist will use English for Marionettist CLI guidance and agent replies.";
+}
+
+export async function promptConfig(defaultProjectName, options = {}, promptAdapters = {}) {
+  const promptInput = promptAdapters.input ?? input;
+  const promptSelect = promptAdapters.select ?? select;
+
+  const projectName = await promptInput({
     message: "Project Name:",
     default: defaultProjectName,
   });
 
-  const projectType = await input({
+  const projectType = await promptInput({
     message: "Project Type (e.g., web, library, api):",
     default: options.projectType ?? "unknown",
   });
 
-  const architecture = await input({
+  const architecture = await promptInput({
     message: "Architecture (e.g., monolith, microservices):",
     default: options.architecture ?? "unknown",
   });
 
-  const primaryLanguage = await input({
+  const primaryLanguage = await promptInput({
     message: "Primary Language:",
     default: options.primaryLanguage ?? "unknown",
   });
 
   const knowledgeMode = options.skipKnowledgeModePrompt
     ? options.knowledgeMode
-    : await select({
+    : await promptSelect({
       message: "Knowledge Mode:",
       default: options.knowledgeMode ?? "standard",
       choices: [
@@ -40,7 +62,7 @@ export async function promptConfig(defaultProjectName, options = {}) {
 
   const knowledgeMaturity = options.skipKnowledgeMaturityPrompt
     ? options.knowledgeMaturity
-    : await select({
+    : await promptSelect({
       message: "Knowledge Maturity:",
       default: options.knowledgeMaturity ?? "L1",
       choices: [
@@ -67,6 +89,15 @@ export async function promptConfig(defaultProjectName, options = {}) {
       ],
     });
 
+  const marionettistLanguageWasSelected = !options.skipMarionettistLanguagePrompt;
+  const marionettistLanguage = options.skipMarionettistLanguagePrompt
+    ? options.marionettistLanguage ?? null
+    : await promptSelect({
+      message: "Marionettist Language:",
+      default: "en",
+      choices: marionettistLanguageChoices,
+    });
+
   return {
     projectName,
     projectType,
@@ -74,6 +105,8 @@ export async function promptConfig(defaultProjectName, options = {}) {
     primaryLanguage,
     knowledgeMode,
     knowledgeMaturity,
+    marionettistLanguage,
+    marionettistLanguageWasSelected,
   };
 }
 

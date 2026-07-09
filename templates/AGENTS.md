@@ -45,6 +45,8 @@ Docs are read on demand. Do not load all docs by default.
 
 Use `docs/project/knowledge-map.md` as a routing guide, not as a code index or a reason to load all docs.
 
+When `marionettist.config.yaml` exists, Marionettist-related agents and commands should read `marionettist.language` early and use it only for Marionettist user-facing communication. Support `en` and `zh-CN`; fall back to `en` when the value is absent or unknown unless a higher-priority local safety instruction for that Marionettist interaction explicitly requires another language. Do not turn this into a project-wide language rule, and do not translate identifiers, file paths, YAML keys, command names, or quoted user text.
+
 When `marionettist.config.yaml` exists, read `knowledge.mode` and `knowledge.maturity` early and scale documentation depth, routing strictness, and governance expectations accordingly.
 
 Knowledge maturity guidance:

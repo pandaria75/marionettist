@@ -7,6 +7,8 @@ Read `.task/active.json` first, then `.task/<task-id>/state.json`. Here `<task-i
 
 When available, also read `marionettist.config.yaml` to determine the local `gatePolicy.defaultMode`. Treat gate policy as Marionettist workflow behavior, not as `opencode.permissionMode` or other tool-permission settings.
 
+When `marionettist.config.yaml` exists, also read `marionettist.language` early and use it for Marionettist user-facing communication only. Support `en` and `zh-CN`; fall back to `en` when the value is absent or unknown unless a higher-priority local safety instruction for that Marionettist interaction explicitly requires another language. Preserve identifiers, file paths, YAML keys, command names, and quoted user text.
+
 Do not blindly write code. Respect the current phase, all gates, `criticPassed`, and `allowedToCode`.
 
 Treat work as critic-gated when it is Tier L, or when the requirement, implementation plan, state, or context pack marks it as high-risk, boundary-sensitive, or workflow-sensitive.

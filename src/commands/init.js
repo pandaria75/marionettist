@@ -1,10 +1,21 @@
 import path from "node:path";
 import { parseCommonArgs } from "../core/args.js";
 import { applyPlan, printPlan } from "../core/apply-plan.js";
-import { buildPlan } from "../core/plan.js";
-import { promptConfig, promptConflictStrategy, promptDistributionMode, promptOpencodeCommandSurface, promptOpencodePermissionMode, promptWithOpencode } from "./init-prompts.js";
+import { buildPlan, readConfiguredMarionettistLanguage } from "../core/plan.js";
+import { getMarionettistLanguageGuideText, promptConfig, promptConflictStrategy, promptDistributionMode, promptOpencodeCommandSurface, promptOpencodePermissionMode, promptWithOpencode } from "./init-prompts.js";
 
-export async function initCommand(args) {
+export async function initCommand(args, dependencies = {}) {
+  const buildPlanImpl = dependencies.buildPlan ?? buildPlan;
+  const applyPlanImpl = dependencies.applyPlan ?? applyPlan;
+  const printPlanImpl = dependencies.printPlan ?? printPlan;
+  const promptConfigImpl = dependencies.promptConfig ?? promptConfig;
+  const promptConflictStrategyImpl = dependencies.promptConflictStrategy ?? promptConflictStrategy;
+  const promptWithOpencodeImpl = dependencies.promptWithOpencode ?? promptWithOpencode;
+  const promptDistributionModeImpl = dependencies.promptDistributionMode ?? promptDistributionMode;
+  const promptOpencodeCommandSurfaceImpl = dependencies.promptOpencodeCommandSurface ?? promptOpencodeCommandSurface;
+  const promptOpencodePermissionModeImpl = dependencies.promptOpencodePermissionMode ?? promptOpencodePermissionMode;
+  const readConfiguredMarionettistLanguageImpl = dependencies.readConfiguredMarionettistLanguage ?? readConfiguredMarionettistLanguage;
+  const log = dependencies.log ?? console.log;
   const options = parseCommonArgs(args);
 
   // 1. Interactive Prompts (unless --auto)
@@ -23,35 +34,48 @@ export async function initCommand(args) {
   let opencodePermissionMode = options.opencodePermissionMode;
 
   if (!options.auto) {
-    const promptedVariables = await promptConfig(variables.projectName, {
+    const configuredMarionettistLanguage = await readConfiguredMarionettistLanguageImpl(options.project);
+    const promptedVariables = await promptConfigImpl(variables.projectName, {
       projectType: variables.projectType,
       architecture: variables.architecture,
       primaryLanguage: variables.primaryLanguage,
       knowledgeMode: variables.knowledgeMode,
       knowledgeMaturity: variables.knowledgeMaturity,
+      marionettistLanguage: configuredMarionettistLanguage.value,
+      skipMarionettistLanguagePrompt: configuredMarionettistLanguage.value !== null,
       skipKnowledgeModePrompt: options.knowledgeMode !== null,
       skipKnowledgeMaturityPrompt: options.knowledgeMaturity !== null
     });
     variables = {
-      ...promptedVariables,
       knowledgeMode: options.knowledgeMode ?? promptedVariables.knowledgeMode,
-      knowledgeMaturity: options.knowledgeMaturity ?? promptedVariables.knowledgeMaturity
+      knowledgeMaturity: options.knowledgeMaturity ?? promptedVariables.knowledgeMaturity,
+      projectName: promptedVariables.projectName,
+      projectType: promptedVariables.projectType,
+      architecture: promptedVariables.architecture,
+      primaryLanguage: promptedVariables.primaryLanguage,
+      ...(promptedVariables.marionettistLanguageWasSelected && promptedVariables.marionettistLanguage
+        ? { marionettistLanguage: promptedVariables.marionettistLanguage }
+        : {})
     };
 
+    if (promptedVariables.marionettistLanguageWasSelected && promptedVariables.marionettistLanguage) {
+      log(getMarionettistLanguageGuideText(promptedVariables.marionettistLanguage));
+    }
+
     if (withOpencode === null) {
-      withOpencode = await promptWithOpencode();
+      withOpencode = await promptWithOpencodeImpl();
     }
 
     if (distributionMode === null) {
-      distributionMode = await promptDistributionMode();
+      distributionMode = await promptDistributionModeImpl();
     }
 
     if (withOpencode && opencodeCommandSurface === null) {
-      opencodeCommandSurface = await promptOpencodeCommandSurface();
+      opencodeCommandSurface = await promptOpencodeCommandSurfaceImpl();
     }
 
     if (withOpencode && opencodePermissionMode === null) {
-      opencodePermissionMode = await promptOpencodePermissionMode();
+      opencodePermissionMode = await promptOpencodePermissionModeImpl();
     }
   }
 
@@ -65,13 +89,13 @@ export async function initCommand(args) {
   };
 
   // 2. Initial plan to detect existing files for the selected asset set
-  const initialPlan = await buildPlan(options.project, "init", planningOptions);
+  const initialPlan = await buildPlanImpl(options.project, "init", planningOptions);
   const conflicts = initialPlan.operations.filter(op => op.type === "file" && op.exists && op.status === "skip-project-local");
 
   // 3. Conflict strategy prompts
   if (!options.auto) {
     for (const conflict of conflicts) {
-      conflictStrategies[conflict.targetRelative] = await promptConflictStrategy(conflict.targetRelative);
+      conflictStrategies[conflict.targetRelative] = await promptConflictStrategyImpl(conflict.targetRelative);
     }
   }
 
@@ -81,11 +105,11 @@ export async function initCommand(args) {
     conflictStrategies
   };
 
-  const plan = await buildPlan(options.project, "init", finalOptions);
-  printPlan(plan, finalOptions);
-  await applyPlan(plan, finalOptions);
+  const plan = await buildPlanImpl(options.project, "init", finalOptions);
+  printPlanImpl(plan, finalOptions);
+  await applyPlanImpl(plan, finalOptions);
 
   if (withOpencode) {
-    console.log("note: project-level opencode pathway prototype is enabled via opencode.jsonc");
+    log("note: project-level opencode pathway prototype is enabled via opencode.jsonc");
   }
 }

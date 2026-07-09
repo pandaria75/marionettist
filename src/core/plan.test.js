@@ -371,6 +371,13 @@ test("buildPlan renders marionettist.config.yaml from persisted plan selections"
   await withTempProject(t, async (projectPath) => {
     const plan = await buildPlan(projectPath, "init", buildPlanOptions({
       project: projectPath,
+      variables: {
+        projectName: "Smoke Project",
+        projectType: "node",
+        architecture: "monolith",
+        primaryLanguage: "javascript",
+        marionettistLanguage: "en"
+      },
       withOpencode: true,
       distributionMode: "adapter",
       opencodeCommandSurface: "standard",
@@ -379,9 +386,53 @@ test("buildPlan renders marionettist.config.yaml from persisted plan selections"
 
     const configOperation = plan.operations.find((operation) => operation.targetRelative === "marionettist.config.yaml");
     assert(configOperation, "expected marionettist.config.yaml operation");
+    assert.match(configOperation.content, /taskState:\n  activeTask: "\.task\/active\.json"\n  taskDirectoryPattern: "\.task\/<yyyy-MM-dd>\/<task-slug>"\n  legacyContextPackFallback: "\.task\/context-pack\.md"\n\nmarionettist:\n  language: "en"\n\nmodels:/);
+    assert(configOperation.content.includes('marionettist:\n  language: "en"'));
+    assert.equal(configOperation.content.split('marionettist:\n  language: "en"').length - 1, 1);
     assert(configOperation.content.includes('distribution:\n  mode: "adapter"'));
     assert(configOperation.content.includes('opencode:\n  commandSurface: "standard"\n  permissionMode: "moderate"\n  pluginSource: "package"'));
+    assert(configOperation.content.includes('docs:\n  language: "zh-CN"'));
     assert(typeof configOperation.renderInputHash === "string" && configOperation.renderInputHash.length > 0, "expected marionettist.config.yaml renderInputHash metadata");
+  });
+});
+
+test("buildPlan preserves configured marionettist.language separately from docs.language", async (t) => {
+  await withTempProject(t, async (projectPath) => {
+    const initPlan = await buildPlan(projectPath, "init", buildPlanOptions({
+      project: projectPath,
+      variables: {
+        projectName: "Kept Project",
+        projectType: "library",
+        architecture: "modular",
+        primaryLanguage: "typescript",
+        marionettistLanguage: "zh-CN"
+      }
+    }));
+    await applyManagedOperations(initPlan);
+
+    const configPath = path.join(projectPath, "marionettist.config.yaml");
+    const configContent = await fs.readFile(configPath, "utf8");
+    await fs.writeFile(configPath, configContent.replace('docs:\n  language: "zh-CN"', 'docs:\n  language: "en"'), "utf8");
+
+    const plan = await buildPlan(projectPath, "sync", buildPlanOptions({ project: projectPath, variables: undefined }));
+    const configOperation = plan.operations.find((operation) => operation.targetRelative === "marionettist.config.yaml");
+    assert(configOperation, "expected marionettist.config.yaml sync operation");
+    assert.equal(configOperation.status, "modified-local");
+    assert(configOperation.content.includes('marionettist:\n  language: "zh-CN"'));
+    assert(configOperation.content.includes('docs:\n  language: "zh-CN"'));
+    assert(!configOperation.content.includes('marionettist:\n  language: "en"'));
+  });
+});
+
+test("buildPlan omits marionettist language block when no language is selected or preserved", async (t) => {
+  await withTempProject(t, async (projectPath) => {
+    const plan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath }));
+    const configOperation = plan.operations.find((operation) => operation.targetRelative === "marionettist.config.yaml");
+    assert(configOperation, "expected marionettist.config.yaml operation");
+    assert(!configOperation.content.includes("__MARIONETTIST_LANGUAGE_BLOCK__"));
+    assert(!configOperation.content.includes("marionettist:\n  language:"));
+    assert.match(configOperation.content, /taskState:\n  activeTask: "\.task\/active\.json"\n  taskDirectoryPattern: "\.task\/<yyyy-MM-dd>\/<task-slug>"\n  legacyContextPackFallback: "\.task\/context-pack\.md"\n\nmodels:/);
+    assert(configOperation.content.includes('docs:\n  language: "zh-CN"'));
   });
 });
 

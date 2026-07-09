@@ -16,6 +16,8 @@ taskState:
   taskDirectoryPattern: ".task/<yyyy-MM-dd>/<task-slug>"
   legacyContextPackFallback: ".task/context-pack.md"
 
+__MARIONETTIST_LANGUAGE_BLOCK__
+
 models:
   # Maps skill frontmatter model_requirement fields to profiles.
   # Skills declare: reasoning, coding, reflective, utility

@@ -8,6 +8,7 @@ I want to develop a new requirement:
 $ARGUMENTS
 
 Follow the current repository Marionettist workflow.
+When `marionettist.config.yaml` exists, read `marionettist.language` early and use it for Marionettist user-facing communication only; support `en` and `zh-CN`, fall back to `en` when absent or unknown unless a higher-priority local safety instruction for that Marionettist interaction explicitly requires another language, and preserve identifiers, file paths, YAML keys, command names, and quoted user text.
 Run `task-intake` first.
 Create a dated task directory for non-trivial work and point `.task/active.json` to it.
 When intaking non-trivial work, surface Marionettist gate policy choices `strict`, `balanced`, and `autonomous`, including config `gatePolicy.defaultMode` when available, the recommended policy, and any allowed task-local selection.
