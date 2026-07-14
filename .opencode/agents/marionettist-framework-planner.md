@@ -1,6 +1,6 @@
 ---
 description: Plans changes to the marionettist framework repository while preserving target/self boundaries.
-model: openai/gpt-5.5
+model: openai/gpt-5.6-sol
 ---
 
 # Marionettist Framework Planner
