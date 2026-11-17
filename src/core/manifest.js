@@ -4,6 +4,7 @@ import { pathExists, readText, writeText } from "./files.js";
 export const manifestRelative = ".marionettist/manifest.json";
 export const distributionModeValues = new Set(["embedded", "hybrid", "adapter"]);
 export const opencodeArtifactAdapter = "opencode";
+export const cursorArtifactAdapter = "cursor";
 export const opencodeCommandSurfaceValues = new Set(["minimal", "standard", "advanced"]);
 export const opencodePermissionModeValues = new Set(["default", "moderate", "loose"]);
 export const opencodePluginSourceValues = new Set(["package", "local"]);
@@ -39,7 +40,7 @@ export function manifestFileMap(manifest) {
   return result;
 }
 
-export function buildManifest({ version, installedAt, previousManifest, operations, force = false, distributionMode = null, opencodePermissionMode = null, opencodePluginSource = null, piPackageSource = null }) {
+export function buildManifest({ version, installedAt, previousManifest, operations, force = false, distributionMode = null, opencodePermissionMode = null, opencodePluginSource = null, piPackageSource = null, cursorPathway = null }) {
   const previousInstalledAt = previousManifest?.installedAt ?? installedAt;
   const manifestDistributionMode = resolveManifestDistributionMode(previousManifest, distributionMode);
   const manifestOpencodePermissionMode = resolveManifestOpencodePermissionMode(previousManifest, opencodePermissionMode);
@@ -48,6 +49,8 @@ export function buildManifest({ version, installedAt, previousManifest, operatio
     .filter((operation) => operation.type === "file" && operation.managed)
     .map((operation) => buildManagedFileRecord(operation, force))
     .sort((left, right) => left.path.localeCompare(right.path));
+  const hasCursorManagedFiles = managedFiles.some((file) => file.adapter === cursorArtifactAdapter || String(file.path ?? "").startsWith(".cursor/"));
+  const resolvedCursorPathway = cursorPathway === true || (cursorPathway !== false && (previousManifest?.cursorPathway === true || hasCursorManagedFiles));
 
   return {
     schemaVersion: 1,
@@ -56,6 +59,7 @@ export function buildManifest({ version, installedAt, previousManifest, operatio
     ...(manifestOpencodePermissionMode ? { opencodePermissionMode: manifestOpencodePermissionMode } : {}),
     ...(manifestOpencodePluginSource ? { opencodePluginSource: manifestOpencodePluginSource } : {}),
     ...(piPackageSource ?? previousManifest?.piPackageSource ? { piPackageSource: piPackageSource ?? previousManifest.piPackageSource, piInstallScope: "project" } : {}),
+    ...(resolvedCursorPathway ? { cursorPathway: true } : {}),
     installedAt: previousInstalledAt,
     updatedAt: installedAt,
     managedFiles
@@ -312,6 +316,10 @@ function buildManagedFileRecord(operation, force) {
     if (operation.pluginSource) {
       record.pluginSource = normalizeOpencodePluginSource(operation.pluginSource, "OpenCode plugin source metadata");
     }
+  }
+
+  if (operation.adapter === cursorArtifactAdapter) {
+    record.adapter = operation.adapter;
   }
 
   return record;

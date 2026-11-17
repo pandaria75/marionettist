@@ -29,7 +29,9 @@ This file governs work on the framework itself. It is not the same as `templates
 - Framework self-bootstrap behavior belongs in `.marionettist/self/` and self OpenCode files, not target-project templates.
 - `templates/core/` and `templates/pathways/` are the framework source roots for shared and Pathway-specific template content.
 - `templates/pathways/opencode/` is the source of truth for target-project OpenCode agents, commands, plugin assets, and package staging inputs.
+- `templates/pathways/cursor/` is the source of truth for target-project Cursor skills, rules, agents, commands, and package staging inputs.
 - Root `.opencode/` may contain both self-only files and generated mirrors from the active framework OpenCode source candidates for local framework maintenance.
+- Root `.cursor/{skills,rules,agents,commands}` may contain generated local Cursor mirrors from `templates/pathways/cursor/**` for framework dogfooding; do not edit those mirrors directly.
 - Template files must not assume a specific language, build tool, backend framework, frontend framework, or module layout.
 - Template files may reference `marionettist.config.yaml` as the target-project source of local configuration.
 - Managed template sections must be safe for `marionettist sync` to update without overwriting project-local sections.
@@ -45,8 +47,9 @@ This file governs work on the framework itself. It is not the same as `templates
 ## CLI Policy
 
 - `marionettist init` must be safe by default and must not overwrite existing project-local content without an explicit force option.
-- Do not use regular `marionettist init` to bootstrap this framework repository; use `marionettist self init --apply` or `marionettist self init --apply --with-opencode`.
+- Do not use regular `marionettist init` to bootstrap this framework repository; use `marionettist self init --apply` or `marionettist self init --apply --with-opencode` / `--with-cursor`.
 - Regular target-project `marionettist init --with-opencode` and framework `marionettist self init --apply --with-opencode` are separate paths with separate OpenCode content.
+- Regular target-project `marionettist init --with-cursor` and framework `marionettist self init --apply --with-cursor` are separate paths with separate Cursor content.
 - `marionettist sync` must update framework-managed files while preserving project-local docs, rules, skills, and task files.
 - `marionettist diff` must show what would change before sync.
 - Destructive behavior is forbidden unless explicitly requested by the user and implemented behind clear flags.
@@ -60,8 +63,9 @@ When preparing a version bump or release, update all repository version sources 
 - root `package-lock.json`
 - `distributions/opencode/package.json` when releasing `marionettist-pathway-opencode`
 - `distributions/pi/package.json` when releasing `marionettist-pathway-pi`
+- `distributions/cursor/package.json` when releasing `marionettist-pathway-cursor`
 
-Before publishing, verify that generated or staged release assets are current, including `distributions/opencode/README.md` and `distributions/opencode/templates/**` when the OpenCode pathway package is affected.
+Before publishing, verify that generated or staged release assets are current, including `distributions/opencode/README.md` and `distributions/opencode/templates/**` when the OpenCode pathway package is affected, and `distributions/cursor/**` when the Cursor pathway package is affected.
 
 ## Validation
 
@@ -72,6 +76,8 @@ When changing self-bootstrap or OpenCode boundary logic, run:
 - `npm run self:smoke`
 
 When changing the Pi pathway, also run `npm run pi:dist:check`, the Pi distribution tests, and `npm pack --dry-run ./distributions/pi`.
+
+When changing the Cursor pathway, also run `npm run cursor:dist:check` and Cursor-related smoke coverage.
 
 When changing templates or skills, validate that:
 - no project-specific terms leaked into core assets
@@ -85,4 +91,5 @@ When changing templates or skills, validate that:
 - Do not mix framework-maintenance rules with target-project Marionettist rules.
 - Do not put self-only OpenCode commands, agents, or policy into `templates/AGENTS.md`, publishable template source roots, or `skills/`.
 - Do not edit generated `.opencode/agents/marionettist-*.md`, `.opencode/agents/validators/**`, or `.opencode/commands/marionettist-*.md` directly; edit the active framework OpenCode source files in `templates/pathways/opencode/**`, then rerun `marionettist self init --apply --with-opencode`.
+- Do not edit generated `.cursor/skills/**`, `.cursor/rules/**`, `.cursor/agents/**`, or `.cursor/commands/**` mirrors directly; edit `templates/pathways/cursor/**`, then run `npm run cursor:dist` and `marionettist self init --apply --with-cursor` when refreshing local framework mirrors.
 - Do not treat generated target-project docs as code indexes.

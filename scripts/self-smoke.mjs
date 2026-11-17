@@ -121,6 +121,7 @@ try {
   await assertMirrorDriftDetected();
   await assertMissingMirrorDetected();
   await assertOpencodeDistributionCheck();
+  await assertCursorSelfInitAndDistributionCheck();
   await assertLocalSelfModelProfilesPreservedAndRendered();
   await assertMirrorResyncFromTemplateSource();
   await assertOrdinaryOpencodeInitDoesNotInstallSelfFiles();
@@ -362,6 +363,39 @@ async function assertOrdinaryFullOpencodeInitRetainsAdvancedCommands() {
 async function assertOpencodeDistributionCheck() {
   const script = path.join(repoRoot, "scripts", "build-opencode-distribution.mjs");
   await exec(process.execPath, [script, "--check"], repoRoot);
+}
+
+async function assertCursorSelfInitAndDistributionCheck() {
+  const beforeCursorSkills = await snapshotDirectory(path.join(repoRoot, "skills"));
+  const beforeCursorTemplate = await snapshotDirectory(path.join(repoRoot, "templates", "pathways", "cursor"));
+  const beforeMarketplace = await readRelative(".cursor-plugin/marketplace.json");
+
+  const dryRun = await harness("self", "init", "--with-cursor");
+  assertIncludes(dryRun, "mode: dry-run");
+  assertIncludes(dryRun, ".cursor-plugin/marketplace.json");
+  assertIncludes(dryRun, ".cursor/skills/task-intake/SKILL.md");
+  assertIncludes(dryRun, "would run: npm run cursor:dist");
+  assert((await readRelative(".cursor-plugin/marketplace.json")) === beforeMarketplace, "self init --with-cursor dry-run must not rewrite marketplace");
+
+  const apply = await harness("self", "init", "--apply", "--with-cursor");
+  assertIncludes(apply, "mode: write");
+  assertIncludes(apply, "ran: npm run cursor:dist");
+  assert(await pathExists(path.join(repoRoot, ".cursor", "skills", "task-intake", "SKILL.md")), "self cursor apply must mirror task-intake skill");
+  assert(await pathExists(path.join(repoRoot, ".cursor", "agents", "marionettist-builder.md")), "self cursor apply must mirror builder agent");
+  assert(await pathExists(path.join(repoRoot, "distributions", "cursor", "package.json")), "self cursor apply must stage distributions/cursor");
+
+  const gitignoreContent = await fs.readFile(path.join(repoRoot, ".gitignore"), "utf8");
+  assertIncludes(gitignoreContent, ".cursor/skills/");
+  assertIncludes(gitignoreContent, ".cursor/commands/");
+
+  const doctorOutput = await harness("self", "doctor");
+  assertIncludes(doctorOutput, "PASS  .cursor-plugin/marketplace.json matches expected marketplace");
+  assertIncludes(doctorOutput, "PASS  templates/pathways/cursor/.cursor-plugin/plugin.json exists");
+  assertIncludes(doctorOutput, "PASS  distributions/cursor/package.json exists");
+
+  await exec(process.execPath, [path.join(repoRoot, "scripts", "build-cursor-distribution.mjs"), "--check"], repoRoot);
+  assertSameFileSnapshot(beforeCursorSkills, await snapshotDirectory(path.join(repoRoot, "skills")), "self Cursor init must not modify skills/");
+  assertSameFileSnapshot(beforeCursorTemplate, await snapshotDirectory(path.join(repoRoot, "templates", "pathways", "cursor")), "self Cursor init must not modify Cursor template sources");
 }
 
 async function getExpectedMirrorFiles() {

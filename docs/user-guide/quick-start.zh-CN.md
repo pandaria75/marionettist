@@ -38,7 +38,13 @@ marionettist init
 marionettist init --with-opencode
 ```
 
-安装完成后，项目中通常会出现 `AGENTS.md`、`marionettist.config.yaml`，以及 `.marionettist/` 任务/运行时区域等入口文件。
+可选的 Cursor 脚手架：
+
+```powershell
+marionettist init --with-cursor
+```
+
+安装完成后，项目中通常会出现 `AGENTS.md`、`marionettist.config.yaml`，以及 `.marionettist/` 任务/运行时区域等入口文件。若使用 `--with-cursor`，还会在 `.cursor/` 下写入托管的本地 Cursor 资产。
 
 ## 4. 先调整第一批项目本地文件
 

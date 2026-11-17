@@ -1,0 +1,17 @@
+{
+  "name": "marionettist-pathway-cursor",
+  "version": "0.3.5",
+  "description": "Cursor Pathway plugin package surface for Marionettist.",
+  "type": "module",
+  "files": [
+    "README.md",
+    ".cursor-plugin/",
+    "agents/",
+    "commands/",
+    "rules/",
+    "skills/"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}

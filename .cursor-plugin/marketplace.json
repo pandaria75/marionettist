@@ -1,0 +1,16 @@
+{
+  "name": "marionettist",
+  "owner": {
+    "name": "Marionettist"
+  },
+  "metadata": {
+    "description": "Marionettist pathway plugins for Cursor."
+  },
+  "plugins": [
+    {
+      "name": "marionettist-pathway-cursor",
+      "source": "distributions/cursor",
+      "description": "Marionettist Cursor Pathway: skills, rules, agents, and commands."
+    }
+  ]
+}

@@ -14,6 +14,7 @@ export function parseCommonArgs(args) {
     scope: "all",
     withOpencode: null,
     withPi: null,
+    withCursor: null,
     distributionMode: null,
     opencodeCommandSurface: null,
     opencodePermissionMode: null,
@@ -61,6 +62,11 @@ export function parseCommonArgs(args) {
 
     if (arg === "--with-pi") {
       options.withPi = true;
+      continue;
+    }
+
+    if (arg === "--with-cursor") {
+      options.withCursor = true;
       continue;
     }
 

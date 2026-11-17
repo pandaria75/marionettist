@@ -640,3 +640,35 @@ test("buildPlan installs marionettist workflow doc from renamed template path", 
     assert.equal(operation.status, "new-managed");
   });
 });
+
+test("buildPlan omits Cursor assets unless --with-cursor is selected", async (t) => {
+  await withTempProject(t, async (projectPath) => {
+    const plan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath }));
+    assert.equal(plan.cursorState.enabled, false);
+    assert(!plan.operations.some((operation) => String(operation.targetRelative ?? "").startsWith(".cursor/")));
+  });
+});
+
+test("buildPlan installs Cursor pathway local fallback assets with --with-cursor", async (t) => {
+  await withTempProject(t, async (projectPath) => {
+    const plan = await buildPlan(projectPath, "init", buildPlanOptions({ project: projectPath, withCursor: true }));
+    assert.equal(plan.cursorState.enabled, true);
+    assert.equal(plan.manifest.cursorPathway, true);
+
+    const skillOperation = plan.operations.find((operation) => operation.targetRelative === ".cursor/skills/task-intake/SKILL.md");
+    const ruleOperation = plan.operations.find((operation) => operation.targetRelative === ".cursor/rules/00-repository-rules.mdc");
+    const agentOperation = plan.operations.find((operation) => operation.targetRelative === ".cursor/agents/marionettist-builder.md");
+    const commandOperation = plan.operations.find((operation) => operation.targetRelative === ".cursor/commands/marionettist.md");
+    const readmeOperation = plan.operations.find((operation) => operation.targetRelative === ".cursor/README.marionettist.md");
+
+    assert(skillOperation, "expected Cursor skill operation");
+    assert(ruleOperation, "expected Cursor rule operation");
+    assert(agentOperation, "expected Cursor agent operation");
+    assert(commandOperation, "expected Cursor command operation");
+    assert(readmeOperation, "expected Cursor local readme operation");
+    assert.equal(skillOperation.adapter, "cursor");
+    assert.equal(skillOperation.sourceRelative, "templates/pathways/cursor/skills/task-intake/SKILL.md");
+    assert(!plan.operations.some((operation) => operation.targetRelative === ".cursor-plugin/plugin.json"));
+    assert.match(agentOperation.content, /\nmodel: /);
+  });
+});

@@ -9,13 +9,13 @@ import { fileURLToPath } from "node:url";
 const help = `Marionettist
 
 Usage:
-  marionettist init [--project <path>] [--dry-run] [--force] [--auto] [--distribution-mode <embedded|hybrid|adapter>] [--with-opencode] [--with-pi] [--opencode-command-surface <minimal|standard|advanced|full>]
-  marionettist sync [--project <path>] [--dry-run] [--force] [--with-pi]
-  marionettist diff [--project <path>] [--with-pi]
-  marionettist doctor [--project <path>] [--with-pi]
+  marionettist init [--project <path>] [--dry-run] [--force] [--auto] [--distribution-mode <embedded|hybrid|adapter>] [--with-opencode] [--with-pi] [--with-cursor] [--opencode-command-surface <minimal|standard|advanced|full>]
+  marionettist sync [--project <path>] [--dry-run] [--force] [--with-pi] [--with-cursor]
+  marionettist diff [--project <path>] [--with-pi] [--with-cursor]
+  marionettist doctor [--project <path>] [--with-pi] [--with-cursor]
   marionettist clear [--project <path>] [--scope <all|opencode>] [--apply]
   marionettist uninstall [--project <path>] [--scope <all|opencode>] [--apply]
-  marionettist self init [--apply] [--with-opencode] [--with-pi]
+  marionettist self init [--apply] [--with-opencode] [--with-pi] [--with-cursor]
   marionettist self doctor
   marionettist self test
   marionettist --help

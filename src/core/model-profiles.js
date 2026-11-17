@@ -17,6 +17,16 @@ const opencodeAgentProfileBindings = [
   ["harness-validator", "run", "harnessValidator"]
 ];
 
+const cursorAgentProfileBindings = new Map([
+  ["marionettist-builder", "think"],
+  ["marionettist-planner", "think"],
+  ["marionettist-coder", "build"],
+  ["marionettist-reviewer", "review"],
+  ["marionettist-critic", "review"],
+  ["marionettist-indexer", "run"],
+  ["marionettist-validator", "run"]
+]);
+
 const builtInProfileDefaults = {
   think: {
     description: "Deep reasoning, planning, and gate decisions",
@@ -124,6 +134,78 @@ export function buildResolvedOpencodeAgentModelConfigs(profiles) {
       resolveAgentModelConfig(profiles, profileName, agentName)
     ])
   );
+}
+
+export function buildResolvedCursorAgentModelConfigs(profiles) {
+  return Object.fromEntries(
+    [...cursorAgentProfileBindings.entries()].map(([agentName, profileName]) => [
+      agentName,
+      {
+        profileName,
+        model: toCursorModelId(resolveAgentModelConfig(profiles, profileName, agentName).model)
+      }
+    ])
+  );
+}
+
+export function toCursorModelId(modelValue) {
+  const raw = String(modelValue ?? "").trim();
+  if (!raw) {
+    return "inherit";
+  }
+
+  const withoutProvider = raw.includes("/") ? raw.slice(raw.lastIndexOf("/") + 1) : raw;
+  const normalized = withoutProvider.trim();
+
+  const aliases = new Map([
+    ["claude-opus-5.5", "claude-opus-5-5"],
+    ["claude-opus-5_5", "claude-opus-5-5"],
+    ["deepseek-v4-flash", "composer-2.5-fast"],
+    ["deepseek-v4-pro", "claude-opus-5-5"]
+  ]);
+
+  return aliases.get(normalized) ?? normalized;
+}
+
+export function applyCursorAgentModelFrontmatter(content, modelId) {
+  const model = toCursorModelId(modelId);
+  if (!content.startsWith("---\n") && !content.startsWith("---\r\n")) {
+    return [
+      "---",
+      `model: ${model}`,
+      "---",
+      "",
+      content.replace(/^\uFEFF/, "")
+    ].join("\n");
+  }
+
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/u);
+  if (!match) {
+    return content;
+  }
+
+  const frontmatterLines = match[1]
+    .split(/\r?\n/u)
+    .filter((line) => !/^\s*model\s*:/u.test(line));
+  const nameIndex = frontmatterLines.findIndex((line) => /^\s*name\s*:/u.test(line));
+  const descriptionIndex = frontmatterLines.findIndex((line) => /^\s*description\s*:/u.test(line));
+  const insertAt = descriptionIndex >= 0
+    ? descriptionIndex + 1
+    : nameIndex >= 0
+      ? nameIndex + 1
+      : frontmatterLines.length;
+  frontmatterLines.splice(insertAt, 0, `model: ${model}`);
+
+  return `---\n${frontmatterLines.join("\n")}\n---\n${match[2]}`;
+}
+
+export function resolveCursorAgentModelForFile(fileName, profiles) {
+  const agentName = String(fileName ?? "").replace(/\.md$/u, "");
+  const profileName = cursorAgentProfileBindings.get(agentName);
+  if (!profileName) {
+    return null;
+  }
+  return toCursorModelId(resolveAgentModelConfig(profiles, profileName, agentName).model);
 }
 
 export function resolveAgentModelConfig(profiles, profileName, agentName) {

@@ -30,3 +30,8 @@ test("parseCommonArgs accepts project-local Pi pathway selection", () => {
   const options = parseCommonArgs(["--with-pi"]);
   assert.equal(options.withPi, true);
 });
+
+test("parseCommonArgs accepts project-local Cursor pathway selection", () => {
+  const options = parseCommonArgs(["--with-cursor"]);
+  assert.equal(options.withCursor, true);
+});

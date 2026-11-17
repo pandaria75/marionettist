@@ -66,6 +66,7 @@ export async function doctorCommand(args) {
   checkOpenCodePermissionMode(manifest, projectConfig, opencodeState?.config, results);
   await checkOpenCodeCommandSurface(options.project, projectConfig, opencodeState, results);
   await checkOpenCodeModelDrift(options.project, projectConfig, opencodeState, results);
+  await checkCursor(options.project, options, manifest, results);
   await checkSkills(options.project, results);
   await checkActiveTask(options.project, results);
 
@@ -74,6 +75,22 @@ export async function doctorCommand(args) {
   if (results.some((result) => result.level === "FAIL")) {
     process.exitCode = 1;
   }
+}
+
+async function checkCursor(projectPath, options, manifest, results) {
+  const expected = options.withCursor === true
+    || manifest?.cursorPathway === true
+    || manifest?.managedFiles?.some((file) => file.adapter === "cursor" || String(file.path ?? "").startsWith(".cursor/")) === true;
+  if (!expected) {
+    results.push(warn("Cursor local fallback not installed; optional Cursor pathway not enabled"));
+    return;
+  }
+
+  await checkPath(projectPath, ".cursor/skills/task-intake/SKILL.md", "file", ".cursor/skills/task-intake/SKILL.md exists", results);
+  await checkPath(projectPath, ".cursor/rules/00-repository-rules.mdc", "file", ".cursor/rules/00-repository-rules.mdc exists", results);
+  await checkPath(projectPath, ".cursor/agents/marionettist-builder.md", "file", ".cursor/agents/marionettist-builder.md exists", results);
+  await checkPath(projectPath, ".cursor/commands/marionettist.md", "file", ".cursor/commands/marionettist.md exists", results);
+  await checkPath(projectPath, ".cursor/README.marionettist.md", "file", ".cursor/README.marionettist.md exists", results);
 }
 
 async function checkPi(projectPath, options, manifest, results) {
@@ -772,7 +789,11 @@ async function checkMarkdownFrontmatterDirectory(projectPath, relatives, label, 
 }
 
 async function checkSkills(projectPath, results) {
-  const skillRoots = [path.join(projectPath, ".agents", "skills"), path.join(projectPath, "skills")];
+  const skillRoots = [
+    path.join(projectPath, ".agents", "skills"),
+    path.join(projectPath, ".cursor", "skills"),
+    path.join(projectPath, "skills")
+  ];
   const skillFiles = [];
   for (const root of skillRoots) {
     if (await isDirectory(root)) {

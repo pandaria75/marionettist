@@ -18,6 +18,7 @@ export const templatesRoot = path.join(frameworkRoot, "templates");
 export const coreTemplatesRoot = path.join(templatesRoot, "core");
 export const pathwaysTemplatesRoot = path.join(templatesRoot, "pathways");
 export const pathwayOpencodeTemplatesRoot = path.join(pathwaysTemplatesRoot, "opencode");
+export const pathwayCursorTemplatesRoot = path.join(pathwaysTemplatesRoot, "cursor");
 export const distributionsRoot = path.join(frameworkRoot, "distributions");
 export const skillsRoot = path.join(frameworkRoot, "skills");
 export const versionFile = path.join(frameworkRoot, "VERSION");
@@ -37,6 +38,11 @@ export function getOpencodeTemplateSourceRelativeCandidates(sourceRelative) {
   return [path.posix.join("pathways", "opencode", normalizedSourceRelative)];
 }
 
+export function getCursorTemplateSourceRelativeCandidates(sourceRelative) {
+  const normalizedSourceRelative = normalizeSourceRelative(sourceRelative);
+  return [path.posix.join("pathways", "cursor", normalizedSourceRelative)];
+}
+
 export function getCoreTemplateSourceCandidates(sourceRelative) {
   return getCoreTemplateSourceRelativeCandidates(sourceRelative)
     .map((candidate) => path.join(templatesRoot, candidate));
@@ -44,6 +50,11 @@ export function getCoreTemplateSourceCandidates(sourceRelative) {
 
 export function getOpencodeTemplateSourceCandidates(sourceRelative) {
   return getOpencodeTemplateSourceRelativeCandidates(sourceRelative)
+    .map((candidate) => path.join(templatesRoot, candidate));
+}
+
+export function getCursorTemplateSourceCandidates(sourceRelative) {
+  return getCursorTemplateSourceRelativeCandidates(sourceRelative)
     .map((candidate) => path.join(templatesRoot, candidate));
 }
 
@@ -83,10 +94,36 @@ export async function resolveOpencodeTemplateSource(sourceRelative) {
   };
 }
 
+export async function resolveCursorTemplateSource(sourceRelative) {
+  const sourceCandidates = getCursorTemplateSourceCandidates(sourceRelative);
+  const resolvedPath = await resolveFirstExistingPath(sourceCandidates);
+  if (!resolvedPath) {
+    return null;
+  }
+
+  return {
+    sourcePath: resolvedPath,
+    sourceRelative: `templates/${toPosixPath(path.relative(templatesRoot, resolvedPath))}`
+  };
+}
+
 export async function listResolvedOpencodeTemplateRelatives() {
   const relatives = new Set();
   for (const sourcePath of await listFiles(pathwayOpencodeTemplatesRoot)) {
     const sourceRelative = toPosixPath(path.relative(pathwayOpencodeTemplatesRoot, sourcePath));
+    if (isPlaceholderSourceRelative(sourceRelative)) {
+      continue;
+    }
+    relatives.add(sourceRelative);
+  }
+
+  return [...relatives].sort((left, right) => left.localeCompare(right));
+}
+
+export async function listResolvedCursorTemplateRelatives() {
+  const relatives = new Set();
+  for (const sourcePath of await listFiles(pathwayCursorTemplatesRoot)) {
+    const sourceRelative = toPosixPath(path.relative(pathwayCursorTemplatesRoot, sourcePath));
     if (isPlaceholderSourceRelative(sourceRelative)) {
       continue;
     }

@@ -38,7 +38,13 @@ Optional OpenCode scaffolding:
 marionettist init --with-opencode
 ```
 
-After install, your project should have framework entry files such as `AGENTS.md`, `marionettist.config.yaml`, and the `.marionettist/` task/runtime area.
+Optional Cursor scaffolding:
+
+```powershell
+marionettist init --with-cursor
+```
+
+After install, your project should have framework entry files such as `AGENTS.md`, `marionettist.config.yaml`, and the `.marionettist/` task/runtime area. With `--with-cursor`, managed local Cursor assets are also written under `.cursor/`.
 
 ## 4. Adjust the first project-local files
 

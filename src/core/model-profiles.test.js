@@ -5,8 +5,11 @@ import os from "node:os";
 import path from "node:path";
 import {
   buildOpencodeAgentTemplateVariables,
+  applyCursorAgentModelFrontmatter,
+  buildResolvedCursorAgentModelConfigs,
   buildResolvedOpencodeAgentModelConfigs,
   loadModelProfilesState,
+  toCursorModelId,
   renderCanonicalModelProfiles,
   resolveAgentModelConfig
 } from "./model-profiles.js";
@@ -218,4 +221,37 @@ test("buildResolvedOpencodeAgentModelConfigs exposes structured resolved agent m
   assert.deepEqual(resolved["harness-planner"], { model: "model/think", temperature: 0.1 });
   assert.deepEqual(resolved["harness-critic"], { model: "model/critic", temperature: 0 });
   assert.deepEqual(resolved["harness-validator"], { model: "model/run", temperature: 0.4 });
+});
+
+test("toCursorModelId strips provider prefixes and keeps Cursor IDs", () => {
+  assert.equal(toCursorModelId("openai/gpt-5.6-sol"), "gpt-5.6-sol");
+  assert.equal(toCursorModelId("grok-4.7-high"), "grok-4.7-high");
+  assert.equal(toCursorModelId("claude-opus-5-5"), "claude-opus-5-5");
+  assert.equal(toCursorModelId("composer-2.5-fast"), "composer-2.5-fast");
+});
+
+test("buildResolvedCursorAgentModelConfigs maps Marionettist agents to Cursor model IDs", () => {
+  const resolved = buildResolvedCursorAgentModelConfigs({
+    think: { description: "Think", default: "grok-4.7-high", temperature: 0.1, agentOverrides: {} },
+    build: { description: "Build", default: "grok-4.7-high", temperature: 0.1, agentOverrides: {} },
+    review: { description: "Review", default: "claude-opus-5-5", temperature: 0, agentOverrides: {} },
+    run: { description: "Run", default: "composer-2.5-fast", temperature: 0, agentOverrides: {} }
+  });
+
+  assert.equal(resolved["marionettist-builder"].model, "grok-4.7-high");
+  assert.equal(resolved["marionettist-coder"].model, "grok-4.7-high");
+  assert.equal(resolved["marionettist-reviewer"].model, "claude-opus-5-5");
+  assert.equal(resolved["marionettist-validator"].model, "composer-2.5-fast");
+});
+
+test("applyCursorAgentModelFrontmatter inserts or replaces model field", () => {
+  const inserted = applyCursorAgentModelFrontmatter(
+    "---\nname: marionettist-builder\ndescription: Builder\n---\n\nBody\n",
+    "grok-4.7-high"
+  );
+  assert.match(inserted, /^---\nname: marionettist-builder\ndescription: Builder\nmodel: grok-4\.7-high\n---\n/);
+
+  const replaced = applyCursorAgentModelFrontmatter(inserted, "composer-2.5-fast");
+  assert.match(replaced, /\nmodel: composer-2\.5-fast\n/);
+  assert(!replaced.includes("grok-4.7-high"));
 });

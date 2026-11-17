@@ -1,10 +1,10 @@
 import path from "node:path";
 import { listFiles, pathExists, readText, toPosixPath } from "./files.js";
-import { listResolvedOpencodeTemplateRelatives, projectConfigRelative, resolveCoreTemplateSource, resolveOpencodeTemplateSource, skillsRoot, templatesRoot, versionFile } from "./framework-paths.js";
+import { listResolvedCursorTemplateRelatives, listResolvedOpencodeTemplateRelatives, projectConfigRelative, resolveCoreTemplateSource, resolveCursorTemplateSource, resolveOpencodeTemplateSource, skillsRoot, templatesRoot, versionFile } from "./framework-paths.js";
 import { extractManagedBlock, replaceManagedBlock } from "./managed-block.js";
 import { sha256 } from "./hash.js";
-import { buildManifest, getManagedFileHash, manifestFileMap, manifestRelative, normalizeDistributionMode, normalizeOpencodeCommandSurface, normalizeOpencodePermissionMode, normalizeOpencodePluginSource, opencodeArtifactAdapter, readManifest, validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface, validateOptionalOpencodePermissionMode, validateOptionalOpencodePluginSource } from "./manifest.js";
-import { buildOpencodeAgentTemplateVariables, buildResolvedOpencodeAgentModelConfigs, loadModelProfiles, loadModelProfilesState } from "./model-profiles.js";
+import { buildManifest, cursorArtifactAdapter, getManagedFileHash, manifestFileMap, manifestRelative, normalizeDistributionMode, normalizeOpencodeCommandSurface, normalizeOpencodePermissionMode, normalizeOpencodePluginSource, opencodeArtifactAdapter, readManifest, validateOptionalDistributionMode, validateOptionalOpencodeCommandSurface, validateOptionalOpencodePermissionMode, validateOptionalOpencodePluginSource } from "./manifest.js";
+import { applyCursorAgentModelFrontmatter, buildOpencodeAgentTemplateVariables, buildResolvedOpencodeAgentModelConfigs, loadModelProfiles, loadModelProfilesState, resolveCursorAgentModelForFile } from "./model-profiles.js";
 import { getOpencodePermissionPolicy } from "./opencode-permissions.js";
 import { renderWithMetadata, stableJsonStringify } from "./render.js";
 import { parseSimpleYaml } from "./yaml.js";
@@ -25,10 +25,13 @@ const coreTemplateTargets = new Map([
 ]);
 
 const opencodeManagedPrefix = ".opencode/";
+const cursorManagedPrefix = ".cursor/";
+const cursorLocalAssetRoots = new Set(["skills", "rules", "agents", "commands"]);
 const opencodeValidatorTemplatePrefix = "agents/validators/";
 const opencodeProjectConfigSource = "opencode.jsonc";
 const opencodeLocalPluginPath = "./.opencode/plugin/opencode-tasks.js";
 const opencodePackagePluginSpecifier = "marionettist-pathway-opencode";
+const cursorReadmeRelative = "README.marionettist.md";
 const minimalOpencodeCommandRelatives = new Set([
   "commands/marionettist.md",
   "commands/marionettist-dev.md",
@@ -131,7 +134,80 @@ async function buildFrameworkAssets(projectPath, options = {}) {
     }));
   }
 
+  if (options.includeCursor) {
+    assets.push(...await buildCursorAssets(projectPath));
+  }
+
   return assets;
+}
+
+async function buildCursorAssets(projectPath) {
+  const assets = [];
+  const cursorRelatives = await listResolvedCursorTemplateRelatives();
+  const profiles = await loadModelProfiles(projectPath);
+
+  for (const sourceRelative of cursorRelatives) {
+    const rootSegment = sourceRelative.split("/")[0];
+    if (!cursorLocalAssetRoots.has(rootSegment)) {
+      continue;
+    }
+
+    const resolvedSource = await resolveCursorTemplateSource(sourceRelative);
+    if (!resolvedSource) {
+      throw new Error(`Framework Cursor template source not found: templates/pathways/cursor/${sourceRelative}`);
+    }
+
+    let content = await readText(resolvedSource.sourcePath);
+    if (rootSegment === "agents") {
+      const modelId = resolveCursorAgentModelForFile(path.posix.basename(sourceRelative), profiles);
+      if (modelId) {
+        content = applyCursorAgentModelFrontmatter(content, modelId);
+      }
+    }
+    const targetRelative = toPosixPath(path.join(cursorManagedPrefix, sourceRelative));
+    assets.push({
+      sourceRelative: resolvedSource.sourceRelative,
+      targetRelative,
+      targetPath: path.join(projectPath, targetRelative),
+      kind: "file",
+      adapter: cursorArtifactAdapter,
+      content,
+      managedContent: content,
+      frameworkHash: sha256(content)
+    });
+  }
+
+  const readmeSource = await resolveCursorTemplateSource("README.md");
+  if (readmeSource) {
+    const content = [
+      "# Marionettist Cursor Pathway (local fallback)",
+      "",
+      "These `.cursor/**` files were installed by `marionettist init --with-cursor` or `marionettist sync --with-cursor`.",
+      "",
+      "Plugin-first installs can use the `marionettist-pathway-cursor` Cursor marketplace plugin from this repository instead of, or in addition to, these local files.",
+      "",
+      "Source of truth: `templates/pathways/cursor/**`.",
+      ""
+    ].join("\n");
+    const targetRelative = toPosixPath(path.join(cursorManagedPrefix, cursorReadmeRelative));
+    assets.push({
+      sourceRelative: readmeSource.sourceRelative,
+      targetRelative,
+      targetPath: path.join(projectPath, targetRelative),
+      kind: "file",
+      adapter: cursorArtifactAdapter,
+      content,
+      managedContent: content,
+      frameworkHash: sha256(content)
+    });
+  }
+
+  return assets;
+}
+
+function hasManagedCursorAssets(previousManifest) {
+  return previousManifest?.cursorPathway === true
+    || previousManifest?.managedFiles?.some((file) => file.adapter === cursorArtifactAdapter || String(file.path ?? "").startsWith(cursorManagedPrefix)) === true;
 }
 
 async function buildOpencodeAssets(projectPath, variables = {}, states = {}) {
@@ -991,7 +1067,7 @@ function finalizeFrameworkAssetRender({ content, renderContext }) {
       renderContext?.harnessConfigSelections?.marionettistLanguageState
     );
     content = content.replace(
-      /\n__MARIONETTIST_LANGUAGE_BLOCK__\n\n/u,
+      /\r?\n__MARIONETTIST_LANGUAGE_BLOCK__\r?\n\r?\n/u,
       marionettistLanguageBlock ? `\n${marionettistLanguageBlock}\n\n` : "\n"
     );
   }
@@ -1198,6 +1274,9 @@ export async function buildPlan(projectPath, mode, options = {}) {
     source: piPackageSource,
     scope: "project"
   };
+  const cursorState = {
+    enabled: options.withCursor === true || (options.withCursor !== false && hasManagedCursorAssets(previousManifest))
+  };
   const operations = [];
   const marionettistLanguageState = await resolveMarionettistLanguageState(projectPath, options);
   const distributionModeState = await resolveDistributionModeState(projectPath, previousManifest, options, mode);
@@ -1216,6 +1295,7 @@ export async function buildPlan(projectPath, mode, options = {}) {
     ...options,
     marionettistLanguageState,
     includeOpencode: opencodeCommandSurfaceState.includeOpencode,
+    includeCursor: cursorState.enabled,
     distributionModeState,
     opencodeCommandSurfaceState,
     opencodePermissionModeState,
@@ -1252,7 +1332,8 @@ export async function buildPlan(projectPath, mode, options = {}) {
     distributionMode: distributionModeState.value,
     opencodePermissionMode: opencodePermissionModeState.permissionMode,
     opencodePluginSource: opencodePluginSourceState.pluginSource,
-    piPackageSource: piState.enabled ? piPackageSource : null
+    piPackageSource: piState.enabled ? piPackageSource : null,
+    cursorPathway: cursorState.enabled ? true : null
   });
 
   operations.push({
@@ -1265,5 +1346,5 @@ export async function buildPlan(projectPath, mode, options = {}) {
     manifest
   });
 
-  return { version, previousManifest, manifest, operations, marionettistLanguageState, distributionModeState, opencodeCommandSurfaceState, opencodePermissionModeState, opencodePluginSourceState, piState };
+  return { version, previousManifest, manifest, operations, marionettistLanguageState, distributionModeState, opencodeCommandSurfaceState, opencodePermissionModeState, opencodePluginSourceState, piState, cursorState };
 }

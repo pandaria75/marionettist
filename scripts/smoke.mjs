@@ -17,6 +17,7 @@ const distributionProject = path.join(tempBase, `harness-smoke-distribution-${pr
 const mudballProject = path.join(tempBase, `harness-smoke-mudball-${process.pid}`);
 const existingLocalProject = path.join(tempBase, `harness-smoke-existing-${process.pid}`);
 const opencodeProject = path.join(tempBase, `harness-smoke-opencode-${process.pid}`);
+const cursorProject = path.join(tempBase, `harness-smoke-cursor-${process.pid}`);
 const backfillProject = path.join(tempBase, `harness-smoke-backfill-${process.pid}`);
 const gradleProject = path.join(tempBase, `harness-smoke-gradle-${process.pid}`);
 const legacyDistributionProject = path.join(tempBase, `harness-smoke-legacy-mode-${process.pid}`);
@@ -73,7 +74,7 @@ const binaryLikeExtensions = new Set([
 ]);
 
 try {
-  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject, legacyDistributionProject, gatePolicyProject, tierPolicyProject, clearWorkflowProject, clearManagedOnlyProject, clearPartialFailureProject, clearSymlinkEscapeProject);
+  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, cursorProject, backfillProject, gradleProject, legacyDistributionProject, gatePolicyProject, tierPolicyProject, clearWorkflowProject, clearManagedOnlyProject, clearPartialFailureProject, clearSymlinkEscapeProject);
 
   const dryRunOutput = await harness("init", "--project", dryRunProject, "--dry-run", "--auto");
   assertIncludes(dryRunOutput, "distribution mode: embedded");
@@ -169,6 +170,7 @@ try {
   assertIncludes(orphanDiffOutput, "orphan-managed: .agents/skills/old-core/SKILL.md");
 
   await assertOpencodeInstall(opencodeProject);
+  await assertCursorInstall(cursorProject);
   await assertExplicitFalseSkipsOpencode(opencodeProject);
   await assertOpencodeBackfill(backfillProject);
   await assertGradleValidatorGuidance(gradleProject);
@@ -180,7 +182,7 @@ try {
 
   console.log("smoke: PASS");
 } finally {
-  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, backfillProject, gradleProject, legacyDistributionProject, gatePolicyProject, tierPolicyProject, clearWorkflowProject, clearManagedOnlyProject, clearPartialFailureProject, clearSymlinkEscapeProject);
+  await cleanupPaths(dryRunProject, project, distributionProject, mudballProject, existingLocalProject, opencodeProject, cursorProject, backfillProject, gradleProject, legacyDistributionProject, gatePolicyProject, tierPolicyProject, clearWorkflowProject, clearManagedOnlyProject, clearPartialFailureProject, clearSymlinkEscapeProject);
 }
 
 async function assertClearWorkflowAndMigration(projectPath) {
@@ -710,6 +712,35 @@ async function assertInitPreservesExistingLocalKnowledge(projectPath) {
   assert((await fs.readFile(path.join(projectPath, "marionettist.config.yaml"), "utf8")) === "knowledge:\n  mode: \"local-only\"\n", "init must preserve local marionettist.config.yaml");
   assert((await fs.readFile(path.join(projectPath, "docs", "current", "system-map.md"), "utf8")) === "# Local System Map\n\nKeep me.\n", "init must preserve local docs/current/system-map.md");
   assert((await fs.readFile(path.join(projectPath, ".aiassistant", "rules", "00-repository-rules.md"), "utf8")) === "# Local Rules\n\nKeep me.\n", "init must preserve local .aiassistant/rules/00-repository-rules.md");
+}
+
+async function assertCursorInstall(projectPath) {
+  await cleanupPaths(projectPath);
+  const initOutput = await harness("init", "--project", projectPath, "--auto", "--with-cursor");
+  assertIncludes(initOutput, "new-managed: .cursor/skills/task-intake/SKILL.md");
+  assertIncludes(initOutput, "new-managed: .cursor/rules/00-repository-rules.mdc");
+  assertIncludes(initOutput, "new-managed: .cursor/agents/marionettist-builder.md");
+  assertIncludes(initOutput, "new-managed: .cursor/commands/marionettist.md");
+  assertIncludes(initOutput, "new-managed: .cursor/README.marionettist.md");
+
+  assert(await pathExists(path.join(projectPath, ".cursor", "skills", "task-intake", "SKILL.md")), "Cursor init must install task-intake skill");
+  assert(await pathExists(path.join(projectPath, ".cursor", "rules", "00-repository-rules.mdc")), "Cursor init must install repository rules");
+  assert(await pathExists(path.join(projectPath, ".cursor", "agents", "marionettist-builder.md")), "Cursor init must install builder agent");
+  assert(await pathExists(path.join(projectPath, ".cursor", "commands", "marionettist.md")), "Cursor init must install marionettist command");
+
+  const manifest = await readManifest(projectPath);
+  assert.equal(manifest.cursorPathway, true);
+  assert(manifest.managedFiles.some((file) => file.path === ".cursor/skills/task-intake/SKILL.md" && file.adapter === "cursor"));
+
+  await fs.writeFile(path.join(projectPath, ".cursor", "local-note.md"), "# local cursor note\n", "utf8");
+  const syncDryRun = await harness("sync", "--project", projectPath, "--dry-run", "--with-cursor");
+  assertIncludes(syncDryRun, "unchanged: .cursor/skills/task-intake/SKILL.md");
+  assert(await pathExists(path.join(projectPath, ".cursor", "local-note.md")), "Cursor sync dry-run must preserve unmanaged local Cursor files");
+
+  const doctorResult = await harnessAllowFailure("doctor", "--project", projectPath, "--with-cursor");
+  assertIncludes(doctorResult.stdout, "PASS  .cursor/skills/task-intake/SKILL.md exists");
+  assertIncludes(doctorResult.stdout, "PASS  .cursor/commands/marionettist.md exists");
+  assertIncludes(doctorResult.stdout, "PASS  .cursor/agents/marionettist-builder.md exists");
 }
 
 async function assertOpencodeInstall(projectPath) {

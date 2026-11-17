@@ -27,3 +27,17 @@ docs/develop/
 !.opencode/commands/
 !.opencode/commands/marionettist-self-*.md
 !opencode.jsonc
+
+# Generated self-cursor local fallback mirrors from templates/pathways/cursor.
+.cursor/skills/
+.cursor/rules/
+.cursor/agents/
+.cursor/commands/
+.cursor/README.marionettist.md
+.marionettist-self/
+.opencode/commands/marionettist.md
+.cursor/skills/
+.cursor/rules/
+.cursor/agents/
+.cursor/commands/
+.cursor/README.marionettist.md
